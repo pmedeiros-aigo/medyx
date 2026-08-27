@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "developing-with-streamlit": {
+      "source": "streamlit/agent-skills",
+      "sourceType": "github",
+      "skillPath": "developing-with-streamlit/SKILL.md",
+      "computedHash": "9f8006c37398b5c6a27043bdfe3a25d4aafdfb53413618c88d2c978932f9d08e"
+    },
+    "duckdb-docs": {
+      "source": "duckdb/duckdb-skills",
+      "sourceType": "github",
+      "skillPath": "skills/duckdb-docs/SKILL.md",
+      "computedHash": "6aa9b9d013487eace5398a0e035cf5ee3efd220b34349a46e7c335cf079f7e66"
+    },
+    "query": {
+      "source": "duckdb/duckdb-skills",
+      "sourceType": "github",
+      "skillPath": "skills/query/SKILL.md",
+      "computedHash": "4ef826c2a588b8629aef536a797ea67f31f8f5a04f88acadbc5ba84f6778887d"
+    }
+  }
+}

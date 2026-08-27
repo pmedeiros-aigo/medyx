@@ -1,0 +1,10 @@
+# API (JSON + estáticos) — fase 4; front é HTML/CSS/JS vanilla, sem build,
+# sem npm, sem framework. Gráficos: ECharts via CDN (não é dependência Python).
+fastapi
+uvicorn[standard]
+
+# Motor de análise (app/utils/pipeline.py, preparar_fato.py)
+pandas
+numpy
+scipy
+pyarrow

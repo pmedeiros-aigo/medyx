@@ -1,0 +1,35 @@
+# ── macOS ───────────────────────────────────────────────────────────────────
+.DS_Store
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.pytest_cache/
+# O projeto usa o ambiente global `global-env` (ver README e CLAUDE.md).
+# Estas linhas existem para que um venv criado por engano não suba.
+.venv/
+venv/
+env/
+
+# ── Claude Code ─────────────────────────────────────────────────────────────
+# Preferências da MÁQUINA de quem desenvolve (allowlist de permissões), não do
+# projeto. As skills de `.claude/skills/` sobem, porque são ferramenta do time.
+.claude/settings.local.json
+
+# ── DADOS ───────────────────────────────────────────────────────────────────
+# Nada de dado de beneficiário ou de cooperado entra no repositório.
+#
+# As bases vivem FORA dele, em `../unimed_natal/` (ver README), e por isso não
+# há o que ignorar hoje. As regras abaixo são uma GUARDA: se alguém copiar uma
+# base para dentro da pasta do app, o git não a oferece para commit.
+*.csv
+*.parquet
+*.xlsx
+*.xls
+dados/
+dados_iniciais/
+marts/
+
+# ── Local ───────────────────────────────────────────────────────────────────
+.env
+*.log

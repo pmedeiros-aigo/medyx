@@ -1,0 +1,147 @@
+/* Medyx · tokens.css — a FONTE DA VERDADE do visual (14/ago/2026)
+ *
+ * Era cópia sincronizada do Claude Design. Deixou de ser: o design novo
+ * ("Medyx Clean v3") foi lido de lá UMA vez e recriado aqui. Daqui em diante
+ * este arquivo é o original — muda-se aqui, sem sincronização, sem
+ * "correção local".
+ *
+ * ── o que o Clean v3 mudou ──────────────────────────────────────────────────
+ *   tipografia  Inter -> Geist, com Geist Mono em TODO número (a leitura de
+ *               tabela e KPI é comparação de dígitos, e mono alinha coluna)
+ *   raio        3/5/8px -> 6px em tudo (o passo do shadcn; um raio só)
+ *   lateral     280 -> 256px, e os seletores saíram dela para o topo
+ *   sombra      mais suave e mais alta nos popovers, nada de sombra em cartão
+ *
+ * A PALETA não mudou: o verde institucional, os cinzas e as três cores
+ * semânticas (referência, leitura, crítico) continuam as mesmas. O redesenho é
+ * de forma e densidade, não de identidade.
+ */
+:root{
+  /* neutros — rampa ZINC do shadcn (14/ago).
+     A rampa anterior tinha um leve tom verde (#FBFBFA, #F5F6F5, #EDEFEE...),
+     herdado do institucional. Num app que usa o verde como SIGNIFICADO
+     (referência, mediana, item ativo), o cinza esverdeado competia com ele: o
+     acento deixava de saltar porque o fundo já era um parente dele. Cinza
+     neutro devolve o verde ao papel de sinal. */
+  --g-25:#FAFAFA; --g-50:#F7F7F8; --g-100:#F4F4F5; --g-150:#ECECEE; --g-200:#E4E4E7;
+  --g-300:#D4D4D8; --g-400:#A1A1AA; --g-500:#71717A; --g-600:#52525B; --g-700:#3F3F46;
+  --g-800:#27272A; --g-900:#18181B;
+
+  /* institucional e semântica */
+  --acc:#17624A; --acc-strong:#0F4736; --acc-soft:#EAF1EE; --acc-line:#C6D9D1;
+  --warn:#8A6414; --warn-soft:#F7F2E4; --warn-line:#E5DCC1; --warn-mark:#B48A28;
+  --crit:#8B4234; --crit-soft:#F6ECE9; --crit-line:#E2CFC9;
+
+  /* âmbar desambiguado ------------------------------------------------
+     leitura de dado  = preenchido   (acima da referência, abaixo do critério)
+     ressalva método  = só contorno tracejado (nunca preenchido, nunca num ponto) */
+  --read-above:#B48A28; --read-above-soft:#F7F2E4;
+  --caveat-line:#C9A64A; --caveat-soft:#FBF8F0; --caveat-ink:#8A6414;
+  --caveat-border-style:dashed;
+
+  /* tipografia — Geist no texto, Geist Mono em todo NÚMERO.
+     Número em mono não é enfeite: tabela e KPI são comparação de dígitos, e
+     largura fixa é o que deixa a coluna alinhar sem esforço de leitura. */
+  --font:Geist,system-ui,-apple-system,sans-serif;
+  --font-num:'Geist Mono',ui-monospace,SFMono-Regular,monospace;
+
+  /* espaço, raio, linha */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px; --s-8:64px;
+  /* UM raio só (6px), como no Clean v3: variar raio por componente é ruído que
+     ninguém percebe como intenção, só como inconsistência. Os três nomes
+     sobrevivem porque 74 regras os usam. */
+  --r-sm:6px; --r-md:6px; --r-lg:6px;
+  --line:var(--g-200); --line-soft:var(--g-150);
+  --sh-1:0 1px 2px rgba(20,25,24,.04);
+  /* CANVAS BRANCO, como num app shadcn: a área de trabalho é a superfície
+     limpa, e só a lateral se destaca do branco. O cartão volta a ser lido pela
+     BORDA (não pelo contraste de fundo), que é o padrão do sistema — borda
+     leve, raio 6, sombra mínima. */
+  --canvas:#fff;
+  --sh-pop:0 12px 32px rgba(20,25,24,.12);   /* popover e diálogo */
+
+  /* densidade de tabela */
+  /* 14px vertical (era 11px): o Claude Design usa 16px na página de Área, e
+     11px apertava a linha contra a régua de 1px. 14 é o meio que mantém 15
+     linhas na dobra sem a tabela virar lista de texto corrido.
+     CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
+  --row-pad:14px 12px;
+  --row-pad-compact:7px 12px;
+  --row-hover:var(--g-25);
+  /* Linha selecionada em NEUTRO, não em institucional.
+     Seleção é estado de INTERAÇÃO; âmbar e vermelho na mesma linha são estado de
+     DADO. Com --acc-soft a interação inundava a linha inteira enquanto a marca
+     do dado tinha 3px, e o verde vencia a leitura que a linha existe para dar.
+     Some-se que --acc já tem significado atribuído no mapa de cor (referência,
+     mediana, item ativo): usá-la aqui dava dois sentidos ao mesmo pigmento.
+     --g-100 fica um degrau acima do hover (--g-25), então os dois estados
+     continuam distinguíveis; --g-900 na canaleta é a mesma tinta neutra que o
+     sistema já usa para "este é o que você apontou" (.seg>span.on, .tab.on). */
+  --row-selected:var(--g-100);
+  --row-selected-edge:var(--g-900);
+
+  /* ---------- gráfico ---------- */
+  /* CLEAN V3: a plotagem encolheu de 240px para 96px. A altura antiga vinha de
+     um beeswarm que espalhava os pontos por 132px para não se encostarem; o
+     Clean v3 resolve o mesmo problema com BOX: a caixa interquartil dá o
+     contexto que o espalhamento dava, e os pontos ocupam só a faixa dentro
+     dela. O gráfico deixa de tomar meia dobra para dizer o que diz. */
+  --ch-h:110px;
+  /* O Pareto tem altura PRÓPRIA: ele é um gráfico de barras com curva
+     acumulada e precisa de amplitude vertical para a diferença entre a
+     primeira barra e a cauda ser legível. Compartilhava --ch-h com a
+     distribuição e encolheu junto quando ela virou box plot. */
+  --ch-h-pareto:200px;
+  --ch-h-sm:120px;
+  --ch-pad-x:8px;
+  --ch-dot:7px;                 /* diâmetro do ponto */
+  --ch-dot-hi:8px;              /* diâmetro do ponto destacado */
+  --ch-dot-op:1;
+  --ch-dot-op-muted:.55;
+  --ch-dot-halo:0 0 0 3px rgba(139,66,52,.12);   /* halo do ponto crítico */
+  /* Dispersão vertical do ponto, agora DENTRO da caixa. */
+  --ch-jitter:34px;
+  --ch-ref-w:1px;               /* espessura das linhas de referência */
+  --ch-ref-op:.78;
+  --ch-ref-style-median:solid;  /* mediana da área */
+  --ch-ref-style-criterion:dashed; /* critério de revisão */
+  /* A caixa interquartil é NEUTRA (Clean v3): ela é contexto, não dado. Em
+     verde competia com a mediana, que é a referência de fato. */
+  --ch-iqr-fill:var(--g-25);
+  --ch-iqr-line:var(--line);
+  --ch-haste:var(--g-300);      /* haste do box: mínimo ao máximo observado */
+  --ch-axis:var(--g-300);
+  --ch-axis-w:1px;
+  --ch-axis-fs:10.5px;          /* rótulo de eixo */
+  --ch-label-fs:11px;           /* rótulo de linha de referência */
+  --ch-bar-h:6px;
+  --ch-bar-track:var(--g-100);
+
+  /* ---------- shell do aplicativo ---------- */
+  --shell-side-w:256px;      /* barra lateral */
+  --shell-top-h:52px;        /* barra superior fixa */
+  /* LATERAL ESCURA (2026-08-19, da página "Área de Atuação" do Claude Design).
+     Era #FAFAFA. O verde profundo é o único plano escuro do app: a lateral é
+     chassi, e o contraste forte com o branco do conteúdo separa as duas sem
+     régua nenhuma — a borda direita saiu junto.
+     As tintas de dentro são BRANCO EM OPACIDADE, não cinzas próprios: sobre um
+     fundo só, a escala de alfa mantém a hierarquia sem inventar seis cores que
+     depois teriam de existir também no claro. */
+  --shell-side-bg:#0F1D18;
+  --side-ink:#fff;                       /* item ativo, marca */
+  --side-ink-2:rgba(255,255,255,.66);    /* item em repouso */
+  --side-ink-3:rgba(255,255,255,.4);     /* rótulo de grupo */
+  --side-icon:rgba(255,255,255,.5);
+  --side-icon-on:#7BC4A8;                /* verde claro: só no item ativo */
+  --side-hover:rgba(255,255,255,.06);
+  --side-active:rgba(255,255,255,.1);
+  --side-line:rgba(255,255,255,.1);
+  --shell-params-bg:var(--g-50);
+  --shell-nav-active-bg:var(--acc-soft);
+  --shell-nav-active-bar:2px;
+  --content-max:1600px;      /* área de trabalho fluida até */
+  --content-min:1280px;      /* largura mínima suportada — sem mobile */
+  --content-pad:24px;
+  --focus-ring:0 0 0 2px #fff, 0 0 0 4px var(--acc);
+  --focus-ring-offset:2px;
+}

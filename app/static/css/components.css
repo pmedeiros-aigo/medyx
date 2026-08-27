@@ -1,0 +1,2158 @@
+/* Medyx · components.css — CÓPIA SINCRONIZADA · NÃO EDITAR À MÃO
+ *
+ *   origem : Claude Design · projeto "Medyx - Style tile Enterprise"
+ *            (3a94742c-5e71-4672-aaa8-8ac768f9a7fd) · arquivo components.css
+ *   guia   : Medyx Style Guide.html   (canônico)
+ *   sync   : 2026-08-03 (29ª). RECORTE POR PERFIL: `.plot.com-recorte` +
+ *              `.pt-no-recorte` (realce de SUBCONJUNTO no gráfico, sem anel —
+ *              o anel é da escolha de um ponto; as linhas de referência não são
+ *              tocadas, de propósito), `.opt.opt-na` (opção não escolhível, com
+ *              motivo no title) e `.selperfil` + o mecanismo `#perfil-sh` do
+ *              combobox no cabeçalho do bloco.
+ *            A 28ª trouxe: `.col-pos` de 270 para 200px: era a coluna
+ *              mais larga da tabela, e os 70px pagam parte da coluna nova
+ *              "Origem do excedente".
+ *            A 27ª trouxe: `.col-chev` + `.chev`: coluna de ação sem
+ *              cabeçalho (44px) e o chevron que abre o dossiê, SEGUNDA
+ *              afordância do mesmo destino — a linha é larga demais para quem
+ *              lê a última coluna voltar ao nome. E `.stats .v-ressalva`,
+ *              apelido de `.v.rng` para o valor que é ressalva e não intervalo
+ *              (fecha o item 6 de PENDENCIAS.md).
+ *            A 26ª trouxe: FAIXA DE CRITÉRIOS na barra superior, promovida
+ *              de "Criterios da Analise.html" (arranjo A, adotado). Família
+ *              `.critbar` / `.crithead` / `.critset` / `.critchip` / `.critname`
+ *              / `.critval` / `.critact` / `.crit-mod` / `.crit-rst` /
+ *              `.crit-owner`, mais `.modal-crit`, `.dlg-grp`, o segmentado por
+ *              radio (`.seg input:checked + .seg-o`) e `.seg-o.na`. O bloco
+ *              "Análise" sai da barra lateral, que fica só com navegação e
+ *              escopo; o diálogo de requisitos mínimos é absorvido pelo de
+ *              critérios (dois grupos, um só ato de aplicação).
+ *            A 25ª trouxe: CHASSI FIXO, CONTEÚDO ROLANTE — a `.topbar`
+ *              já nascia `position:sticky`, mas nunca grudava: `.shell-frame`
+ *              tem `overflow-x:auto`, o que faz dela o contêiner de rolagem,
+ *              e ela crescia com o conteúdo em vez de rolar. Quem rolava era o
+ *              body, e sticky não enxerga o body a partir dali. Agora o app
+ *              ocupa exatamente a janela e a rolagem vertical desce para
+ *              `.content`. Barra lateral e barra superior ficam sempre à vista.
+ *              Escopo por `:has(>.shell-app)`: o `.shell-frame` do guia, que
+ *              exibe a shell dentro de um cartão, não muda.
+ *            A 24ª trouxe: `.pt.sel` renomeada para `.pt-escolhido`:
+ *              `.sel` já era o contêiner do combobox (position:relative,
+ *              display:flex). Aplicada ao ponto, tirava o position:absolute e
+ *              o jogava para fora da plotagem. Mesma colisão de `.wrap`.
+ *            A 23ª trouxe: `.cell-name .cell-sub` — a sub-linha de
+ *              etiquetas volta a quebrar e a OCUPAR espaço (herdava o nowrap
+ *              do nome e passava por cima das colunas de valor). E `.tbl-nav`
+ *              REMOVIDA: linha inteira clicável impede seleção de texto, não
+ *              tem afordância nem foco por teclado, e disputa o clique com a
+ *              seleção vinda do gráfico. Navegação vira link no nome.
+ *            A 22ª trouxe: `.tbl-nav` (linha que navega ao dossiê),
+ *              `.plot.com-selecao` + `.pt.sel` (ponto escolhido; os demais
+ *              recuam para --ch-dot-op-muted, token que nunca fora usado) e
+ *              `.val-ressalva` (número medido que não sustenta comparação:
+ *              esmaecido e com o tracejado de ressalva de método).
+ *            A 21ª trouxe: `th.wrap` renomeada para `th.quebra`: `.wrap`
+ *              já era o invólucro de página (display:flex, max-width 1280,
+ *              padding 48). Aplicada a um `th`, virava contêiner flex e
+ *              desmontava a linha do cabeçalho — duas células iam parar uma
+ *              embaixo da outra e o thead ia a 216px.
+ *            A 20ª trouxe: Escala de largura de coluna REFEITA a partir de
+ *              medição (rótulo na fonte do th + 24 de padding + 14 da seta),
+ *              não de estimativa. Cabeçalho pode quebrar em duas linhas; três
+ *              esticavam o thead inteiro.
+ *            A 19ª trouxe: TABELA DE LARGURA ESTÁVEL: `.tbl-fixa`
+ *              (table-layout:fixed) + escala de larguras de coluna. Com layout
+ *              automático, ordenar movia todas as colunas de lugar (a seta
+ *              mudava a largura do th e o resto se redistribuía) e uma coluna
+ *              de texto longo espremia as outras. E o espaço da seta passa a
+ *              ser reservado em todo cabeçalho ordenável.
+ *            A 18ª trouxe: Régua da tabela de 12px para 18px; `.col-pos`
+ *              (largura da coluna que carrega gráfico) e `th.wrap` (cabeçalho
+ *              longo quebra em vez de alargar a coluna). E `tr.acima-ref`:
+ *              canaleta ÂMBAR para acima da referência e abaixo do critério —
+ *              REVERTE a regra da 14ª, que mantinha esse nível só na célula do
+ *              valor. Pedido do usuário.
+ *            A 17ª trouxe: A LINHA SELECIONADA muda só o fundo: a canaleta
+ *              da esquerda passa a ser território exclusivo do indicador de
+ *              posição. Dois traços de 2 e 3px no mesmo lugar disputavam a
+ *              mesma leitura, e o que se procura ali é o dado, não o próprio
+ *              clique. --row-selected-edge ficou SEM USO.
+ *            A 16ª trouxe: `th.ord` — cabeçalho ordenável, três estados
+ *              (sem ordenação, decrescente, crescente). Indicador só na coluna
+ *              ativa; tinta neutra, porque ordenar é interação e --acc já
+ *              significa referência.
+ *            A 15ª trouxe: `.compbar-ro` — variante de LEITURA da barra de
+ *              composição. Ela deixa de filtrar: a largura do segmento é o n, e
+ *              o alvo de clique encolhia com o dado (18px com um cooperado,
+ *              menos numa área grande), abaixo do mínimo da WCAG 2.2 justo
+ *              quando o grupo é mais raro. O filtro migrou para os chips.
+ *            A 14ª trouxe CONCILIAÇÃO DE COR, escrita na origem: âmbar e
+ *              vermelho passam a ser UMA escala só (distância do grupo), e
+ *              ELEGIBILIDADE sai dela. "Fora da construção da norma" (.cb-c)
+ *              deixa o âmbar e vira cinza HACHURADO; número escuro nos dois
+ *              segmentos claros; `.sw-hatch` para a amostra da legenda.
+ *              E `tr.acima` troca --read-above por --crit: pintar "acima do
+ *              critério" com a tinta reservada a "abaixo do critério" era o
+ *              mesmo erro, só mudado de lugar. Linha abaixo do critério NÃO
+ *              recebe canaleta — quem carrega o âmbar é a célula do valor.
+ *            A 13ª trouxe A MOLDURA DA TABELA, seis itens:
+ *              `tr.acima` (marca de 3px na canaleta, sem fundo, convive com
+ *              `tr.selected`) · `.tbl` SEM overflow:hidden, com o raio nas
+ *              pontas internas — era ele que cortava a bolha do `.help` ·
+ *              `.tbl-fill` (altura contra a janela, com piso) · `.tbl-band`
+ *              (faixa interna, onde a barra de composição passa a viver) ·
+ *              `.casc-*` (painel da cascata) · `.tbl-hd .help` + `.help-r`.
+ *            RESTRIÇÃO da origem: o ⓘ NÃO pode ficar dentro de `<th>` — o th
+ *              é sticky dentro de `.tbl-scroll` e a bolha seria recortada.
+ *              Definição de coluna vive no `.tbl-hd` ou no painel da cascata.
+ *            A 12ª tratou da BARRA DE COMPOSIÇÃO: o traço de 2px sob o
+ *              segmento saiu. A seleção passa a ser marcada só por CONTRASTE
+ *              (escolhido em cor cheia, demais em opacity .5), e sem nenhum
+ *              escolhido todos voltam a cor cheia — estado "vendo a área
+ *              inteira". Corrigida junto a colisão de especificidade que
+ *              matava o :hover quando havia segmento escolhido.
+ *            A 11ª havia trazido esse traço:
+ *              o contorno interno saiu; a escolha vira traço de 2px ABAIXO do
+ *              segmento (`label::after`), como a aba ativa, e os demais
+ *              esmaecem para opacity .5. Motivo escrito na origem: contorno
+ *              interno de 2px falseia a proporção em segmentos estreitos —
+ *              e a proporção é o dado. `overflow:hidden` saiu da faixa (o
+ *              traço precisa escapar) e o raio foi para o 1º e o último rótulo.
+ *            A 10ª trouxe `.deviation` RESTAURADO. Havia sido removido
+ *              do guia; o ajuste 3 do CLAUDE.md, que o exige, permanece — o
+ *              componente é que voltou. Era a única falha ATIVA do contrato:
+ *              o analista tirava a régua do padrão e nada avisava.
+ *            A 9ª trouxe o pedido único de quatro itens:
+ *              1. `.dlg-u` — a unidade vai para o RÓTULO da linha. Dentro do
+ *                 stepper ela só cabia truncada ("100 consultas") quando o
+ *                 número é 100 consultas/ANO: encurtar não limpou o controle,
+ *                 tornou o dado impreciso.
+ *              2. `.stepnum` com largura flexível e número à direita.
+ *              3. `.tabs .tab` — item com classe própria,
+ *                 independente do elemento. `.tabs>span` só vestia <span>: um
+ *                 <button>, que é o elemento correto para algo que aciona,
+ *                 ficava sem estilo.
+ *                 NÃO estendido a `.seg .seg-o`: a tentativa quebrou o
+ *                 controle segmentado (a regra nova tinha `flex:none` e
+ *                 vencia `.seg>label{flex:1}` na especificidade, então os
+ *                 segmentos pararam de preencher a linha). Revertido.
+ *                 `.seg-o` segue sem regra própria, vestido por `.seg>label`.
+ *              4. Estado vazio: 39 `style=` viraram classe (`.row-between`,
+ *                 `.skel-cols`, `.skel-w*`, `.lbl-caveat`, `.provtag-caveat`,
+ *                 `.link-crit`, `.mt10`, `.skel-row-last`). As posições dos
+ *                 pontos do gráfico continuam inline de propósito: são DADO
+ *                 vindo do motor, não decisão visual.
+ *            A 8ª trouxe `.dlg-confirm` / `.modal.confirming`
+ *              — confirmação de descarte no rodapé do diálogo, no lugar de um
+ *              segundo modal (sobrepor diálogo a diálogo esconderia o valor
+ *              sobre o qual se decide).
+ *            A 7ª trouxe o STEPPER COM VALOR DIGITÁVEL:
+ *              `.stepnum` (campo sem moldura própria — a borda é do stepper),
+ *              `.stepper:focus-within`, `.stepper.invalid` e `.step-err`.
+ *              Motivo: limiar de faixa larga não se ajusta a cliques — sair de
+ *              100 para 150 seriam 50 toques. Os − e + ficam para ajuste fino.
+ *              NOTA: a faixa horizontal `.parambar` (6ª sync) está marcada no
+ *              guia como ARRANJO NÃO ADOTADO — o que vale é o painel lateral.
+ *            A 6ª trouxe a FAIXA HORIZONTAL DE PARÂMETROS:
+ *              · `.parambar` / `.pfield` / `.plbl` — a régua da análise deitada
+ *                no topo da área de trabalho, 48px, SEM estado recolhido.
+ *              · `.help` + `.help .tip` — o ⓘ por controle, que substitui as
+ *                quatro frases fixas de `.sel-note`. Bolha própria e não
+ *                `title=` porque tooltip nativo não abre por teclado, não
+ *                formata e não aceita link.
+ *              · `.oc,.r{position:absolute;opacity:0;pointer-events:none}` —
+ *                regra GENÉRICA. Antes cada contêiner repetia a sua
+ *                (.cascade, .panel-in, .ctxbar, .navdemo) e cada contêiner novo
+ *                precisava de mais uma. RETIRA o desvio `.nav>.oc`.
+ *              · `.ctxbar` / `.p-blk-page` finalmente RENDERIZADAS no guia
+ *                (existiam no CSS desde sempre, sem demonstração).
+ *   depende de tokens.css
+ *
+ * DESVIOS AUTORIZADOS em relação à origem — reaplicar a cada ressincronização.
+ * Os dois vivem no bloco do FIM do arquivo:
+ *   · 4 regras `.on` do combobox (buscar `.sel-trig .v.on`). Na origem o
+ *     componente é acionado por ids do demo (#e-gyn:checked …), que não cobrem
+ *     áreas vindas da API. Mesmo efeito visual, nenhum token novo.
+ *   · `.params{margin-top:0}` — o painel lateral encosta na navegação em vez de
+ *     descer ao rodapé. Decisão do usuário. Só importa se o painel lateral
+ *     voltar: hoje a lateral é só navegação. PENDENTE DE RATIFICAÇÃO.
+ *
+ *   RETIRADO nesta sync: `.nav>.oc` — a regra genérica `.oc,.r` da origem cobre.
+ *
+ * DESVIO NÃO DECIDIDO — o `@import` abaixo não existe na origem. Redundante:
+ * area.html já carrega tokens.css antes deste arquivo. Mantido à espera de decisão.
+ *
+ * PONTAS SOLTAS no Design (limpeza pendente lá, não são desvios):
+ *   · 256 regras mortas (~32% do arquivo): família `.fields` + `.sidemock` + 60
+ *     ids de demo. Lista precisa de revisão manual — a detecção automática quase
+ *     apagou `#cf-80`, que é vivo.
+ *   · `--shell-params-bg` sem uso desde que o painel virou #fff.
+ *   · `.v1` usada na marcação sem nenhuma regra.
+ *   · `.sel-note` fica órfã agora que as notas viraram `.help`.
+ *   · `.rec-mark` / `.rec-hint` / `.arealist` / `.ctxval` / `.seg-o` declaradas
+ *     e nunca usadas no HTML do guia.
+ *
+ * Mudança de componente se faz no Claude Design; aqui só se ressincroniza.
+ * Procedimento: CLAUDE.md § Contrato visual — fonte da verdade e sincronização.
+ */
+@import "tokens.css";
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body{background:#fff;color:var(--g-900);font-family:var(--font);font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+a{color:var(--acc);text-decoration:none}
+a:hover{color:var(--acc-strong);text-decoration:underline}
+
+/* ---------- layout ---------- */
+.page{min-height:100vh;padding:56px 0 96px}
+.wrap{max-width:1280px;margin:0 auto;padding:0 48px;display:flex;flex-direction:column;gap:56px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.g4{gap:4px}.g6{gap:6px}.g8{gap:8px}.g10{gap:10px}.g12{gap:12px}.g14{gap:14px}.g20{gap:20px}.g24{gap:24px}
+.row{display:flex;align-items:center;gap:12px}
+.row-b{display:flex;align-items:baseline;gap:12px}
+.row-t{display:flex;align-items:flex-start;gap:14px}
+.flexwrap{flex-wrap:wrap}
+.grid{display:grid;gap:16px}
+.c2{grid-template-columns:repeat(2,1fr)}
+.c3{grid-template-columns:repeat(3,1fr)}
+.c4{grid-template-columns:repeat(4,1fr)}
+.c12{grid-template-columns:repeat(12,1fr)}
+.c-side{grid-template-columns:280px 1fr;align-items:start}
+.c-15{grid-template-columns:1.5fr 1fr}
+.c-12r{grid-template-columns:1.2fr 1fr}
+.c-113{grid-template-columns:1.1fr 1fr 1fr}
+.push{margin-left:auto}
+.mt-auto{margin-top:auto}
+
+/* ---------- tipografia ---------- */
+h1{font-size:34px;line-height:1.12;font-weight:600;letter-spacing:-.02em;color:var(--g-900)}
+/* CLEAN V3: o nome da ÁREA é a âncora da tela — a primeira coisa que responde
+   "sobre quem estou lendo". Em 20px ele se confundia com os títulos de bloco
+   (14px, 600) e a hierarquia da página tinha um degrau só. 26px com tracking
+   negativo é o porte de título de página do sistema. */
+h2{font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.2;color:var(--g-900)}
+.lead{font-size:15px;color:var(--g-600);max-width:62ch;text-wrap:pretty}
+.lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500)}
+.sub{font-size:12.5px;color:var(--g-500)}
+.note{font-size:11.5px;color:var(--g-500);line-height:1.6}
+.note-t{border-top:1px solid var(--line-soft);padding-top:12px}
+.micro{font-size:11px;color:var(--g-400)}
+/* CLEAN V3: número é MONO, não só tabular. A tabela e os KPIs são comparação
+   de dígitos, e largura fixa é o que faz a coluna alinhar sozinha. */
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:400}
+.rt{text-align:right}
+.ink{color:var(--g-900)}
+.mute{color:var(--g-400)}
+.big{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--g-900);font-variant-numeric:tabular-nums}
+.huge{font-size:40px;font-weight:600;letter-spacing:-.03em;line-height:1;color:var(--g-900);font-variant-numeric:tabular-nums}
+.rule{font-size:12.5px;color:var(--g-500);max-width:96ch;text-wrap:pretty;border-left:1px solid var(--g-200);padding-left:14px}
+
+/* ---------- seção ---------- */
+.sec{display:flex;flex-direction:column;gap:20px}
+.sec-hd{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.sec-n{font-size:11px;font-weight:600;color:var(--g-400);font-variant-numeric:tabular-nums}
+.site-hd{display:flex;justify-content:space-between;align-items:flex-end;gap:48px;padding-bottom:24px;border-bottom:1px solid var(--g-300)}
+.stamp{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--warn-line);background:var(--warn-soft);color:var(--warn);border-radius:var(--r-sm);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.dot-6{width:6px;height:6px;border-radius:50%;background:var(--warn-mark)}
+.brandline{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--g-500);font-weight:600}
+.meta-r{display:flex;flex-direction:column;gap:6px;align-items:flex-end;font-size:11.5px;color:var(--g-500);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* ---------- superfícies ---------- */
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:20px 22px;display:flex;flex-direction:column;gap:16px}
+.card-flat{padding:0;gap:0;overflow:hidden}
+.card-sm{padding:16px 18px;gap:6px}
+.card-ghost{background:#fff;border:1px dashed var(--g-300);border-radius:var(--r-md);padding:22px 24px;display:flex;flex-direction:column;gap:8px}
+.card-warn{border-left:3px solid var(--warn-mark)}
+.recess{background:var(--g-25);border:1px solid var(--line-soft);border-radius:var(--r-md)}
+.elev{box-shadow:var(--sh-1)}
+.card-ft{padding:12px 16px;border-top:1px solid var(--line-soft);background:var(--g-25);font-size:11px;color:var(--g-500);line-height:1.6;font-variant-numeric:tabular-nums}
+.v1{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500);border:1px solid var(--g-200);background:var(--g-50);border-radius:var(--r-sm);padding:2px 6px;white-space:nowrap}
+
+/* ---------- marca ---------- */
+.mark{display:block;fill:var(--g-900)}
+.mark-inv{fill:#fff}
+.appl{display:flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.appl>div{flex:1;padding:18px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--line);position:relative}
+.appl>div:last-child{border-right:0}
+.appl-dark{background:var(--g-900)}
+.appl-bad{background:var(--acc)}
+.appl-bad svg{opacity:.4}
+.appl-bad span{position:absolute;bottom:5px;right:7px;font-size:9.5px;color:rgba(255,255,255,.75)}
+
+/* ---------- paleta ---------- */
+.ramp{display:grid;grid-template-columns:repeat(12,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.ramp span{height:76px}
+.ramp-lbl{display:grid;grid-template-columns:repeat(12,1fr);gap:1px;font-size:10.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.swatch{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.swatch>.chip{height:64px}
+.swatch>.body{padding:12px 14px;display:flex;flex-direction:column;gap:3px}
+.swatch .t{font-size:13px;font-weight:600}
+.swatch .d{font-size:11.5px;color:var(--g-500);line-height:1.5}
+.swatch .k{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums;margin-top:2px}
+
+/* ---------- escala tipo / espaço ---------- */
+.type-row{display:flex;align-items:baseline;gap:20px}
+.type-key{width:104px;flex:none;font-size:10.5px;color:var(--g-400);letter-spacing:.06em;text-transform:uppercase}
+.sp-row{display:flex;align-items:center;gap:12px}
+.sp-key{width:52px;font-size:11.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.sp-bar{height:10px;background:var(--acc)}
+.sp-bar.soft{background:var(--acc-line)}
+.gridview{display:grid;grid-template-columns:repeat(12,1fr);gap:8px;height:96px}
+.gridview span{background:var(--g-100);border-top:2px solid var(--g-200)}
+.surf{flex:1;height:64px;display:flex;align-items:flex-end;padding:8px;font-size:10.5px;color:var(--g-500);background:#fff;border:1px solid var(--line);border-radius:var(--r-md)}
+
+/* ---------- banner ---------- */
+.banner{display:flex;align-items:flex-start;gap:14px;background:var(--warn-soft);border:1px solid var(--warn-line);border-left:3px solid var(--warn-mark);border-radius:var(--r-md);padding:14px 18px}
+.banner .dot{width:7px;height:7px;border-radius:50%;background:var(--warn-mark);margin-top:6px;flex:none}
+.banner .t{font-size:13px;font-weight:600;color:var(--warn)}
+.banner .d{font-size:12.5px;color:var(--g-600);max-width:110ch}
+.banner a{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--warn);white-space:nowrap;align-self:center}
+.banner-err{background:var(--crit-soft);border-color:var(--crit-line);border-left-color:var(--crit)}
+.banner-err .dot{background:var(--crit)}
+.banner-err .t{color:var(--crit)}
+
+/* ---------- etiquetas ---------- */
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;border-radius:var(--r-sm);padding:2px 7px;white-space:nowrap}
+.tag-attr{color:var(--g-600);background:var(--g-100)}                                   /* atributo neutro */
+.tag-read{color:var(--g-800);background:var(--read-above-soft);border:1px solid var(--warn-line);font-weight:500;font-variant-numeric:tabular-nums} /* leitura de concentração */
+.tag-read .mk{width:6px;height:6px;border-radius:50%;background:var(--read-above)}
+.tag-ctx{color:var(--acc-strong);background:var(--acc-soft);border:1px solid var(--acc-line)} /* contexto verificado */
+.tag-ctx .mk{width:6px;height:6px;border-radius:50%;background:var(--acc)}
+.tag-caveat{color:var(--caveat-ink);background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);font-weight:500}
+.tag-off{color:var(--g-500);background:var(--g-50);border:1px solid var(--line-soft)}
+.pill{font-size:11.5px;padding:4px 9px;border:1px solid var(--g-200);color:var(--g-600);border-radius:999px}
+.pill-on{border-color:var(--g-800);background:var(--g-800);color:#fff}
+.pill-ok{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc-strong)}
+.pill:hover{border-color:var(--g-400);cursor:pointer}
+.pill-on:hover{border-color:var(--g-800)}
+.chipbtn{display:inline-flex;align-items:center;min-height:28px;padding:5px 11px;border:1px solid var(--g-200);border-radius:var(--r-sm);font-size:12px;color:var(--g-700);white-space:nowrap;background:#fff}
+.chipbtn:hover{border-color:var(--g-400);cursor:pointer}
+.chipbtn-acc{border-color:var(--acc);color:var(--acc-strong);background:var(--acc-soft)}
+.provtag{border:1px solid var(--line);border-radius:var(--r-sm);padding:3px 8px}
+.provtag-warn{border-color:var(--warn-line);background:var(--warn-soft);color:var(--warn)}
+.arrow{color:var(--g-300);font-size:11px}
+
+/* ---------- controles ---------- */
+.field{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--g-200);border-radius:var(--r-sm);padding:8px 10px;font-size:13px;background:var(--g-25)}
+.field:hover{border-color:var(--g-300);cursor:pointer}
+.field-on{border-color:var(--acc);background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+.field-on:hover{border-color:var(--acc)}
+.field-off{background:var(--g-50);border-color:var(--line-soft);color:var(--g-400);cursor:not-allowed}
+.field-off:hover{border-color:var(--line-soft);cursor:not-allowed}
+/* CLEAN V3: trilho cinza e pastilha BRANCA no ativo (o segmentado do
+   shadcn). O ativo em preenchimento escuro fazia de um controle de leitura o
+   elemento mais pesado da tela. */
+.seg{display:flex;gap:2px;padding:2px;border:0;background:var(--g-100);border-radius:var(--r-sm)}
+.seg>span,.seg>label{flex:1;text-align:center;padding:5px 0;font-size:12px;color:var(--g-600);border:0;border-radius:calc(var(--r-sm) - 2px);cursor:pointer}
+.seg>span:hover,.seg>label:hover{color:var(--g-900)}
+.seg>span.on,.seg>label.on{font-weight:500;background:#fff;color:var(--g-900);box-shadow:var(--sh-1)}
+.seg>span.on:hover,.seg>label.on:hover{background:#fff}
+.ctl-hd{display:flex;justify-content:space-between;font-size:11.5px;color:var(--g-500)}
+.ctl-hd b{font-weight:400;color:var(--g-800);font-variant-numeric:tabular-nums}
+.stepper{display:flex;align-items:center;justify-content:space-between;height:32px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;padding:0 5px 0 12px;font-family:var(--font-num);font-size:12px}
+.stepper .btns{display:flex;gap:4px}
+.stepper .btns span,.stepper .btns label{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid var(--g-200);border-radius:var(--r-sm);font-size:12px;color:var(--g-600);cursor:pointer}
+.stepper .btns span:hover,.stepper .btns label:hover{border-color:var(--g-400)}
+.stepper .btns label:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.slider{height:3px;background:var(--g-150);border-radius:2px;position:relative}
+.slider .fill{position:absolute;left:0;top:0;bottom:0;background:var(--acc);border-radius:2px}
+.slider .knob{position:absolute;top:-4px;width:11px;height:11px;border-radius:50%;background:#fff;border:1px solid var(--acc);margin-left:-5px}
+.disabled{opacity:.55;pointer-events:none}
+.lock{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--g-400)}
+
+/* abas */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line)}
+.tabs>span{padding:9px 14px;font-size:13px;color:var(--g-500);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs>span:hover{color:var(--g-800);cursor:pointer}
+.tabs>span.on{color:var(--g-900);font-weight:600;border-bottom-color:var(--g-900)}
+.tabs>span.off{color:var(--g-300);cursor:not-allowed}
+.tabs>span.off:hover{color:var(--g-300)}
+.tabs .cnt{font-variant-numeric:tabular-nums;color:var(--g-400);font-weight:400;margin-left:6px}
+
+/* barra de composição segmentada */
+/* A seleção é marcada só por CONTRASTE: o segmento escolhido fica em cor cheia
+   e os demais recuam para opacity .5. Nada é desenhado sobre nem sob a faixa —
+   contorno interno de 2px falseia a proporção em segmentos estreitos, e traço
+   por baixo pedia respiro que separava a faixa da própria legenda.
+   Sem nenhum escolhido, todos voltam a cor cheia: é o estado "vendo a área
+   inteira", e a ausência de destaque é a leitura correta dele. */
+.compbar{position:relative;display:flex;height:26px;border:1px solid var(--line);border-radius:var(--r-sm)}
+.compbar input{position:absolute;opacity:0;pointer-events:none}
+.compbar label{position:relative;display:flex;align-items:center;justify-content:center;font-size:11px;font-variant-numeric:tabular-nums;color:#fff;cursor:pointer;border-right:1px solid #fff;transition:opacity .12s ease}
+.compbar label:first-of-type{border-top-left-radius:calc(var(--r-sm) - 1px);border-bottom-left-radius:calc(var(--r-sm) - 1px)}
+.compbar label:last-child{border-right:0;border-top-right-radius:calc(var(--r-sm) - 1px);border-bottom-right-radius:calc(var(--r-sm) - 1px)}
+.cb-a{background:var(--acc)}
+.cb-b{background:var(--g-300)}
+/* --- Conciliação de cor -----------------------------------------------------
+   Âmbar e vermelho pertencem a UMA escala só: distância do grupo (âmbar = acima
+   da referência e abaixo do critério; vermelho = acima do critério). Usar âmbar
+   também para "fora da construção da norma" dava ao mesmo pigmento dois eixos
+   diferentes — magnitude e elegibilidade —, e as duas leituras se contaminam.
+   Elegibilidade não é magnitude: quem não entra na norma não está "mais alto",
+   está fora da conta. Por isso a exclusão sai da escala e volta ao cinza, com
+   hachura distinguindo o motivo. Cinza sólido = sem volume mínimo; hachurado =
+   fora da construção da norma. Nenhuma cor nova entra no sistema. */
+.cb-c{background:var(--g-300);background-image:repeating-linear-gradient(135deg,transparent 0 4px,rgba(255,255,255,.85) 4px 7px)}
+.sw-hatch{background:var(--g-300)!important;background-image:repeating-linear-gradient(135deg,transparent 0 3px,rgba(255,255,255,.9) 3px 5px)}
+/* Número escuro nos segmentos claros: branco sobre --g-300 não tem contraste.
+   Precisa de dois níveis de classe para vencer `.compbar label`, que define #fff
+   para os segmentos de cor cheia. */
+.compbar .cb-b,.compbar .cb-c{color:var(--g-900)}
+.compbar:has(input:checked) label{opacity:.5}
+/* não selecionado esmaece, mas 50% apaga texto escuro sobre cinza claro */
+.compbar:has(input:checked) .cb-b,.compbar:has(input:checked) .cb-c{opacity:.72}
+.compbar label:hover,.compbar:has(input:checked) label:hover{opacity:1}
+.compbar input:checked+label{opacity:1}
+.compbar input:focus-visible+label{box-shadow:var(--focus-ring)}
+/* Variante de LEITURA da barra: mostra a proporção e não filtra nada.
+   Motivo estrutural, não estético: a largura do segmento é o próprio n, então o
+   alvo de clique encolhe junto com o dado — "abaixo do volume mínimo" com um
+   cooperado mede 18px, e numa área grande mediria 5. Fica abaixo do mínimo de
+   24px da WCAG 2.2 justamente quando o grupo é mais raro, que é quando mais se
+   quer investigá-lo. Um controle que encolhe com o dado não é um controle.
+   O filtro mora nos chips, onde o alvo tem tamanho constante e o estado é
+   inequívoco. Aqui o cursor deixa de prometer o que a barra não faz. */
+.compbar-ro label{cursor:default}
+.compbar-ro label:hover{opacity:inherit}
+
+.complegend{display:flex;flex-wrap:wrap;gap:18px;font-size:11.5px;color:var(--g-600)}
+.complegend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px;vertical-align:-1px}
+
+/* faixa de estatísticas sem moldura */
+/* ---------- KPIs da página de área ------------------------------------------
+   Origem: Claude Design, página "Área de Atuação.dc.html" — grade de colunas
+   iguais, SEM moldura: rótulo em versalete, número em Geist Mono 28px, apoio
+   em 11px. Substituiu os cartões com borda em 2026-08-19.
+   Sincronizado à mão a partir da página (o Style Guide não expõe este
+   componente isolado); REPLICAR NO DESIGN como componente do guia.
+   Quatro colunas mesmo com 3 KPIs: é a largura que o Design desenhou, e
+   esticar três para a linha inteira mudaria o ritmo da página. */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:24px}
+.kpi{display:flex;flex-direction:column;gap:6px}
+.kpi .k{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400)}
+.kpi .v{font-family:var(--font-num);font-size:28px;font-weight:500;letter-spacing:-.01em;line-height:1;color:var(--g-900)}
+.kpi .h{font-size:11px;color:var(--g-400)}
+/* o apoio que carrega explicação ganha o pontilhado de "tem hover", como o
+   "em quarentena" da página do Design */
+.kpi .h.tem-hover{border-bottom:1px dotted var(--g-300);cursor:help;align-self:flex-start}
+
+.stats{display:flex;align-items:stretch}
+/* Sem divisores verticais (Clean v3): quatro colunas com respiro já se leem
+   como quatro; o traço entre elas era mais uma régua para nada. */
+.stats{gap:32px}
+.stats>div{display:flex;flex-direction:column;gap:4px;border-left:0;padding:0}
+.stats .k{font-size:11.5px;color:var(--g-500)}
+.stats .v{font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--g-900);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stats .v.rng{font-size:17px}
+.stats .h{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums}
+
+/* mini-série de consistência */
+/* SÉRIE DE TRIMESTRES — um quadrado por trimestre, todos do mesmo tamanho.
+   Era um sparkline de barras com altura = índice e cor = passou o critério: duas
+   variáveis em 26px, e o vermelho lia como alarme dentro da linha.
+   Agora é indicador de etapas: preenchido passou, vazio não passou, tracejado
+   não foi avaliável (ausência de medida, que não é o mesmo que "não passou").
+   CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
+.spark{display:flex;align-items:center;gap:3px;height:26px}
+.spark i{width:10px;height:10px;display:block;border-radius:2px;background:var(--g-150);border:1px solid var(--g-200)}
+.spark i.on{background:var(--g-700);border-color:var(--g-700)}
+.spark i.na{background:transparent;border-style:dashed;border-color:var(--g-300)}
+.sparkwrap{display:flex;align-items:center;gap:10px}
+/* o "3 de 4 trimestres" ao lado das barras não quebra linha: a coluna é estreita
+   e a frase é curta o bastante para caber inteira */
+.sparkwrap .cell-sub{white-space:nowrap}
+.sparkq{display:flex;gap:4px;font-size:9.5px;color:var(--g-400);font-variant-numeric:tabular-nums}
+.sparkq span{width:14px;text-align:center}
+.dir{font-size:12px;font-variant-numeric:tabular-nums;color:var(--g-600);white-space:nowrap}
+.dir-up{color:var(--crit)}
+.dir-flat{color:var(--g-500)}
+.dir-down{color:var(--acc)}
+
+/* ---------- tabela ---------- */
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:var(--row-pad);border-bottom:1px solid var(--line-soft);vertical-align:middle}
+/* CABEÇALHO DE TABELA — sincronizado com a página "Área de Atuação" do Claude
+   Design em 2026-08-20. Era 10,5px em CAIXA ALTA com `letter-spacing:.08em` e
+   peso 600; o Design nunca teve isso: 12px, capitalização normal, peso 500.
+   O app é que havia divergido.
+   A versão em caixa alta custava duas coisas. Rótulo de coluna é para ser LIDO
+   de relance, e caixa alta derruba a velocidade de leitura porque apaga a
+   silhueta da palavra — em "VARIAÇÃO EXCEDENTE" o olho soletra. E o peso 600
+   com fundo próprio dava ao cabeçalho o contraste de um dado, competindo com
+   os números logo abaixo, que são o conteúdo. */
+th{font-size:12px;font-weight:500;color:var(--g-500);background:var(--g-25);border-bottom:1px solid var(--line);padding:8px 12px;white-space:nowrap}
+tbody tr:hover td{background:var(--row-hover)}
+/* A linha selecionada muda só o FUNDO. A canaleta da esquerda é território
+   exclusivo do indicador de posição (`tr.acima`): dois traços de 2 e 3px lado a
+   lado no mesmo lugar disputam a mesma leitura, e o que o olho procura ali é o
+   dado, não o que ele mesmo acabou de clicar. Seleção o usuário já sabe que fez;
+   posição no grupo é o que ele veio ler. */
+tr.selected td{background:var(--row-selected)}
+/* A CANALETA COLORIDA da linha (`tr.acima` / `tr.acima-ref`, faixa de 3px na
+   primeira célula) SAIU em 2026-08-20. Marcava "acima do critério agregado" — a
+   régua que saiu do gráfico de distribuição por não governar nada. Deixá-la na
+   tabela faria a lista afirmar uma severidade que o resto da tela deixou de
+   afirmar, e em vermelho, que agora é a cor do dinheiro.
+   REPLICAR NO DESIGN. */
+/* Sem deslocamento ao coincidir com a seleção: a canaleta não é mais disputada,
+   porque a seleção deixou de desenhar nela. */
+.t-compact{--row-pad:var(--row-pad-compact)}
+th.grp{text-align:center;border-bottom:1px solid var(--line);border-left:1px solid var(--line);color:var(--g-400);letter-spacing:.1em}
+th.grp:first-child{border-left:0}
+th.sub-h{border-top:0}
+/* A moldura NÃO usa overflow:hidden. Recortar no contêiner cortava a bolha de
+   `.help` no cabeçalho — e a explicação de um critério que acusa um médico não
+   pode ser o que sobra depois do recorte. O arredondamento passa a ser das
+   pontas: primeira e última faixa internas levam o raio. */
+/* CLEAN V3: cartão branco sobre canvas suave, borda leve e sombra baixa —
+   o "flutuante" do shadcn. A borda forte virou borda suave: com a sombra e o
+   contraste de fundo, o traço grosso só somava ruído. */
+.tbl{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-1)}
+.tbl>:first-child{border-top-left-radius:calc(var(--r-md) - 1px);border-top-right-radius:calc(var(--r-md) - 1px)}
+.tbl>:last-child{border-bottom-left-radius:calc(var(--r-md) - 1px);border-bottom-right-radius:calc(var(--r-md) - 1px)}
+.tbl-scroll{overflow-x:auto}
+
+/* ---- altura da área rolável ---------------------------------------------
+   `.tbl-fill` resolve a altura contra a JANELA, não contra um número fixo: a
+   lista de 64 cooperados é o trabalho da tela, e mostrar 3 linhas por vez era
+   uma decisão de maquete. --tbl-reserve é tudo que ocupa a tela acima e abaixo
+   da rolagem (cabeçalho da shell, título, estatísticas, cabeçalho e rodapé da
+   própria tabela, respiro); --tbl-floor é o piso que impede o colapso quando a
+   janela é curta ou há muito conteúdo acima — abaixo dele a tabela volta a
+   rolar a página inteira, que é melhor que uma fresta de duas linhas. */
+.tbl-fill .tbl-scroll{overflow:auto;max-height:max(var(--tbl-floor,264px),calc(100dvh - var(--tbl-reserve,420px)))}
+/* Sem régua sob o cabeçalho do cartão: o espaçamento já separa título de
+   conteúdo, e com quatro cartões na página eram quatro linhas horizontais que
+   não diziam nada. */
+.tbl-hd{display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px 10px;border-bottom:0}
+.tbl-hd .t{font-size:14px;font-weight:600}
+/* faixa interna: composição, legenda ou filtro que pertence À TABELA e por isso
+   entra na moldura, entre o cabeçalho e o <thead>. É o respiro que faltava para
+   trazer a barra de composição para dentro. */
+.tbl-band{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-bottom:0;background:#fff}
+.tbl-band .compbar{margin-bottom:6px}
+.tbl-band .complegend{gap:14px;font-size:11px}
+.tbl-ft{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:1px solid var(--line-soft);background:transparent;font-size:11.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.cell-name{white-space:nowrap;font-weight:500}
+.cell-sub{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums;font-weight:400}
+/* Sub-linha da célula de identidade quando ela carrega ETIQUETAS.
+   `.cell-name` é nowrap para o nome não quebrar, e a sub-linha herdava isso: as
+   etiquetas não quebravam, saíam da coluna e passavam por cima das colunas de
+   valor. Aqui ela volta a quebrar e a OCUPAR espaço, empurrando a altura da
+   linha em vez de flutuar sobre o resto. */
+.cell-name .cell-sub{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;white-space:normal}
+.linklike{white-space:nowrap;font-size:12.5px;font-weight:500}
+
+/* ---------- cabeçalho ordenável --------------------------------------------
+   Três estados por coluna: sem ordenação, decrescente, crescente. O indicador
+   aparece SÓ na coluna ativa — seta em todas vira ruído e apaga justamente a que
+   importa; a sinalização de que a coluna é ordenável fica no cursor e no hover.
+
+   Tinta neutra, nunca institucional: ordenar é INTERAÇÃO, e --acc já significa
+   referência no mapa de cor. Mesmo raciocínio que tirou o verde da linha
+   selecionada.
+
+   Nada aqui pode escapar da caixa: o th é sticky dentro de .tbl-scroll, e é por
+   isso que a bolha do .help é proibida aqui. Seta é glifo no fluxo, não popover. */
+th.ord{cursor:pointer;user-select:none}
+th.ord:hover{color:var(--g-800);background:var(--g-50)}
+th.ord:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+th.ord.on{color:var(--g-900)}
+/* O espaço da seta é reservado em TODO cabeçalho ordenável e só fica visível na
+   coluna ativa. Aparecer e sumir mudava a largura intrínseca do `th` e, com
+   layout automático, a tabela inteira se redistribuía a cada clique. Largura
+   fixa também iguala ▲ e ▼, que não têm o mesmo avanço em toda fonte. */
+th.ord .dir{display:inline-block;width:9px;margin-left:5px;text-align:center;font-size:9px;color:var(--g-900);vertical-align:1px;opacity:0}
+th.ord.on .dir{opacity:1}
+
+/* Linha inteira clicável foi TENTADA e removida (jul/2026): impede seleção de
+   texto, não tem afordância, não é alcançável por teclado e disputa o clique com
+   a seleção vinda do gráfico. A navegação para o dossiê é um LINK no nome do
+   cooperado, que já tem afordância, foco e menu de contexto de graça. */
+
+/* ---------- REGRA ÚNICA DOS PONTOS: só opacidade ----------------------------
+   Selecionado — o ponto escolhido, ou o conjunto em cena de um recorte — fica
+   na SUA opacidade normal. Sem anel, sem contorno, sem troca de cor. Não
+   selecionado fica menos opaco. É só isso, e vale igual para cinza, âmbar e
+   vermelho: a cor continua dizendo severidade e nada mais.
+
+   Os anéis saíram em 2026-08-19: havia um vão da cor do fundo no conjunto em
+   cena e um anel duplo (branco + tinta) no ponto escolhido. Existiam para
+   compensar o que a opacidade não confirmava enquanto "em cena" forçava
+   `opacity:1` em toda cor — e com a regra acima o sinal é o contraste com o
+   campo recuado, então o anel virava um segundo vocabulário dizendo o mesmo.
+   DECISÃO DE PRODUTO 2026-08-19, replicar no Design. */
+
+/* Escolha de UM ponto: os demais recuam. `--ch-dot-op-muted` é .55, acima do
+   normal do cinza — aplicado a todos, clareava âmbar e vermelho e ESCURECIA o
+   cinza. O recuo precisa ficar abaixo do menor normal para clarear qualquer
+   cor; .3 cai menos que o .15 do recorte, que é filtro de conjunto.
+   CORREÇÃO LOCAL 2026-08-19 — o token --ch-dot-op-muted precisa descer no
+   Design. */
+.plot.com-selecao .pt:not(.pt-escolhido){opacity:.3}
+/* ---------- realce de SUBCONJUNTO -----------------------------------------
+   Diferente da escolha de um ponto: aqui um RECORTE (os portadores de um
+   sub-perfil) fica em evidência e o resto recua. Sem anel — anel em nove pontos
+   é ruído, e o anel significa "este que eu escolhi", não "estes que estou
+   olhando".
+
+   As LINHAS DE REFERÊNCIA não mudam, por construção: nada aqui toca `.refline`,
+   `.iqrband` nem `.axislbl`. A régua continua sendo a da área inteira, e é essa
+   a razão de o recorte ser só opacidade — mediana e critério parados são o que
+   garante que o perfil é filtro de quem aparece, nunca de contra quem se mede. */
+/* Recorte pede contraste FORTE: .55 (o muted da escolha de um ponto) deixava
+   dentro e fora quase iguais e o recorte não se lia. Fora de cena quase some
+   (.15). CORREÇÃO LOCAL 2026-08-13, replicar no Design — candidata a token
+   próprio (--ch-dot-op-fora-recorte).
+
+   Quem está em cena não recebe opacidade nenhuma daqui: fica com a sua própria.
+   O `opacity:1` que morava nesta linha valia para as três cores, mas só o cinza
+   tinha folga para obedecê-lo, então ele escurecia além do normal ao entrar em
+   cena enquanto âmbar e vermelho não mudavam nada.
+   CORREÇÃO LOCAL 2026-08-19, replicar no Design. */
+.plot.com-recorte .pt:not(.pt-no-recorte){opacity:.15}
+.plot.com-recorte .pt-no-recorte{z-index:1}
+/* Ponto fora do recorte não responde: sem cursor de clique, sem hover, sem
+   tooltip — ele recuou de cena e escolhê-lo destacaria linha que a tabela não
+   mostra. O clique atravessa para o fundo do gráfico, que desfaz a seleção.
+   CORREÇÃO LOCAL 2026-08-13, replicar no Design. */
+.plot.com-recorte .pt:not(.pt-no-recorte){pointer-events:none}
+/* NÃO se chama `.sel`: esse nome já é do contêiner do combobox
+   (position:relative; display:flex; flex-direction:column). Aplicado ao ponto,
+   tirava o position:absolute e o mandava para fora da área de plotagem. */
+/* O ponto escolhido não ganha NADA: nem opacidade, nem anel. Fica na sua cor
+   normal, e quem o marca é o recuo de todos os outros — as duas regras de
+   recuo acima já o excluem pelo `:not(.pt-escolhido)` / `:not(.pt-no-recorte)`,
+   então ele não precisa vencer ninguém por especificidade. Sobra o `z-index`,
+   que não é sinal visual: é o que impede um vizinho do enxame de passar por
+   cima do ponto que está em foco.
+   CORREÇÃO LOCAL 2026-08-13, revisada em 2026-08-19; replicar no Design. */
+.plot .pt.pt-escolhido{z-index:2}
+
+/* ---------- número que não sustenta comparação ------------------------------
+   Existe e foi medido, mas com volume abaixo do mínimo é instável. Esmaecido e
+   com o contorno tracejado que o sistema reserva à RESSALVA DE MÉTODO, para que
+   ordenar por essa coluna não o faça parecer o pior caso da área. Não é ausência
+   (isso é célula com motivo) nem erro. */
+.val-ressalva{color:var(--g-400);border-bottom:1px var(--caveat-border-style) var(--caveat-line)}
+
+/* ---------- régua de posição ---------- */
+/* Régua mais alta: 12px deixavam a marca de 2px do cooperado quase impossível de
+   achar entre a faixa IQR e o critério. É gráfico dentro de célula, e gráfico
+   pequeno demais deixa de ser leitura e vira enfeite. */
+.ruler{position:relative;height:18px}
+.ruler .axis{position:absolute;left:0;right:0;top:8px;height:1px;background:var(--g-200)}
+.ruler .iqr{position:absolute;top:5px;height:8px;background:var(--ch-iqr-fill);border-left:1px solid var(--ch-iqr-line);border-right:1px solid var(--ch-iqr-line)}
+.ruler .med{position:absolute;top:0;bottom:0;width:var(--ch-ref-w);background:var(--acc)}
+.ruler .crit{position:absolute;top:0;bottom:0;border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--read-above)}
+.ruler .mk{position:absolute;top:0;width:2px;height:18px;background:var(--g-500)}
+.ruler .mk.warnmk{background:var(--read-above)}
+.ruler .mk.critmk{background:var(--crit)}
+.ruler-cell{display:flex;align-items:center;gap:8px}
+/* Cabeçalho longo quebra em duas linhas em vez de alargar a coluna. O `th` é
+   nowrap por padrão, e um rótulo de quatro palavras roubava largura de colunas
+   que carregam dado.
+   NÃO se chama `.wrap`: esse nome já é do invólucro de página (display:flex,
+   max-width 1280, padding 48). Aplicado a um `th`, transformava a célula em
+   contêiner flex e desmontava a linha do cabeçalho. */
+th.quebra{white-space:normal}
+/* Rótulo de coluna encosta EMBAIXO. Com `middle`, um cabeçalho que quebra em
+   duas linhas centraliza como bloco e sua primeira linha sobe acima dos
+   vizinhos de uma linha só — a tabela parece desalinhada sem estar.
+   CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
+th{vertical-align:bottom}
+.ruler-cell .ruler{flex:1}
+.pctl{font-size:11.5px;font-variant-numeric:tabular-nums;width:32px;text-align:right;color:var(--g-500)}
+.pctl-warn{color:var(--warn)}
+.pctl-crit{color:var(--crit);font-weight:500}
+
+/* ---------- gráfico ---------- */
+/* ═══ CLEAN V3 · distribuição ════════════════════════════════════════════════
+   Virou um BOX PLOT com os pontos por cima, em 96px de altura (eram 240).
+
+   O que a forma nova resolve: antes a leitura de "onde está a massa" dependia
+   de um espalhamento vertical de 132px, e o gráfico tomava meia dobra para
+   dizer isso. A CAIXA interquartil diz o mesmo em 29px — e diz melhor, porque
+   P25 e P75 passam a ser bordas visíveis em vez de um sombreado.
+
+   Geometria, de cima para baixo:
+     0-12   rótulos das referências (mono, sobre fundo branco)
+     14-72  linhas de referência, tracejadas
+     26-64  caixa interquartil (neutra: é contexto, não dado)
+     28-62  faixa onde os pontos caem
+     45     haste do mínimo ao máximo observado, com as tampas em 34-56
+     ~94    eixo, com os extremos em mono logo abaixo                       */
+.plot{position:relative;height:var(--ch-h);margin:0 var(--ch-pad-x)}
+
+/* haste: do menor ao maior valor da área, com tampa nas duas pontas */
+.plot .haste{position:absolute;top:45px;height:1px;background:var(--ch-haste)}
+.plot .tampa{position:absolute;top:34px;height:23px;width:1px;background:var(--ch-haste)}
+
+/* a caixa interquartil, com borda — P25 e P75 viram limites visíveis */
+.plot .iqrband{position:absolute;top:26px;height:38px;background:var(--ch-iqr-fill);border:1px solid var(--ch-iqr-line);border-radius:3px}
+.plot .iqrlbl{display:none}   /* o rótulo "IQR" vive na legenda, não sobre a caixa */
+
+/* referências: tracejadas nas duas, com o rótulo em mono acima, sobre fundo
+   branco para nunca colidir com um ponto */
+.plot .refline{position:absolute;top:14px;height:58px;bottom:auto;width:0;opacity:var(--ch-ref-op);z-index:1}
+.plot .refline.median{background:none;border-left:var(--ch-ref-w) dashed var(--g-900)}
+.plot .refline.criterion{border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--crit)}
+.plot .reflbl{position:absolute;top:0;transform:translateX(-50%);padding:0 4px;background:#fff;font-family:var(--font-num);font-size:var(--ch-label-fs);font-weight:400;letter-spacing:.02em;white-space:nowrap;z-index:2}
+.plot .reflbl.median{color:var(--g-900)}
+.plot .reflbl.criterion{color:var(--crit)}
+/* O ponto NEUTRO. Opacidade de .5 para .65 em 2026-08-19: em .5 o cinza saía
+   quase branco sobre o canvas e o corpo da distribuição — que é a maioria dos
+   pontos, e o contexto contra o qual se lê quem está fora — mal aparecia.
+   Continua abaixo do âmbar e do vermelho, que ficam em 1: a hierarquia entre
+   severidades é a mesma, só o piso subiu.
+   CORREÇÃO LOCAL 2026-08-19, replicar no Design. */
+.pt{position:absolute;width:var(--ch-dot);height:var(--ch-dot);margin-left:calc(var(--ch-dot)/-2);border-radius:50%;background:var(--g-400);opacity:.65;z-index:1}
+.pt:hover{background:var(--g-700);cursor:pointer}
+.pt-read{background:var(--read-above);opacity:1}
+.pt-read:hover{background:var(--warn)}
+.pt-crit{width:var(--ch-dot-hi);height:var(--ch-dot-hi);margin-left:calc(var(--ch-dot-hi)/-2);background:var(--crit);opacity:1;box-shadow:none}
+.pt-crit:hover{background:var(--crit)}
+
+/* ---------- a RAMPA de cor do ponto (2026-08-20) -----------------------------
+   A cor do ponto é o EXCEDENTE EM R$: `--i` (0–1) vem do motor, e a tinta sai
+   dele. Substituiu a paleta de severidade (`.pt-read`/`.pt-crit`), que dizia
+   "acima do critério agregado" — régua que não governa nada, enquanto 34% do
+   dinheiro ficava em pontos cinza. Precisa vir DEPOIS das regras acima: mesma
+   especificidade, e quem está por último vence.
+
+   Interpolação em DUAS PERNAS, cinza → âmbar → vermelho: uma rampa direta de
+   cinza a vermelho passa por marrom no meio, que some sobre o papel. As três
+   tintas são as do contrato (--g-400, --read-above, --crit) — a paleta não
+   muda, muda o que ela significa.
+
+   Os `clamp` não são preciosismo: `color-mix` recusa porcentagem fora de
+   0–100%, e uma perna sozinha produz valor negativo em metade do domínio —
+   o que invalida a declaração inteira e derruba a cor para o cinza base.
+   CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
+.plot .pt{
+  --ramp-1:clamp(0%, calc(var(--i,0) * 200%), 100%);
+  --ramp-2:clamp(0%, calc((var(--i,0) - .5) * 200%), 100%);
+  background:color-mix(in oklab, var(--crit) var(--ramp-2),
+    color-mix(in oklab, var(--read-above) var(--ramp-1), var(--g-400)));
+  /* A opacidade acompanha a mesma intensidade: quem tem pouco dinheiro recua,
+     quem tem muito salta. Codificar a grandeza DUAS vezes (tinta e presença)
+     não é redundância inútil — é o que faz a leitura funcionar em tela ruim de
+     projetor e para quem não distingue âmbar de vermelho. Sem isso, metade da
+     nuvem cai no meio da rampa e o olho não sabe para onde ir. */
+  opacity:calc(.45 + var(--i,0) * .55);
+}
+.plot .pt:hover{background:var(--g-900);opacity:1}
+/* a barra da legenda mostra a rampa inteira, com os valores nas pontas */
+.legend .rampa{display:inline-flex;align-items:center;gap:6px}
+.legend .rampa-barra{width:76px;height:8px;border-radius:999px;background:linear-gradient(90deg,var(--g-400),var(--read-above),var(--crit))}
+.legend .rampa b{font-family:var(--font-num);font-size:10.5px;font-weight:400;color:var(--g-400)}
+/* separador entre as marcas: sem ele os três R$ se leem como um número só */
+.legend .rampa b + b::before{content:'·';margin-right:6px;color:var(--g-300)}
+.axisline{position:absolute;left:0;right:0;bottom:16px;height:var(--ch-axis-w);background:var(--line)}
+.axislbl{position:absolute;bottom:0;transform:translateX(-50%);font-family:var(--font-num);font-size:var(--ch-axis-fs);color:var(--g-400)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--g-500)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.legend i.neutral{background:var(--g-400);opacity:.5}
+.legend i.read{background:var(--read-above)}
+.legend i.crit{background:var(--crit)}
+.legend i.band{width:14px;border-radius:2px;background:var(--ch-iqr-fill);border:1px solid var(--ch-iqr-line)}
+.legend i.caveat{width:14px;border-radius:2px;background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line)}
+.barrow{display:grid;grid-template-columns:1fr 56px;gap:12px;align-items:center}
+.barrow .t{font-size:12.5px}
+.track{height:var(--ch-bar-h);background:var(--ch-bar-track);border-radius:3px}
+.track span{display:block;height:100%;background:var(--acc);border-radius:3px}
+.barval{font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--g-700)}
+
+/* ---------- estados de dado ---------- */
+@keyframes skelmove{0%{background-position:100% 0}100%{background-position:-100% 0}}
+.skel{background:linear-gradient(90deg,var(--g-100) 0%,var(--g-150) 50%,var(--g-100) 100%);background-size:220% 100%;animation:skelmove 1.5s linear infinite;border-radius:3px;height:10px;display:block}
+.skel-h14{height:14px}.skel-h22{height:22px}.skel-h30{height:30px}
+.skel-row{display:grid;grid-template-columns:1.4fr .8fr .7fr .7fr 1.6fr .6fr;gap:12px;padding:var(--row-pad);border-bottom:1px solid var(--line-soft);align-items:center}
+.skel-plot{position:relative;height:var(--ch-h-sm);border-bottom:var(--ch-axis-w) solid var(--ch-axis);margin:0 var(--ch-pad-x)}
+.skel-plot .band{position:absolute;left:26%;width:26%;top:20px;bottom:0;background:var(--g-50);border-left:1px dashed var(--g-200);border-right:1px dashed var(--g-200)}
+.skel-plot .dot{position:absolute;width:var(--ch-dot);height:var(--ch-dot);border-radius:50%;background:var(--g-150)}
+.loading-note{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--g-500)}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+.loading-note i{width:6px;height:6px;border-radius:50%;background:var(--g-400);animation:pulse 1.2s ease-in-out infinite}
+.nores{display:flex;flex-direction:column;gap:4px;font-variant-numeric:tabular-nums}
+.nores .v{font-size:22px;font-weight:600;color:var(--g-300);letter-spacing:-.02em}
+.caveat-box{background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-md);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.caveat-box .t{font-size:12.5px;font-weight:600;color:var(--caveat-ink)}
+.caveat-box .d{font-size:12px;color:var(--g-600);line-height:1.55}
+
+/* ---------- mapa de cor ---------- */
+.mapswatch{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.mapswatch i{width:16px;height:16px;border-radius:50%;display:inline-block;flex:none}
+.mapswatch i.sq{border-radius:3px}
+.mono{font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:11.5px;color:var(--g-700)}
+.fmt-ex{font-variant-numeric:tabular-nums;font-weight:500;color:var(--g-900)}
+
+/* tooltip de ponto (CSS puro) */
+.plot .pt .tip{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:#fff;border-radius:var(--r-sm);padding:7px 10px;box-shadow:var(--sh-1);white-space:nowrap;z-index:3}
+.plot .pt .tip b{display:block;font-size:11.5px;font-weight:500;font-variant-numeric:tabular-nums}
+.plot .pt .tip em{display:block;font-style:normal;font-size:10.5px;color:var(--g-300)}
+.plot .pt:hover .tip{opacity:1}
+.compbar{position:relative}
+
+/* ---------- faixa de critérios da análise -----------------------------------
+   Origem: "Criterios da Analise.html" (Claude Design), arranjo A, ADOTADO em
+   30/jul/2026. Substitui o bloco "Análise" da barra lateral, que passa a
+   hospedar só navegação e escopo.
+
+   Modo leitura por padrão. A faixa NUNCA é campo: é a frase que declara sob que
+   regra todo número da tela foi calculado. Editar é ato deliberado, feito no
+   diálogo. Assim o critério fica auditável sem clique e imutável sem intenção.
+
+   A separação entre pares é POSICIONAL — rótulo em micro caps sobre o valor,
+   colunas alinhadas pelo topo. Nenhum separador desenhado: barra vertical,
+   ponto ou pipe entre os pares é ruído que o alinhamento já resolve. */
+/* ═══ CLEAN V3 · faixa de filtros ════════════════════════════════════════════
+   Escopo (especialidade, área) e régua (critérios) na MESMA linha, no topo do
+   conteúdo. Antes o escopo morava na lateral e a régua numa faixa de seis
+   chips: duas superfícies para uma pergunta só.
+
+   A régua colapsou num botão com resumo. O detalhe continua a um clique, no
+   diálogo — e o desvio do padrão continua se anunciando (`.crit-mod`), porque
+   ler sob régua trocada sem saber é o erro que a faixa existe para evitar. */
+.critbar{position:sticky;top:var(--shell-top-h);z-index:4;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:12px var(--content-pad);background:var(--canvas);border-bottom:0}
+.fil{display:flex;flex-direction:column;gap:6px}
+.fil-lbl{font-size:11px;font-weight:500;color:var(--g-500)}
+.critbar .sel-trig{height:32px;min-width:220px;font-size:12px;padding:0 12px;border-radius:var(--r-sm)}
+.critbar .critact{margin-left:auto;display:flex;align-items:center;gap:8px}
+/* o botão da régua carrega o resumo: rótulo em ink, valores em cinza */
+.btn-crit{height:32px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.btn-crit svg{stroke:var(--g-600);flex:none}
+.btn-crit .critset{font-weight:400;color:var(--g-400);font-family:var(--font-num);font-size:11.5px}
+/* Junto da barra superior a faixa forma UM cabeçalho de duas linhas, não duas
+   barras: a divisória interna sai e só o bloco inteiro fecha com uma linha. */
+.crithead{background:var(--canvas);border-bottom:0}
+/* A linha fica sob a MIGALHA e só sob ela: é o corte entre "onde estou" e o
+   campo de trabalho. A faixa de filtros, logo abaixo, continua sem régua —
+   duas linhas paralelas a 52px uma da outra viravam uma cerca. */
+.crithead .critbar{border-bottom:0}
+.critset{display:flex;flex-wrap:nowrap;align-items:flex-start;gap:0 26px;min-width:0}
+.critchip{display:flex;flex-direction:column;gap:2px;white-space:nowrap}
+.critname{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400)}
+.critval{font-size:12.5px;color:var(--g-900);font-variant-numeric:tabular-nums}
+.critact{display:flex;align-items:center;gap:12px;margin-left:auto;flex:none}
+
+/* Fora do padrão institucional: o valor recebe o mesmo tratamento de
+   `.tag-caveat` — cor de ressalva, fundo suave, contorno tracejado. Não é
+   alarme, é escolha assinalada; e é a única cor da faixa. */
+.critchip.mod .critval{font-weight:500;color:var(--caveat-ink);background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-sm);padding:0 6px;margin:0 -6px}
+/* sem permissão de alteração: a faixa permanece idêntica, some a ação e entra
+   quem responde pela régua. Nunca botão desabilitado — desabilitado sugere que
+   basta insistir. */
+.crit-owner{font-size:11.5px;color:var(--g-500);white-space:nowrap}
+/* contagem e retorno só existem depois de aplicar */
+.critact .crit-mod,.critact .crit-rst{display:none}
+.critact.has-mod .crit-mod,.critact.has-mod .crit-rst{display:inline}
+
+/* diálogo de critérios — reaproveita .modal/.dlg-* do sistema */
+.modal-crit{width:560px}
+.dlg-grp{grid-column:1/-1;padding:4px 0 0;font-size:11px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--g-400);background:transparent;border-bottom:0}
+/* Um único mecanismo de segmentado no diálogo: o radio mora dentro da própria
+   barra e o rótulo vizinho responde por `input:checked`. Todas as linhas passam
+   a ter marcação idêntica. */
+.dlg-row .seg{width:100%}
+.dlg-row .seg-o{flex:1}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+/* O escolhido é a pastilha BRANCA sobre o trilho cinza (Clean v3). Era
+   preenchimento quase preto: num diálogo de seis controles, seis retângulos
+   escuros roubavam a leitura do que estava sendo decidido. */
+.seg input:checked+.seg-o{background:#fff;color:var(--g-900);font-weight:500;box-shadow:var(--sh-1)}
+.seg input:checked+.seg-o:hover{background:#fff}
+/* opção indisponível: existe para mostrar o domínio do parâmetro, não para ser
+   escolhida. Não é <label>, então precisa da regra por classe. */
+.seg .seg-o.na{color:var(--g-300);background:transparent;cursor:not-allowed;font-weight:400}
+.seg .seg-o.na:hover{background:transparent;color:var(--g-300)}
+.dlg-sum .none{color:var(--g-400)}
+.dlg-sum .delta{color:var(--g-800)}
+.dlg-sum .cnt{color:var(--g-500)}
+#crit-sh:checked ~ .modal-crit{display:block}
+#crit-sh:checked ~ .scrim-crit-sh{display:block}
+
+/* ---------- shell do aplicativo ---------- */
+.shell-frame{overflow-x:auto}
+/* raiz do aplicativo: ocupa a janela, sem moldura, lateral do topo ao rodapé.
+   `.shell.shell-app` (duas classes) e não `.shell-app` só: `.shell` declara a
+   moldura do CARTÃO do style guide (`border:1px solid var(--line)`) e está
+   depois desta linha no arquivo, então vencia por ordem e o app ficava com um
+   filete claro em volta — invisível enquanto a lateral era #FAFAFA, evidente
+   quando ela escureceu. CORREÇÃO LOCAL 2026-08-19, replicar no Design. */
+.shell.shell-app{height:100dvh;border:0;border-radius:0}
+/* CHASSI FIXO, CONTEÚDO ROLANTE. O app ocupa exatamente a janela e NÃO rola
+   como página: quem rola é `.content`. Sem isto, `.shell-frame` (overflow-x:auto)
+   é o contêiner de rolagem e cresce junto com o conteúdo em vez de rolar, e a
+   `.topbar` sticky nunca gruda — quem rolava era o body, fora do alcance dela.
+   Escopo pelo `:has`: o `.shell-frame` do guia exibe a shell dentro de um
+   cartão e continua com a altura do conteúdo. */
+.shell-frame:has(>.shell-app){height:100dvh;overflow-y:hidden}
+.shell-app>.shell-side{min-height:0;overflow-y:auto}
+.shell-app>:last-child{min-height:0}
+.shell-app>:last-child>.content{overflow-y:auto}
+.shell{min-width:1280px;display:grid;grid-template-columns:var(--shell-side-w) 1fr;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;background:var(--canvas)}
+.shell>:last-child{min-width:0}
+/* ═══ CLEAN V3 · barra lateral ═══════════════════════════════════════════════
+   Recriada do "Medyx Clean v3" (14/ago/2026). O que mudou e por quê:
+
+     · 256px em vez de 280: os seletores saíram daqui para o topo do conteúdo,
+       e sem eles a coluna não precisa mais da largura de um formulário;
+     · MARCA no topo em vez de cabeçalho com borda: quadrado de acento + nome +
+       a linha de contexto ("Cooperativa · SADT"), tudo num alvo clicável;
+     · cada item com ÍCONE. Com quatro telas a lista deixa de ser lida palavra
+       por palavra e passa a ser reconhecida pela forma;
+     · ativo em preenchimento (`--acc-soft`) e não em barra lateral esquerda:
+       menos elementos, o mesmo estado, e nada empurra o texto;
+     · RODAPÉ com conta e configurações, encostado embaixo — sai do topo, onde
+       competia com a navegação.
+*/
+/* CLEAN V3: a lateral divide com uma linha SUAVE, não com a linha forte da
+   tabela. Menos réguas na tela e a hierarquia continua legível — quem separa a
+   coluna é a diferença de fundo, não o traço. */
+.shell-side{background:var(--shell-side-bg);display:flex;flex-direction:column;min-height:420px}
+
+
+
+/* marca: alvo clicável de largura inteira, sem borda inferior */
+/* O logotipo alinha com o TEXTO da navegação (x=21), não com a borda da
+   coluna: a lateral tem uma só linha vertical de leitura, e a marca fora dela
+   fazia o olho recomeçar duas vezes. Antes: marca em 15, rótulo e itens em 21.
+   Tamanho um degrau abaixo (84px) — a marca abre a coluna, não a ocupa. */
+.shell-brand{display:flex;align-items:center;padding:20px 20px 14px}
+.shell-brand .mk{width:28px;height:28px;border-radius:var(--r-sm);background:var(--acc);display:flex;align-items:center;justify-content:center;flex:none}
+.shell-brand .mk svg{display:block}
+.shell-brand .nm{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.shell-brand .nm b{font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--g-900)}
+.shell-brand .nm span{font-size:11px;color:var(--g-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.nav{flex:1;padding:12px;display:flex;flex-direction:column;gap:2px}
+.nav-lbl{font-size:11px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--g-400);padding:4px 8px 8px}
+.navitem{display:flex;align-items:center;gap:8px;padding:8px;font-size:13px;color:var(--g-700);border-radius:var(--r-sm);text-decoration:none}
+.navitem svg{flex:none;stroke:var(--g-500)}
+.navitem:hover{background:var(--g-100);color:var(--g-900);text-decoration:none;cursor:pointer}
+.navitem.on{background:var(--shell-nav-active-bg);color:var(--acc-strong);font-weight:500}
+.navitem.on svg{stroke:var(--acc)}
+.navitem .cnt{margin-left:auto;font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.navitem.on .cnt{color:var(--acc)}
+
+/* rodapé da lateral: conta e configurações, encostados embaixo */
+.side-ft{margin-top:auto;padding:12px;border-top:1px solid var(--line-soft);display:flex;flex-direction:column;gap:2px}
+.side-ft .navitem{color:var(--g-500)}
+.side-user{width:100%;display:flex;align-items:center;gap:8px;padding:8px;border:0;border-radius:var(--r-sm);background:transparent;cursor:pointer;text-align:left;font-family:inherit}
+.side-user:hover{background:var(--g-100)}
+.side-user .av{width:26px;height:26px;border-radius:50%;background:var(--acc-soft);color:var(--acc-strong);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none}
+.side-user .nm{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.side-user .nm b{font-size:12px;font-weight:500;color:var(--g-900)}
+.side-user .nm span{font-size:11px;color:var(--g-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-user .car{margin-left:auto;flex:none;stroke:var(--g-400)}
+
+/* ---------- LATERAL ESCURA ---------------------------------------------------
+   Da página "Área de Atuação" do Claude Design (2026-08-19). A régua vertical
+   saiu com a cor: quem separa a coluna do conteúdo é o salto de fundo, e um
+   traço por cima disso é ruído.
+   Tudo aqui é REDEFINIÇÃO DE TINTA — geometria, espaçamento e estados são os
+   mesmos de antes, e é por isso que o bloco é curto. REPLICAR NO DESIGN. */
+.shell-side .mark{fill:var(--side-ink)}
+.shell-brand .nm b{color:var(--side-ink)}
+.shell-brand .nm span{color:var(--side-ink-3)}
+.nav-lbl{color:var(--side-ink-3)}
+.navitem{color:var(--side-ink-2)}
+.navitem svg{stroke:var(--side-icon)}
+.navitem:hover{background:var(--side-hover);color:var(--side-ink)}
+.navitem:hover svg{stroke:var(--side-ink-2)}
+/* o ativo é fundo translúcido + texto branco; o verde claro entra SÓ no ícone,
+   que é onde ele se lê sobre o escuro sem virar cor de texto */
+.navitem.on{background:var(--side-active);color:var(--side-ink)}
+.navitem.on svg{stroke:var(--side-icon-on)}
+.navitem .cnt{color:var(--side-ink-3)}
+.navitem.on .cnt{color:var(--side-ink-2)}
+.side-ft{border-top:1px solid var(--side-line)}
+.side-ft .navitem{color:var(--side-ink-3)}
+.side-user:hover{background:var(--side-hover)}
+.side-user .av{background:rgba(255,255,255,.12);color:var(--side-ink)}
+.side-user .nm b{color:var(--side-ink)}
+.side-user .nm span{color:var(--side-ink-3)}
+.side-user .car{stroke:var(--side-ink-3)}
+
+.params{margin-top:auto;background:#fff;border-top:1px solid var(--line)}
+.params-hd{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line-soft)}
+.params-body{padding:14px;display:flex;flex-direction:column;gap:14px}
+/* A linha sob a MIGALHA fica (pedido de 14/ago): ela separa o rastro
+   ("onde estou") do campo de trabalho, e é a única régua horizontal que ganha
+   a leitura de volta em troca do traço. */
+.topbar{height:var(--shell-top-h);display:flex;align-items:center;gap:16px;padding:0 var(--content-pad);border-bottom:1px solid var(--line);background:var(--canvas);position:sticky;top:0;z-index:5}
+.crumbs{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--g-500);white-space:nowrap;flex:0 1 auto;min-width:0;overflow:hidden}
+.crumbs>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.crumbs>i,.crumbs>b{flex:none}
+.crumbs b{font-weight:500;color:var(--g-900)}
+.crumbs i{font-style:normal;color:var(--g-300)}
+.search{flex:1 1 200px;min-width:0;max-width:320px;white-space:nowrap;overflow:hidden;display:flex;align-items:center;gap:8px;border:1px solid var(--g-200);border-radius:var(--r-sm);padding:6px 10px;font-size:12.5px;color:var(--g-400);background:var(--g-25)}
+.search>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.search>span:first-child,.search .push{flex:none}
+/* CAMPO DE BUSCA ATIVO (27/ago) — desvio autorizado, ver CLAUDE.md.
+   O `.search` da origem é caixa de EXIBIÇÃO, feita de <span>: não havia no
+   contrato um campo digitável, e o `.field`, que parece candidato, é gatilho de
+   combobox (cursor:pointer), não entrada de texto.
+   Nenhum token novo: herda a borda, o raio, o fundo e a tipografia do próprio
+   `.search`, e o anel de foco do sistema. `position:relative` existe para o
+   `.pop` das sugestões, que é o MESMO popover do combobox, ancorar aqui, e
+   `overflow:visible` porque a origem clipa (`overflow:hidden`, para o ellipsis
+   do `<span>` de exibição) e o clipe comia o popover inteiro dentro da caixa.
+   O ellipsis não se perde: o `<input>` rola sozinho. */
+.search{position:relative;overflow:visible}
+.search input{flex:1;min-width:0;border:0;background:transparent;font-family:inherit;font-size:12.5px;color:var(--g-900);padding:0}
+.search input::placeholder{color:var(--g-400)}
+.search input:focus{outline:none}
+.search:focus-within{border-color:var(--g-300);box-shadow:var(--focus-ring)}
+/* `.pop.on` — MESMA família do desvio já autorizado "acionamento do combobox por
+   CLASSE": a origem só abre o popover por id de checkbox do próprio demo
+   (`#op-esp:checked ~ …`), e as sugestões da busca nascem do que se digita, que
+   nenhum CSS estático cobre. Mesmo efeito visual, nenhum token novo. */
+.pop.on{display:block}
+.topchips{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none;font-size:11px;color:var(--g-500);font-variant-numeric:tabular-nums;white-space:nowrap}
+.content{background:var(--canvas);padding:var(--content-pad);display:flex;flex-direction:column;gap:16px}
+.content-inner{max-width:var(--content-max);width:100%;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.widthbar{display:flex;align-items:center;gap:0;font-size:10.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.widthbar span{padding:4px 8px;border:1px solid var(--line);border-right:0;background:#fff}
+.widthbar span:last-child{border-right:1px solid var(--line)}
+.widthbar .min{background:var(--g-100);color:var(--g-600)}
+.widthbar .fluid{background:var(--acc-soft);color:var(--acc-strong);flex:1;text-align:center}
+
+/* padrão de página */
+.pattern{display:flex;flex-direction:column;gap:10px}
+.band{display:flex;align-items:center;gap:12px;padding:12px 14px;font-size:12.5px;color:var(--g-600)}
+.band-open{border-left:1px solid var(--g-200);background:transparent}
+.band-framed{background:#fff;border:1px solid var(--line);border-radius:var(--r-md)}
+.band .k{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500);width:180px;flex:none}
+.band .f{margin-left:auto;font-size:10.5px;color:var(--g-400);white-space:nowrap}
+
+/* ---------- tabela de largura ESTÁVEL --------------------------------------
+   `table-layout:auto` recalcula as colunas a cada mudança de conteúdo: ordenar,
+   recortar ou trocar de área movia todas as colunas de lugar. Numa tela de
+   comparação isso é defeito grave — quem lê duas vezes a mesma tabela precisa
+   que a coluna esteja onde estava, e uma coluna de texto longo (Motivo)
+   espremia todas as outras.
+
+   Layout fixo exige largura declarada em cada coluna; sem ela o navegador
+   divide o espaço em partes iguais, o que faria "Cooperado" ter a largura de
+   "Consultas". As classes abaixo são a escala: um número, um texto curto, um
+   texto longo, e a coluna que carrega gráfico. ---------------------------- */
+.tbl-fixa table{table-layout:fixed}
+/* Larguras MEDIDAS, não estimadas: cada uma é o rótulo do cabeçalho na fonte do
+   `th` (10.5px, 600, uppercase, letter-spacing .08em) + 24px de padding + 14px
+   do espaço reservado da seta. O cabeçalho pode quebrar em DUAS linhas; três
+   esticavam o `thead` inteiro, porque toda célula acompanha a mais alta.
+     nome do cooperado ................. 160
+     rótulo de uma palavra ............. 110
+     rótulo de duas palavras curtas .... 128
+     rótulo de duas palavras longas .... 155
+     rótulo longo, em duas linhas ...... 190
+   A soma tem de fechar a largura útil; sobra vira vão entre colunas. */
+.col-id{width:160px}
+.col-num{width:110px}
+.col-num-md{width:128px}
+.col-num-lg{width:155px}
+.col-txt{width:190px}
+.col-txt-lg{width:260px}
+/* a única coluna que carrega GRÁFICO: conteúdo gráfico não pede espaço como
+   texto pede, então declara o seu */
+/* 200px, não 270: a coluna era a mais larga da tabela e a régua tolera o
+   corte. Os 70px liberados pagam parte da coluna "Origem do excedente". */
+.col-pos{width:200px}
+.col-num-sm{width:125px}
+/* Coluna de AÇÃO: sem cabeçalho, largura só do alvo de toque. Existe para o
+   chevron da última coluna, a segunda afordância de "abrir o dossiê" — a
+   primeira é o nome como link. Duas afordâncias para o mesmo destino porque a
+   linha é larga: quem lê a última coluna não volta ao nome para clicar. */
+.col-chev{width:44px}
+.chev{display:flex;align-items:center;justify-content:center;width:100%;min-height:24px;color:var(--g-300);font-size:15px;line-height:1;text-decoration:none}
+.chev:hover{color:var(--g-900)}
+tr:hover .chev{color:var(--g-500)}
+tr:hover .chev:hover{color:var(--g-900)}
+.chev:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm)}
+/* Apelido de `.v.rng` para o valor que é RESSALVA e não intervalo: mesma
+   declaração, nome que diz o que está acontecendo. `.rng` continua valendo. */
+.stats .v-ressalva{font-size:17px}
+
+/* cabeçalho sticky — só o grude. A altura é de `.tbl-fill`; misturar as duas
+   coisas numa classe obrigava a escolher entre cabeçalho fixo e altura certa. */
+.tbl-sticky .tbl-scroll{overflow:auto}
+.tbl-sticky thead th{position:sticky;top:0;z-index:2}
+.tbl-sticky thead tr:nth-child(2) th{top:31px}
+
+/* foco por teclado */
+a:focus-visible,.navitem:focus-visible,.chipbtn:focus-visible,.pill:focus-visible,.field:focus-visible,.seg>span:focus-visible,.seg>label:focus-visible,.tabs>span:focus-visible,.compbar input:focus-visible+label,.search:focus-visible,tr:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm);position:relative;z-index:4}
+tr:focus-visible td{background:var(--row-hover)}
+.focus-demo{box-shadow:var(--focus-ring);border-radius:var(--r-sm)}
+
+/* ---------- cascata de filtragem --------------------------------------------
+   Como a lista chegou ao tamanho que tem. Cada degrau declara o que fez, de que
+   natureza é o corte e o que restou. Sem isto, "21 cooperados" é um número sem
+   procedência — e é sobre ele que alguém vai abrir conversa com um médico. ----- */
+.casc{display:flex;flex-direction:column}
+.casc-hd,.casc-r{display:grid;grid-template-columns:20px minmax(0,1fr) 92px 92px 88px 104px;gap:0 14px;align-items:baseline}
+.casc-hd{padding:0 0 8px;border-bottom:1px solid var(--line)}
+.casc-hd span{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400)}
+.casc-hd .rt,.casc-r .casc-v{text-align:right}
+.casc-r{padding:13px 0;border-bottom:1px solid var(--line-soft)}
+.casc-r:last-child{border-bottom:0}
+.casc-n{font-size:10.5px;color:var(--g-300);font-variant-numeric:tabular-nums}
+.casc-t{font-size:12.5px;color:var(--g-900);display:block}
+.casc-d{font-size:11px;color:var(--g-500);line-height:1.45;text-wrap:pretty;display:block;margin-top:3px}
+.casc-nat{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500)}
+.casc-v{font-size:12.5px;color:var(--g-900);font-variant-numeric:tabular-nums;white-space:nowrap}
+.casc-v .d{display:block;font-size:10.5px;color:var(--g-400);margin-top:2px}
+/* trilho do afunilamento: largura proporcional ao que restou do ponto de partida */
+.casc-bar{grid-column:2;margin-top:8px;height:3px;background:var(--g-100);border-radius:2px}
+.casc-bar i{display:block;height:3px;background:var(--g-300);border-radius:2px}
+.casc-r.keep .casc-v .d{color:var(--g-300)}
+
+/* tradução do percentil */
+.pctl-wrap{display:flex;flex-direction:column;gap:2px;min-width:118px}
+.pctl-wrap .pctl{width:auto;text-align:left;font-weight:500}
+.pctl-t{font-size:10.5px;color:var(--g-500);line-height:1.35;text-wrap:pretty}
+
+/* valor recomendado e desvio do padrão */
+.rec-mark{color:var(--acc);font-weight:600;margin-left:4px}
+.seg>span.on .rec-mark,.seg>label.on .rec-mark{color:var(--acc)}
+.rec-hint{font-size:10.5px;color:var(--g-500)}
+
+/* ---------- seletor em lista (combobox) ---------- */
+.cascade{position:relative}
+.cascade .r,.cascade .oc{position:absolute;opacity:0;pointer-events:none}
+.fields{display:grid;grid-template-columns:minmax(240px,320px) minmax(240px,320px);gap:16px;align-items:start}
+.sel{position:relative;display:flex;flex-direction:column;gap:6px}
+.sel-lbl{display:flex;align-items:baseline;gap:8px;font-size:11.5px;color:var(--g-500)}
+.sel-trig{display:flex;align-items:center;gap:8px;min-height:36px;padding:7px 10px;border:1px solid var(--g-200);border-radius:var(--r-sm);background:#fff;font-size:13px;color:var(--g-800);cursor:pointer}
+.sel-trig:hover{border-color:var(--g-400)}
+.sel-trig .car{margin-left:auto;color:var(--g-400);font-size:10px}
+.sel-trig .v{display:none;align-items:center;gap:8px;min-width:0}
+.sel-trig .vn{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sel-trig .ph{color:var(--g-400)}
+.oc:checked ~ .fields .sel-trig[for]{}
+.pop{position:absolute;left:0;right:0;min-width:300px;top:calc(100% + 4px);z-index:8;background:#fff;border:1px solid var(--g-300);border-radius:var(--r-md);box-shadow:var(--sh-1);display:none;max-height:250px;overflow:auto}
+.pop-grp{display:none;flex-direction:column}
+.opt{display:grid;grid-template-columns:1fr auto 14px;align-items:center;gap:10px;padding:7px 10px;font-size:13px;color:var(--g-700);cursor:pointer;border-top:1px solid var(--line-soft)}
+.opt:first-of-type{border-top:0}
+.opt:hover{background:var(--g-50)}
+.opt .oname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opt .ock{opacity:0;color:var(--acc);font-size:11px;text-align:right}
+#op-esp:checked ~ .fields .sel-esp .pop,#op-area:checked ~ .fields .sel-area .pop{display:block}
+#op-esp:checked ~ .fields .sel-esp .sel-trig,#op-area:checked ~ .fields .sel-area .sel-trig{border-color:var(--g-600)}
+.sel-trig:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.opt:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--acc)}
+.sel-note{font-size:10.5px;color:var(--g-500);line-height:1.45}
+.sel-dep{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--g-400)}
+.sel-locked{background:var(--g-50);border-color:var(--line-soft);color:var(--g-400);cursor:not-allowed}
+.sel-locked:hover{border-color:var(--line-soft)}
+#esp-gyn:checked ~ .fields .v-esp-gyn,#esp-gyn:checked ~ .fields .g-gyn{display:flex}
+#esp-gyn:checked ~ .fields label[for="esp-gyn"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-gyn:checked ~ .fields label[for="esp-gyn"] .ock{opacity:1}
+#esp-gyn:checked ~ #a-gyn-all:checked ~ .fields .v-a-gyn-all{display:flex}
+#a-gyn-all:checked ~ .fields label[for="a-gyn-all"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-all:checked ~ .fields label[for="a-gyn-all"] .ock{opacity:1}
+#esp-gyn:checked ~ #a-gyn-rh:checked ~ .fields .v-a-gyn-rh{display:flex}
+#a-gyn-rh:checked ~ .fields label[for="a-gyn-rh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-rh:checked ~ .fields label[for="a-gyn-rh"] .ock{opacity:1}
+#esp-gyn:checked ~ #a-gyn-mf:checked ~ .fields .v-a-gyn-mf{display:flex}
+#a-gyn-mf:checked ~ .fields label[for="a-gyn-mf"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-mf:checked ~ .fields label[for="a-gyn-mf"] .ock{opacity:1}
+#esp-gyn:checked ~ #a-gyn-onc:checked ~ .fields .v-a-gyn-onc{display:flex}
+#a-gyn-onc:checked ~ .fields label[for="a-gyn-onc"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-onc:checked ~ .fields label[for="a-gyn-onc"] .ock{opacity:1}
+#esp-gyn:checked ~ #a-gyn-uro:checked ~ .fields .v-a-gyn-uro{display:flex}
+#a-gyn-uro:checked ~ .fields label[for="a-gyn-uro"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-uro:checked ~ .fields label[for="a-gyn-uro"] .ock{opacity:1}
+#esp-ort:checked ~ .fields .v-esp-ort,#esp-ort:checked ~ .fields .g-ort{display:flex}
+#esp-ort:checked ~ .fields label[for="esp-ort"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-ort:checked ~ .fields label[for="esp-ort"] .ock{opacity:1}
+#esp-ort:checked ~ #a-ort-all:checked ~ .fields .v-a-ort-all{display:flex}
+#a-ort-all:checked ~ .fields label[for="a-ort-all"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-all:checked ~ .fields label[for="a-ort-all"] .ock{opacity:1}
+#esp-ort:checked ~ #a-ort-col:checked ~ .fields .v-a-ort-col{display:flex}
+#a-ort-col:checked ~ .fields label[for="a-ort-col"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-col:checked ~ .fields label[for="a-ort-col"] .ock{opacity:1}
+#esp-ort:checked ~ #a-ort-jo:checked ~ .fields .v-a-ort-jo{display:flex}
+#a-ort-jo:checked ~ .fields label[for="a-ort-jo"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-jo:checked ~ .fields label[for="a-ort-jo"] .ock{opacity:1}
+#esp-ort:checked ~ #a-ort-mao:checked ~ .fields .v-a-ort-mao{display:flex}
+#a-ort-mao:checked ~ .fields label[for="a-ort-mao"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-mao:checked ~ .fields label[for="a-ort-mao"] .ock{opacity:1}
+#esp-ort:checked ~ #a-ort-pe:checked ~ .fields .v-a-ort-pe{display:flex}
+#a-ort-pe:checked ~ .fields label[for="a-ort-pe"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-pe:checked ~ .fields label[for="a-ort-pe"] .ock{opacity:1}
+#esp-car:checked ~ .fields .v-esp-car,#esp-car:checked ~ .fields .g-car{display:flex}
+#esp-car:checked ~ .fields label[for="esp-car"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-car:checked ~ .fields label[for="esp-car"] .ock{opacity:1}
+#esp-car:checked ~ #a-car-all:checked ~ .fields .v-a-car-all{display:flex}
+#a-car-all:checked ~ .fields label[for="a-car-all"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-all:checked ~ .fields label[for="a-car-all"] .ock{opacity:1}
+#esp-car:checked ~ #a-car-hemo:checked ~ .fields .v-a-car-hemo{display:flex}
+#a-car-hemo:checked ~ .fields label[for="a-car-hemo"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-hemo:checked ~ .fields label[for="a-car-hemo"] .ock{opacity:1}
+#esp-car:checked ~ #a-car-eco:checked ~ .fields .v-a-car-eco{display:flex}
+#a-car-eco:checked ~ .fields label[for="a-car-eco"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-eco:checked ~ .fields label[for="a-car-eco"] .ock{opacity:1}
+#esp-car:checked ~ #a-car-arr:checked ~ .fields .v-a-car-arr{display:flex}
+#a-car-arr:checked ~ .fields label[for="a-car-arr"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-arr:checked ~ .fields label[for="a-car-arr"] .ock{opacity:1}
+
+/* variante de barra lateral: campo em coluna única, popover mais largo que o campo */
+.fields-side{grid-template-columns:1fr;gap:12px}
+.sel-side .sel-trig{min-height:34px;font-size:12.5px;padding:6px 9px}
+.sel-side .sel-lbl{font-size:11px}
+.sel-side .pop{left:0;right:auto;width:308px;max-height:288px}
+/* Na barra lateral real (280px, overflow-y:auto), 308px fixos estouram a borda
+   e o popup sai cortado: dentro de `.shell-side` ele cabe no gatilho.
+   CORREÇÃO LOCAL 2026-08-13, replicar no Design. */
+.shell-side .sel-side .pop{width:auto;right:0;min-width:0}
+.sel-side .opt{font-size:12.5px;padding:6px 9px}
+#op-esp-s:checked ~ .fields .sel-esp .pop,#op-area-s:checked ~ .fields .sel-area .pop{display:block}
+#op-esp-s:checked ~ .fields .sel-esp .sel-trig,#op-area-s:checked ~ .fields .sel-area .sel-trig{border-color:var(--g-600)}
+.sidemock{width:var(--shell-side-w);background:var(--shell-side-bg);border:1px solid var(--line);border-radius:var(--r-md);overflow:visible}
+#esp-gyn-s:checked ~ .fields .v-esp-gyn-s,#esp-gyn-s:checked ~ .fields .g-gyn-s{display:flex}
+#esp-gyn-s:checked ~ .fields label[for="esp-gyn-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-gyn-s:checked ~ .fields label[for="esp-gyn-s"] .ock{opacity:1}
+#esp-gyn-s:checked ~ #a-gyn-all-s:checked ~ .fields .v-a-gyn-all-s{display:flex}
+#a-gyn-all-s:checked ~ .fields label[for="a-gyn-all-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-all-s:checked ~ .fields label[for="a-gyn-all-s"] .ock{opacity:1}
+#esp-gyn-s:checked ~ #a-gyn-rh-s:checked ~ .fields .v-a-gyn-rh-s{display:flex}
+#a-gyn-rh-s:checked ~ .fields label[for="a-gyn-rh-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-rh-s:checked ~ .fields label[for="a-gyn-rh-s"] .ock{opacity:1}
+#esp-gyn-s:checked ~ #a-gyn-mf-s:checked ~ .fields .v-a-gyn-mf-s{display:flex}
+#a-gyn-mf-s:checked ~ .fields label[for="a-gyn-mf-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-mf-s:checked ~ .fields label[for="a-gyn-mf-s"] .ock{opacity:1}
+#esp-gyn-s:checked ~ #a-gyn-onc-s:checked ~ .fields .v-a-gyn-onc-s{display:flex}
+#a-gyn-onc-s:checked ~ .fields label[for="a-gyn-onc-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-onc-s:checked ~ .fields label[for="a-gyn-onc-s"] .ock{opacity:1}
+#esp-gyn-s:checked ~ #a-gyn-uro-s:checked ~ .fields .v-a-gyn-uro-s{display:flex}
+#a-gyn-uro-s:checked ~ .fields label[for="a-gyn-uro-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-uro-s:checked ~ .fields label[for="a-gyn-uro-s"] .ock{opacity:1}
+#esp-ort-s:checked ~ .fields .v-esp-ort-s,#esp-ort-s:checked ~ .fields .g-ort-s{display:flex}
+#esp-ort-s:checked ~ .fields label[for="esp-ort-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-ort-s:checked ~ .fields label[for="esp-ort-s"] .ock{opacity:1}
+#esp-ort-s:checked ~ #a-ort-all-s:checked ~ .fields .v-a-ort-all-s{display:flex}
+#a-ort-all-s:checked ~ .fields label[for="a-ort-all-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-all-s:checked ~ .fields label[for="a-ort-all-s"] .ock{opacity:1}
+#esp-ort-s:checked ~ #a-ort-col-s:checked ~ .fields .v-a-ort-col-s{display:flex}
+#a-ort-col-s:checked ~ .fields label[for="a-ort-col-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-col-s:checked ~ .fields label[for="a-ort-col-s"] .ock{opacity:1}
+#esp-ort-s:checked ~ #a-ort-jo-s:checked ~ .fields .v-a-ort-jo-s{display:flex}
+#a-ort-jo-s:checked ~ .fields label[for="a-ort-jo-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-jo-s:checked ~ .fields label[for="a-ort-jo-s"] .ock{opacity:1}
+#esp-ort-s:checked ~ #a-ort-mao-s:checked ~ .fields .v-a-ort-mao-s{display:flex}
+#a-ort-mao-s:checked ~ .fields label[for="a-ort-mao-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-mao-s:checked ~ .fields label[for="a-ort-mao-s"] .ock{opacity:1}
+#esp-ort-s:checked ~ #a-ort-pe-s:checked ~ .fields .v-a-ort-pe-s{display:flex}
+#a-ort-pe-s:checked ~ .fields label[for="a-ort-pe-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-pe-s:checked ~ .fields label[for="a-ort-pe-s"] .ock{opacity:1}
+#esp-car-s:checked ~ .fields .v-esp-car-s,#esp-car-s:checked ~ .fields .g-car-s{display:flex}
+#esp-car-s:checked ~ .fields label[for="esp-car-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-car-s:checked ~ .fields label[for="esp-car-s"] .ock{opacity:1}
+#esp-car-s:checked ~ #a-car-all-s:checked ~ .fields .v-a-car-all-s{display:flex}
+#a-car-all-s:checked ~ .fields label[for="a-car-all-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-all-s:checked ~ .fields label[for="a-car-all-s"] .ock{opacity:1}
+#esp-car-s:checked ~ #a-car-hemo-s:checked ~ .fields .v-a-car-hemo-s{display:flex}
+#a-car-hemo-s:checked ~ .fields label[for="a-car-hemo-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-hemo-s:checked ~ .fields label[for="a-car-hemo-s"] .ock{opacity:1}
+#esp-car-s:checked ~ #a-car-eco-s:checked ~ .fields .v-a-car-eco-s{display:flex}
+#a-car-eco-s:checked ~ .fields label[for="a-car-eco-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-eco-s:checked ~ .fields label[for="a-car-eco-s"] .ock{opacity:1}
+#esp-car-s:checked ~ #a-car-arr-s:checked ~ .fields .v-a-car-arr-s{display:flex}
+#a-car-arr-s:checked ~ .fields label[for="a-car-arr-s"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-arr-s:checked ~ .fields label[for="a-car-arr-s"] .ock{opacity:1}
+
+#op-esp-sh:checked ~ .fields .sel-esp .pop,#op-area-sh:checked ~ .fields .sel-area .pop{display:block}
+#op-esp-sh:checked ~ .fields .sel-esp .sel-trig,#op-area-sh:checked ~ .fields .sel-area .sel-trig{border-color:var(--g-600)}
+.params-body.cascade{overflow:visible}
+.shell-side{overflow:visible}
+#esp-gyn-sh:checked ~ .fields .v-esp-gyn-sh,#esp-gyn-sh:checked ~ .fields .g-gyn-sh{display:flex}
+#esp-gyn-sh:checked ~ .fields label[for="esp-gyn-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-gyn-sh:checked ~ .fields label[for="esp-gyn-sh"] .ock{opacity:1}
+#esp-gyn-sh:checked ~ #a-gyn-all-sh:checked ~ .fields .v-a-gyn-all-sh{display:flex}
+#a-gyn-all-sh:checked ~ .fields label[for="a-gyn-all-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-all-sh:checked ~ .fields label[for="a-gyn-all-sh"] .ock{opacity:1}
+#esp-gyn-sh:checked ~ #a-gyn-rh-sh:checked ~ .fields .v-a-gyn-rh-sh{display:flex}
+#a-gyn-rh-sh:checked ~ .fields label[for="a-gyn-rh-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-rh-sh:checked ~ .fields label[for="a-gyn-rh-sh"] .ock{opacity:1}
+#esp-gyn-sh:checked ~ #a-gyn-mf-sh:checked ~ .fields .v-a-gyn-mf-sh{display:flex}
+#a-gyn-mf-sh:checked ~ .fields label[for="a-gyn-mf-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-mf-sh:checked ~ .fields label[for="a-gyn-mf-sh"] .ock{opacity:1}
+#esp-gyn-sh:checked ~ #a-gyn-onc-sh:checked ~ .fields .v-a-gyn-onc-sh{display:flex}
+#a-gyn-onc-sh:checked ~ .fields label[for="a-gyn-onc-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-onc-sh:checked ~ .fields label[for="a-gyn-onc-sh"] .ock{opacity:1}
+#esp-gyn-sh:checked ~ #a-gyn-uro-sh:checked ~ .fields .v-a-gyn-uro-sh{display:flex}
+#a-gyn-uro-sh:checked ~ .fields label[for="a-gyn-uro-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-uro-sh:checked ~ .fields label[for="a-gyn-uro-sh"] .ock{opacity:1}
+#esp-ort-sh:checked ~ .fields .v-esp-ort-sh,#esp-ort-sh:checked ~ .fields .g-ort-sh{display:flex}
+#esp-ort-sh:checked ~ .fields label[for="esp-ort-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-ort-sh:checked ~ .fields label[for="esp-ort-sh"] .ock{opacity:1}
+#esp-ort-sh:checked ~ #a-ort-all-sh:checked ~ .fields .v-a-ort-all-sh{display:flex}
+#a-ort-all-sh:checked ~ .fields label[for="a-ort-all-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-all-sh:checked ~ .fields label[for="a-ort-all-sh"] .ock{opacity:1}
+#esp-ort-sh:checked ~ #a-ort-col-sh:checked ~ .fields .v-a-ort-col-sh{display:flex}
+#a-ort-col-sh:checked ~ .fields label[for="a-ort-col-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-col-sh:checked ~ .fields label[for="a-ort-col-sh"] .ock{opacity:1}
+#esp-ort-sh:checked ~ #a-ort-jo-sh:checked ~ .fields .v-a-ort-jo-sh{display:flex}
+#a-ort-jo-sh:checked ~ .fields label[for="a-ort-jo-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-jo-sh:checked ~ .fields label[for="a-ort-jo-sh"] .ock{opacity:1}
+#esp-ort-sh:checked ~ #a-ort-mao-sh:checked ~ .fields .v-a-ort-mao-sh{display:flex}
+#a-ort-mao-sh:checked ~ .fields label[for="a-ort-mao-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-mao-sh:checked ~ .fields label[for="a-ort-mao-sh"] .ock{opacity:1}
+#esp-ort-sh:checked ~ #a-ort-pe-sh:checked ~ .fields .v-a-ort-pe-sh{display:flex}
+#a-ort-pe-sh:checked ~ .fields label[for="a-ort-pe-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-pe-sh:checked ~ .fields label[for="a-ort-pe-sh"] .ock{opacity:1}
+#esp-car-sh:checked ~ .fields .v-esp-car-sh,#esp-car-sh:checked ~ .fields .g-car-sh{display:flex}
+#esp-car-sh:checked ~ .fields label[for="esp-car-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#esp-car-sh:checked ~ .fields label[for="esp-car-sh"] .ock{opacity:1}
+#esp-car-sh:checked ~ #a-car-all-sh:checked ~ .fields .v-a-car-all-sh{display:flex}
+#a-car-all-sh:checked ~ .fields label[for="a-car-all-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-all-sh:checked ~ .fields label[for="a-car-all-sh"] .ock{opacity:1}
+#esp-car-sh:checked ~ #a-car-hemo-sh:checked ~ .fields .v-a-car-hemo-sh{display:flex}
+#a-car-hemo-sh:checked ~ .fields label[for="a-car-hemo-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-hemo-sh:checked ~ .fields label[for="a-car-hemo-sh"] .ock{opacity:1}
+#esp-car-sh:checked ~ #a-car-eco-sh:checked ~ .fields .v-a-car-eco-sh{display:flex}
+#a-car-eco-sh:checked ~ .fields label[for="a-car-eco-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-eco-sh:checked ~ .fields label[for="a-car-eco-sh"] .ock{opacity:1}
+#esp-car-sh:checked ~ #a-car-arr-sh:checked ~ .fields .v-a-car-arr-sh{display:flex}
+#a-car-arr-sh:checked ~ .fields label[for="a-car-arr-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-arr-sh:checked ~ .fields label[for="a-car-arr-sh"] .ock{opacity:1}
+
+/* último campo da lateral abre para cima — regra documentada, agora aplicada */
+.params-body .sel-side:last-of-type .pop,.sel-side.pop-up .pop{top:auto;bottom:calc(100% + 4px)}
+.params-body .sel-side:last-of-type .pop{max-height:264px}
+
+
+/* clicar fora fecha o seletor, preservando a opção escolhida */
+.scrim{position:fixed;inset:0;z-index:7;display:none;cursor:default}
+#op-esp:checked ~ .scrim-op-esp{display:block}
+#op-area:checked ~ .scrim-op-area{display:block}
+#op-esp-s:checked ~ .scrim-op-esp-s{display:block}
+#op-area-s:checked ~ .scrim-op-area-s{display:block}
+#op-esp-sh:checked ~ .scrim-op-esp-sh{display:block}
+#op-area-sh:checked ~ .scrim-op-area-sh{display:block}
+
+/* painel de parâmetros com seletor: popover não pode ser cortado pelo cartão */
+.card-flat.has-sel{overflow:visible}
+.card-flat.has-sel>:first-child{border-top-left-radius:var(--r-md);border-top-right-radius:var(--r-md)}
+.card-flat.has-sel>.card-ft{border-bottom-left-radius:var(--r-md);border-bottom-right-radius:var(--r-md)}
+
+/* seletor MVP: só nome + marca de seleção */
+.opt{grid-template-columns:1fr 14px}
+.pop{max-height:232px}
+.sel-side .pop{max-height:264px}
+
+/* painel de parâmetros · divulgação progressiva */
+.panel-in{position:relative;display:flex;flex-direction:column;background:#fff}
+.panel-in>.r,.panel-in>.oc{position:absolute;opacity:0;pointer-events:none}
+.p-hd{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.okline{margin-left:auto;font-size:10.5px;color:var(--g-500);white-space:nowrap}
+.p-blk{padding:12px 14px;border-bottom:1px solid var(--line-soft);display:flex;flex-direction:column;gap:12px}
+.p-lbl{font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g-400)}
+.ctxval{font-size:13px;font-weight:500;color:var(--g-900)}
+.arealist{display:flex;flex-direction:column;gap:2px}
+.arealist .navitem{padding:6px 9px;font-size:12.5px}
+.disc{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:11px 14px;cursor:pointer;background:#fff;border-bottom:1px solid var(--line-soft)}
+.disc:hover{background:var(--g-50)}
+.disc .car{margin-left:auto;color:var(--g-400);font-size:10px;transform:rotate(0deg);transition:transform .12s ease}
+.disc:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.disc-t{font-size:12px;font-weight:600;color:var(--g-800);white-space:nowrap}
+.summ{flex-basis:100%;order:3;font-size:10.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.disc-body{display:none;flex-direction:column;gap:16px;padding:14px}
+.pv{display:none}
+.p-sub{border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-sm);background:var(--caveat-soft);overflow:hidden}
+.p-sub>.disc{background:transparent;border-bottom:0}
+.p-sub>.disc:hover{background:rgba(255,255,255,.5)}
+.p-sub>.disc .disc-t{color:var(--caveat-ink)}
+.p-sub>.disc-body{padding:0 12px 12px}
+.p-warn{font-size:11px;color:var(--caveat-ink);line-height:1.5;padding-bottom:2px}
+.seg>label.na{color:var(--g-300);background:var(--g-50);cursor:not-allowed}
+#win-3:checked ~ .p-sec .pv-win-3{display:inline}
+#win-6:checked ~ .p-sec .pv-win-6{display:inline}
+#win-12:checked ~ .p-sec .pv-win-12{display:inline}
+#crit-p75:checked ~ .p-sec .pv-crit-p75,#crit-p75:checked ~ .p-hd .pv-crit-p75{display:inline}
+#crit-p90:checked ~ .p-sec .pv-crit-p90,#crit-p90:checked ~ .p-hd .pv-crit-p90{display:inline}
+#ref-med:checked ~ .p-sec .pv-ref-med{display:inline}
+#ref-p75:checked ~ .p-sec .pv-ref-p75{display:inline}
+#ref-p90:checked ~ .p-sec .pv-ref-p90{display:inline}
+#cf-90:checked ~ .p-sec .pv-cf-90{display:inline}
+#cf-95:checked ~ .p-sec .pv-cf-95{display:inline}
+#win-3:checked ~ .p-sec label[for="win-3"]{background:var(--g-800);color:#fff;font-weight:600}
+#win-6:checked ~ .p-sec label[for="win-6"]{background:var(--g-800);color:#fff;font-weight:600}
+#win-12:checked ~ .p-sec label[for="win-12"]{background:var(--g-800);color:#fff;font-weight:600}
+#crit-p75:checked ~ .p-sec label[for="crit-p75"]{background:var(--g-800);color:#fff;font-weight:600}
+#crit-p90:checked ~ .p-sec label[for="crit-p90"]{background:var(--g-800);color:#fff;font-weight:600}
+#ref-med:checked ~ .p-sec label[for="ref-med"]{background:var(--g-800);color:#fff;font-weight:600}
+#ref-p75:checked ~ .p-sec label[for="ref-p75"]{background:var(--g-800);color:#fff;font-weight:600}
+#ref-p90:checked ~ .p-sec label[for="ref-p90"]{background:var(--g-800);color:#fff;font-weight:600}
+#cf-90:checked ~ .p-sec label[for="cf-90"]{background:var(--g-800);color:#fff;font-weight:600}
+#cf-95:checked ~ .p-sec label[for="cf-95"]{background:var(--g-800);color:#fff;font-weight:600}
+#win-3:checked ~ .p-hd .okline,#win-6:checked ~ .p-hd .okline,#crit-p75:checked ~ .p-hd .okline,#ref-p75:checked ~ .p-hd .okline,#ref-p90:checked ~ .p-hd .okline,#cf-95:checked ~ .p-hd .okline{display:none}
+#crit-p75:checked ~ .p-sec label[for="ref-p90"],#crit-p75:checked ~ .p-sec label[for="ref-p75"]{color:var(--g-300);background:var(--g-50);pointer-events:none}
+#an:checked ~ .p-sec>.disc-body{display:flex}
+#an:checked ~ .p-sec>.disc .car{transform:rotate(180deg)}
+#win-3-sh:checked ~ .p-sec .pv-win-3-sh{display:inline}
+#win-6-sh:checked ~ .p-sec .pv-win-6-sh{display:inline}
+#win-12-sh:checked ~ .p-sec .pv-win-12-sh{display:inline}
+#crit-p75-sh:checked ~ .p-sec .pv-crit-p75-sh,#crit-p75-sh:checked ~ .p-hd .pv-crit-p75-sh{display:inline}
+#crit-p90-sh:checked ~ .p-sec .pv-crit-p90-sh,#crit-p90-sh:checked ~ .p-hd .pv-crit-p90-sh{display:inline}
+#ref-med-sh:checked ~ .p-sec .pv-ref-med-sh{display:inline}
+#ref-p75-sh:checked ~ .p-sec .pv-ref-p75-sh{display:inline}
+#ref-p90-sh:checked ~ .p-sec .pv-ref-p90-sh{display:inline}
+#cf-90-sh:checked ~ .p-sec .pv-cf-90-sh{display:inline}
+#cf-95-sh:checked ~ .p-sec .pv-cf-95-sh{display:inline}
+#win-3-sh:checked ~ .p-sec label[for="win-3-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#win-6-sh:checked ~ .p-sec label[for="win-6-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#win-12-sh:checked ~ .p-sec label[for="win-12-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#crit-p75-sh:checked ~ .p-sec label[for="crit-p75-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#crit-p90-sh:checked ~ .p-sec label[for="crit-p90-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#ref-med-sh:checked ~ .p-sec label[for="ref-med-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#ref-p75-sh:checked ~ .p-sec label[for="ref-p75-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#ref-p90-sh:checked ~ .p-sec label[for="ref-p90-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#cf-90-sh:checked ~ .p-sec label[for="cf-90-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#cf-95-sh:checked ~ .p-sec label[for="cf-95-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#win-3-sh:checked ~ .p-hd .okline,#win-6-sh:checked ~ .p-hd .okline,#crit-p75-sh:checked ~ .p-hd .okline,#ref-p75-sh:checked ~ .p-hd .okline,#ref-p90-sh:checked ~ .p-hd .okline,#cf-95-sh:checked ~ .p-hd .okline{display:none}
+#crit-p75-sh:checked ~ .p-sec label[for="ref-p90-sh"],#crit-p75-sh:checked ~ .p-sec label[for="ref-p75-sh"]{color:var(--g-300);background:var(--g-50);pointer-events:none}
+#an-sh:checked ~ .p-sec>.disc-body{display:flex}
+#an-sh:checked ~ .p-sec>.disc .car{transform:rotate(180deg)}
+
+.shell>:last-child{display:flex;flex-direction:column}
+.content{flex:1}
+.topchips .pv,.card-ft .pv{display:none}
+#crit-p75-sh:checked ~ .p-sec .pv-crit-p75-sh{display:inline}
+#crit-p90-sh:checked ~ .p-sec .pv-crit-p90-sh{display:inline}
+.shell:has(#crit-p75-sh:checked) .topchips .pv-crit-p75-sh{display:inline}
+.shell:has(#crit-p90-sh:checked) .topchips .pv-crit-p90-sh{display:inline}
+aside:has(#crit-p75:checked) .card-ft .pv-crit-p75{display:inline}
+aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
+
+.p-blk{overflow:visible}
+.p-blk .sel-side .pop{max-height:240px}
+#op-a:checked ~ .p-blk .sel-area .sel-trig{border-color:var(--g-600)}
+#op-a:checked ~ .scrim-op-a{display:block}
+#op-a-sh:checked ~ .p-blk .sel-area .sel-trig{border-color:var(--g-600)}
+#op-a-sh:checked ~ .scrim-op-a-sh{display:block}
+
+#e-gyn:checked ~ .p-blk .v-e-gyn{display:flex}
+#e-gyn:checked ~ .p-blk label[for="e-gyn"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#e-gyn:checked ~ .p-blk label[for="e-gyn"] .ock{opacity:1}
+#e-ort:checked ~ .p-blk .v-e-ort{display:flex}
+#e-ort:checked ~ .p-blk label[for="e-ort"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#e-ort:checked ~ .p-blk label[for="e-ort"] .ock{opacity:1}
+#e-car:checked ~ .p-blk .v-e-car{display:flex}
+#e-car:checked ~ .p-blk label[for="e-car"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#e-car:checked ~ .p-blk label[for="e-car"] .ock{opacity:1}
+#op-e:checked ~ .p-blk .sel-esp .pop{display:block}
+#op-e:checked ~ .p-blk .sel-esp .sel-trig{border-color:var(--g-600)}
+#op-e:checked ~ .scrim-op-e{display:block}
+#op-a:checked ~ .p-blk .sel-area .pop{display:block}
+#e-gyn-sh:checked ~ .p-blk .v-e-gyn-sh{display:flex}
+#e-gyn-sh:checked ~ .p-blk label[for="e-gyn-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#e-gyn-sh:checked ~ .p-blk label[for="e-gyn-sh"] .ock{opacity:1}
+#e-ort-sh:checked ~ .p-blk .v-e-ort-sh{display:flex}
+#e-ort-sh:checked ~ .p-blk label[for="e-ort-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#e-ort-sh:checked ~ .p-blk label[for="e-ort-sh"] .ock{opacity:1}
+#e-car-sh:checked ~ .p-blk .v-e-car-sh{display:flex}
+#e-car-sh:checked ~ .p-blk label[for="e-car-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#e-car-sh:checked ~ .p-blk label[for="e-car-sh"] .ock{opacity:1}
+/* Os seletores saíram da lateral (.p-blk) para a faixa de filtros (.fil) em
+   14/ago; as regras de abertura seguem o novo irmão. Abrir e fechar continua
+   CSS puro — o JS não decide visual nenhum aqui. */
+#op-e-sh:checked ~ .fil .sel-esp .pop{display:block;animation:pop-in .14s ease-out}
+#op-e-sh:checked ~ .fil .sel-esp .sel-trig{border-color:var(--g-600)}
+#op-a-sh:checked ~ .fil .sel-area .pop{display:block;animation:pop-in .14s ease-out}
+#op-a-sh:checked ~ .fil .sel-area .sel-trig{border-color:var(--g-600)}
+/* ── filtro de PERFIL (Clean v3) ────────────────────────────────────────────
+   Botão + popover, na mesma linha do recorte. Era um cartão inteiro com título
+   e subtítulo para hospedar um filtro: ocupava a dobra do conteúdo e dava a um
+   recorte o peso visual de um gráfico. */
+.pf{position:relative;display:inline-flex}
+.pf-trig{height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;font-size:12px;font-weight:500;color:var(--g-700);cursor:pointer;white-space:nowrap}
+.pf-trig svg{stroke:var(--g-500);flex:none}
+.pf-trig .car{stroke:var(--g-400);transition:transform .15s ease}
+.pf-trig:hover{background:var(--g-50)}
+.pf-trig:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+#pf-sh:checked ~ .pf-trig .car{transform:rotate(180deg)}
+#pf-sh:checked ~ .pf-trig{border-color:var(--g-600)}
+#pf-sh:checked ~ .pf-pop{display:flex;animation:pop-in .14s ease-out}
+#pf-sh:checked ~ .scrim-pf{display:block}
+/* SEGUNDO popover com a mesma roupa: o RECORTE (2026-08-19). O mecanismo é
+   CSS puro e o seletor traz o id do interruptor, então cada popover precisa do
+   seu par de regras — o visual todo é reusado das classes `.pf-*`.
+   CORREÇÃO LOCAL, replicar no Design junto com o seletor de recorte. */
+#rc-sh:checked ~ .pf-trig .car{transform:rotate(180deg)}
+#rc-sh:checked ~ .pf-trig{border-color:var(--g-600)}
+#rc-sh:checked ~ .pf-pop{display:flex;animation:pop-in .14s ease-out}
+#rc-sh:checked ~ .scrim-rc{display:block}
+/* o popover do recorte é mais largo: os rótulos dos degraus são frases
+   ("Sem fator de contexto que explique"), não palavras soltas */
+#rc-sh ~ .pf-pop{width:330px}
+/* rótulo de grupo dentro do popover: separa POPULAÇÃO de CASCATA, que é o que
+   impede ler "Comparáveis 63" como se fosse um degrau */
+/* ---------- DISPERSÃO: quantidade × custo (experimental, 2026-08-19) --------
+   Gráfico que o guia ainda não tem. Mesma moldura da distribuição; o que é novo
+   é a área de plotagem com dois eixos e o ponto de tamanho variável.
+   REPLICAR NO DESIGN se o bloco for adotado. */
+.disp{position:relative;display:grid;grid-template-columns:14px 52px 1fr;grid-template-rows:var(--disp-h,260px) 18px 14px;column-gap:8px;align-items:stretch}
+.disp-eixo-y{grid-column:1;grid-row:1;writing-mode:vertical-rl;transform:rotate(180deg);justify-self:center;align-self:center;font-size:10.5px;color:var(--g-400);letter-spacing:.04em}
+.disp-marcas-y{grid-column:2;grid-row:1;position:relative}
+.disp-marcas-y span{position:absolute;right:0;transform:translateY(50%);font-family:var(--font-num);font-size:10.5px;color:var(--g-400);white-space:nowrap}
+.disp-plot{grid-column:3;grid-row:1;position:relative;border-left:1px solid var(--line);border-bottom:1px solid var(--line)}
+.disp-marcas-x{grid-column:3;grid-row:2;position:relative}
+.disp-marcas-x span{position:absolute;transform:translateX(-50%);font-family:var(--font-num);font-size:10.5px;color:var(--g-400);white-space:nowrap}
+.disp-eixo-x{grid-column:3;grid-row:3;justify-self:center;font-size:10.5px;color:var(--g-400);letter-spacing:.04em}
+/* O PONTO. `--t` é o tamanho relativo (0–1) que o motor manda; o diâmetro sai
+   dele entre um mínimo e um máximo. Cor neutra e uma só: este gráfico não
+   julga, e uma paleta de severidade aqui reintroduziria a régua que ele não
+   tem. */
+/* O PONTO. `--t` é o tamanho relativo (0–1) e `--i` a intensidade da cor, os
+   dois do motor: tamanho = valor total solicitado, cor = excedente em R$. Duas
+   grandezas de dinheiro no mesmo ponto, e o contraste entre elas é a leitura do
+   bloco — bola grande e clara é operação grande e dentro do padrão; bola
+   pequena e escura é operação modesta com muito excedente.
+   A rampa é a MESMA da distribuição (ver o bloco `.plot .pt`): mesma tinta para
+   a mesma grandeza, senão os dois gráficos pareceriam escalas diferentes.
+   A opacidade sobe menos que lá — aqui o tamanho já carrega magnitude, e bola
+   pequena e translúcida somiria. */
+.disp-pt{--d:calc(var(--disp-dot-min,7px) + (var(--disp-dot-max,34px) - var(--disp-dot-min,7px)) * var(--t,0));--ramp-1:clamp(0%, calc(var(--i,0) * 200%), 100%);--ramp-2:clamp(0%, calc((var(--i,0) - .5) * 200%), 100%);position:absolute;width:var(--d);height:var(--d);margin-left:calc(var(--d) / -2);margin-bottom:calc(var(--d) / -2);padding:0;border:1px solid var(--canvas);border-radius:50%;background:color-mix(in oklab, var(--crit) var(--ramp-2), color-mix(in oklab, var(--read-above) var(--ramp-1), var(--g-400)));opacity:calc(.6 + var(--i,0) * .35);cursor:pointer}
+.disp-pt:hover{opacity:1;background:var(--g-900);z-index:2}
+/* RECORTE: quem sai de cena recua, quem fica mantém a própria tinta — a mesma
+   regra do gráfico de distribuição. Os eixos não se movem: a escala é da área,
+   e o recorte muda quem está em cena, nunca contra quem se mede. */
+.disp.com-recorte .disp-pt:not(.em-cena){opacity:.12;pointer-events:none}
+.disp-pt:focus-visible{outline:none;box-shadow:var(--focus-ring);z-index:3}
+
+/* ---------- cartão recolhível (2026-08-20) ----------------------------------
+   O botão vive no `.tbl-hd` e some tudo abaixo dele. O cabeçalho FICA: bloco
+   fechado continua declarado, com título e subtítulo — sumir por inteiro faria
+   o leitor procurar um gráfico que ele mesmo fechou.
+   REPLICAR NO DESIGN. */
+.tbl-hd{position:relative}
+.tbl-toggle{margin-left:auto;flex:none;width:26px;height:26px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:var(--r-sm);background:transparent;color:var(--g-500);cursor:pointer}
+.tbl-toggle svg{stroke:currentColor;transition:transform .15s ease}
+.tbl-toggle:hover{background:var(--g-100);color:var(--g-900)}
+.tbl-toggle:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.tbl.fechado > .tbl-hd .tbl-toggle svg{transform:rotate(-90deg)}
+.tbl.fechado > *:not(.tbl-hd){display:none}
+/* fechado, o cabeçalho não precisa do respiro que separava do corpo */
+.tbl.fechado > .tbl-hd{border-bottom:0}
+/* e fica só o TÍTULO: subtítulo, leitura de concentração e declaração de
+   população explicam um corpo que não está à vista. Fechado, o cabeçalho é
+   índice — serve para achar o bloco, não para lê-lo. */
+.tbl.fechado > .tbl-hd .sub{display:none}
+
+/* ---------- DICA: o tooltip do app ------------------------------------------
+   Um só para toda a tela, desenhado por `lib/dica.js` e preso ao body. Trocou o
+   `title` nativo em 2026-08-19: aquele aparecia depois de ~1s, tinha a cara do
+   sistema operacional e não aceitava estilo — num produto que vai a diretoria
+   o hover é parte do material.
+   A forma vem do `[data-tip]` da página "Área de Atuação" do Claude Design:
+   fundo escuro, canto arredondado, texto pequeno. Difere em duas coisas, e as
+   duas por necessidade: QUEBRA linha (as dicas daqui são frases inteiras, não
+   rótulos de uma palavra) e é `fixed`, porque metade dos hovers vive dentro de
+   `.tbl-scroll`, que recortaria uma caixa presa ao elemento.
+   REPLICAR NO DESIGN como componente do guia. */
+.dica{position:fixed;z-index:90;max-width:300px;padding:7px 10px;border-radius:var(--r-sm);background:var(--g-900);color:#fff;font-size:11.5px;line-height:1.45;font-weight:400;box-shadow:var(--sh-1);pointer-events:none;opacity:0;transform:translateY(2px);transition:opacity .1s ease,transform .1s ease}
+.dica.on{opacity:1;transform:none}
+/* o número dentro da dica em mono, como em toda a tela */
+.dica{font-variant-numeric:tabular-nums}
+
+.pf-grp{font-size:10.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400);padding:8px 10px 4px}
+/* escolha ÚNICA: a caixa vira redonda. Quadrada é a marca de seleção múltipla,
+   e a diferença entre os dois seletores da faixa precisa se ver */
+.pf-opt.uni .bx{border-radius:50%}
+/* a QUEDA de um degrau para o próximo, à esquerda da contagem */
+.pf-opt .dp{font-family:var(--font-num);font-size:11px;color:var(--crit)}
+/* O resumo do que está escolhido, na MESMA forma do botão de Critérios
+   (cinza, mono): os dois são botão de filtro com resumo, e um deles vestido de
+   verde fazia parecer que "ter perfil escolhido" é um estado especial do app.
+   Estado de filtro se lê pelo valor, não por cor. */
+.pf-tag{display:none;font-family:var(--font-num);font-size:11.5px;font-weight:400;color:var(--g-400)}
+.pf.tem-perfil .pf-tag{display:inline}
+
+.pf-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:8;width:260px;flex-direction:column;padding:4px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--sh-pop)}
+.pf-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:12.5px;color:var(--g-800);cursor:pointer;text-align:left}
+.pf-opt:hover{background:var(--g-100);color:var(--g-900)}
+/* caixa marcável (Clean v3): 14px, raio 4, vazia quando desmarcada e
+   preenchida no acento com o ✓ branco quando marcada */
+.pf-opt .bx{width:14px;height:14px;flex:none;border:1px solid var(--g-300);border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center}
+.pf-opt .bx svg{opacity:0}
+.pf-opt.on .bx{background:var(--acc);border-color:var(--acc)}
+.pf-opt.on .bx svg{opacity:1}
+.pf-opt.na .bx{background:var(--g-50);border-color:var(--g-200)}
+.pf-opt .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-opt .n{font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+/* marcado: a CAIXA carrega o estado, a linha continua neutra. Pintar a linha
+   inteira de verde com três marcadas transformava o popover num bloco sólido. */
+.pf-opt.on{color:var(--g-900);font-weight:500}
+.pf-opt.on:hover{background:var(--g-100)}
+/* perfil presente mas com portadores de menos: fica, com o motivo no hover.
+   Sumir faria parecer que o perfil não existe na área. */
+.pf-opt.na{color:var(--g-300);cursor:not-allowed}
+.pf-opt.na:hover{background:transparent;color:var(--g-300)}
+.pf-ft{display:flex;align-items:center;gap:8px;margin-top:4px;padding:8px 10px 4px;border-top:1px solid var(--line-soft)}
+.pf-nota{flex:1;font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.pf-limpar{display:none;padding:4px 8px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:12px;color:var(--g-500);cursor:pointer}
+.pf-limpar:hover{background:var(--g-100);color:var(--g-900)}
+.pf.tem-perfil .pf-limpar{display:inline-flex}
+
+/* ── Pareto: lista de barras horizontais (Clean v3) ─────────────────────────
+   Quatro colunas por linha: NOME · barra · valor · acumulado. O nome à
+   esquerda é o que o gráfico de barras verticais não conseguia mostrar, e num
+   Pareto saber quem é a leitura inteira.
+
+   A barra é proporcional ao MAIOR valor (escala de desenho); a leitura exata
+   está no número ao lado. Contra o total, a maior ocuparia 26% da pista e o
+   resto viraria risquinho. */
+/* Espaçamento uniforme com o resto do cartão: 16px nas laterais em cabeçalho,
+   lista e legenda — a legenda estava colada na borda porque só a lista tinha
+   respiro lateral. */
+.pareto-cab{display:flex;align-items:flex-end;gap:12px;padding:0 16px 8px;font-size:11px;color:var(--g-400);white-space:nowrap}
+.pareto-cab .rot,.pareto-cab .val,.pareto-cab .cum,.pareto-cab .cum-rs{font-family:inherit}
+.pareto-cab .rot{width:132px;flex:none;text-align:right}
+.pareto-cab .trilho{flex:1;min-width:0}
+.pareto-cab .val{width:74px;flex:none;text-align:right}
+/* ACUMULADO EM R$, ao lado do acumulado em %. O R$ vem primeiro porque é o
+   número que se cita numa reunião; o % qualifica o que ele representa. */
+.pareto-cab .cum-rs{width:86px;flex:none;text-align:right;white-space:nowrap}
+.pareto-cab .cum{width:56px;flex:none;text-align:right;white-space:nowrap}
+.pareto{display:flex;flex-direction:column;max-height:300px;overflow-y:auto;padding:0 16px}
+.pareto-l{position:relative;display:flex;align-items:center;gap:12px;padding:3px 0;border-bottom:1px solid transparent}
+.pareto-l.clicavel{cursor:pointer}
+.pareto-l:hover{background:var(--g-50)}
+.pareto-l .rot{width:132px;flex:none;text-align:right;font-family:var(--font-num);font-size:11px;color:var(--g-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pareto-l .trilho{flex:1;min-width:0;height:14px;display:flex;align-items:center}
+.pareto-l .trilho i{display:block;height:12px;border-radius:2px;background:var(--g-300)}
+.pareto-l.nucleo .trilho i{background:var(--g-500)}
+.pareto-l .val{width:74px;flex:none;text-align:right;font-family:var(--font-num);font-size:11px;color:var(--g-900)}
+.pareto-l .cum-rs{width:86px;flex:none;text-align:right;font-family:var(--font-num);font-size:11px;color:var(--g-600)}
+.pareto-l .cum{width:56px;flex:none;text-align:right;font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+/* o corte do limiar: a régua fecha a última linha do núcleo, então onde ela
+   está é exatamente onde o núcleo termina */
+.pareto-l.corte{border-bottom-color:var(--g-400);border-bottom-style:dashed}
+/* Fora do recorte em cena: recua, como os pontos do gráfico. Recua o CONTEÚDO,
+   não a fileira: `opacity` na fileira apagava junto a régua tracejada do corte,
+   e a régua não pertence àquele cooperado, marca os 80% do conjunto inteiro.
+   Com um perfil de poucos em cena a linha do corte caía fora e sumia da tela. */
+.pareto-l.fora .rot,
+.pareto-l.fora .val,
+.pareto-l.fora .cum,
+.pareto-l.fora .cum-rs,
+.pareto-l.fora .trilho{opacity:.3}
+.pareto-l.fora .trilho i{background:var(--g-200)}
+
+/* o tooltip abre ABAIXO da linha: acima, a primeira linha da lista não tinha
+   para onde ele ir e ele cobria a própria barra que descreve */
+.pareto-l .tip{position:absolute;left:140px;top:calc(100% + 2px);opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:#fff;border-radius:var(--r-sm);padding:7px 10px;box-shadow:var(--sh-pop);white-space:nowrap;z-index:5}
+.pareto-l .tip b{display:block;font-size:11.5px;font-weight:500}
+.pareto-l .tip em{display:block;font-style:normal;font-size:10.5px;color:var(--g-300)}
+.pareto-l:hover .tip{opacity:1}
+
+/* dentro de um cartão de Pareto a legenda alinha com a lista */
+.tbl .pareto ~ .legend{padding:0 16px;margin-top:14px}
+.legend i.bar-nucleo{width:14px;height:8px;border-radius:2px;background:var(--g-500)}
+.legend i.bar-cauda{width:14px;height:8px;border-radius:2px;background:var(--g-300)}
+
+/* ── abas de unidade de análise (Clean v3) ──────────────────────────────────
+   Sublinhado no ativo, sem moldura: a aba é o corte da PÁGINA, e caixa em volta
+   dela competiria com os cartões que ela contém. */
+.vistas{display:flex;align-items:center;gap:24px;border-bottom:1px solid var(--line)}
+.vista{padding:0 0 12px;margin-bottom:-1px;border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:500;color:var(--g-400);cursor:pointer;display:flex;align-items:baseline;gap:8px}
+.vista:hover{color:var(--g-700)}
+.vista.on{color:var(--g-900);box-shadow:inset 0 -2px 0 var(--g-900)}
+.vista .cnt{font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.vista:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.vista-painel{display:none;flex-direction:column;gap:16px}
+.vista-painel.on{display:flex}
+
+/* ── recorte: segmented control (Clean v3) ──────────────────────────────────
+   Trilho cinza contínuo, pastilha branca no ativo. Mesma construção do
+   segmentado do diálogo de critérios: um controle, uma linguagem. */
+.segfilt{display:flex;gap:2px;padding:2px;background:var(--g-50);border-radius:var(--r-sm)}
+.segfilt-o{height:28px;padding:0 12px;border:0;border-radius:calc(var(--r-sm) - 1px);background:transparent;color:var(--g-500);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.segfilt-o:hover{color:var(--g-900)}
+.segfilt-o.on{background:#fff;color:var(--g-900);box-shadow:0 1px 2px rgba(24,24,27,.06)}
+.segfilt-o .cnt{font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.segfilt-o:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+
+/* ── seletor de PERÍODO (Clean v3) ──────────────────────────────────────────
+   Atalhos + duas grades de mês. O painel é largo porque a escolha é de DUAS
+   pontas, e escolher a segunda sem ver a primeira é adivinhar. */
+#op-p-sh:checked ~ .fil .sel-per .pop{display:block}
+#op-p-sh:checked ~ .fil .sel-per .sel-trig{border-color:var(--g-600)}
+#op-p-sh:checked ~ .scrim-op-p-sh{display:block}
+.critbar .sel-per .sel-trig{min-width:200px}
+.sel-per .sel-trig svg{stroke:var(--g-400);flex:none}
+/* O painel INTEIRO em cena: sem rolagem, sem altura máxima. Escolher duas
+   pontas exige ver as duas, e um painel que rola esconde metade da decisão. */
+.critbar .sel-per .pop-per{position:absolute;top:calc(100% + 6px);bottom:auto;left:0;right:auto;
+  width:472px;min-width:0;max-height:none;overflow:visible;padding:16px;
+  display:none;flex-direction:column;gap:14px;
+  border:1px solid var(--line);border-radius:8px;box-shadow:var(--sh-pop)}
+#op-p-sh:checked ~ .fil .sel-per .pop-per{display:flex;animation:pop-in .14s ease-out}
+/* o "efeito" do shadcn: entra subindo 4px e clareando, rápido o bastante para
+   parecer resposta e não animação */
+@keyframes pop-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.per-grades{display:flex;gap:16px;align-items:flex-start}
+.per-lado{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:10px}
+.per-lado+.per-lado{border-left:1px solid var(--line-soft);padding-left:16px}
+.per-mes.on:hover{background:var(--acc-strong)}
+.per-hd{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:500;color:var(--g-700)}
+.per-ano{display:flex;align-items:center;gap:4px;font-family:var(--font-num);font-size:12px;color:var(--g-900)}
+.per-ano .nav{padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer;color:var(--g-600);flex:none}
+.per-ano .nav:hover{background:var(--g-50)}
+.per-ano .nav.off{color:var(--g-300);cursor:not-allowed}
+.per-ano .y{width:40px;text-align:center}
+.per-meses{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.per-mes{min-width:0}
+.per-mes{height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;font-size:12px;color:var(--g-700);cursor:pointer}
+.per-mes:hover{background:var(--g-50)}
+.per-mes.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:500}
+/* meses ENTRE as pontas: mesma família de cor, um degrau abaixo. É o que faz o
+   intervalo ser lido como intervalo, e não como duas escolhas soltas. */
+.per-mes.faixa{background:var(--acc-soft);border-color:var(--acc-line);color:var(--acc-strong)}
+.per-mes.faixa:hover{background:var(--acc-soft);border-color:var(--acc)}
+/* mês sem base NÃO é escolhível: zero por falta de dado lê igual a zero por
+   comportamento, e essa confusão é cara numa tela de auditoria */
+.per-mes.na{color:var(--g-300);background:var(--g-25);cursor:not-allowed}
+.per-mes.na:hover{background:var(--g-25)}
+.per-ft{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line-soft);padding-top:12px;flex-wrap:nowrap}
+.per-leitura{flex:1 1 auto;min-width:0;font-size:11px;color:var(--g-500);line-height:1.45}
+.per-leitura.alerta{color:var(--caveat-ink)}
+
+/* ── lista de opções no espírito shadcn (14/ago) ────────────────────────────
+   O que mudou e por quê:
+
+   · a caixa ganha respiro interno (4px) e as opções ganham raio — o item
+     realçado passa a ser uma PASTILHA dentro do painel, não uma faixa de
+     borda a borda;
+   · as RÉGUAS entre opções saem. Numa lista de oito áreas, sete linhas
+     horizontais eram sete elementos para separar o que o espaçamento já
+     separa;
+   · o hover é preenchimento suave (`--g-100`), não mudança de borda;
+   · o escolhido fica em NEUTRO com o ✓ no acento. Fundo verde em item de lista
+     competia com o verde que significa "referência" no resto da tela;
+   · sombra alta e raio 8: o painel flutua, como o diálogo. */
+.critbar .pop{padding:4px;border-color:var(--line);border-radius:8px}
+.critbar .opt{border-top:0;border-radius:var(--r-sm);padding:7px 10px;font-size:12.5px;gap:8px}
+.critbar .opt:hover{background:var(--g-100);color:var(--g-900)}
+/* Escolhido em VERDE, como no resto do app: é a mesma marca de "este é o que
+   está valendo" que a navegação lateral usa (`.navitem.on`). Cheguei a deixar
+   neutro para o acento não competir com o verde do dado; a identidade venceu,
+   e coerência entre superfícies vale mais que a distinção. */
+.critbar .opt.on{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+.critbar .opt.on:hover{background:var(--acc-soft)}
+.critbar .opt.on .ock{opacity:1;color:var(--acc)}
+/* opção presente e não escolhível: fica, esmaecida, com o motivo no title —
+   sumir faria parecer que a área não existe */
+.critbar .opt.opt-na{color:var(--g-300);cursor:not-allowed}
+.critbar .opt.opt-na:hover{background:transparent;color:var(--g-300)}
+/* o gatilho: mesma altura dos demais controles da faixa, foco no acento */
+.critbar .sel-trig:hover{border-color:var(--line);background:var(--g-50)}
+
+/* na faixa, o popover abre PARA BAIXO e alinhado à esquerda do gatilho */
+/* Popover da faixa: abre PARA BAIXO, alinhado à esquerda do gatilho. O painel
+   de período fica de fora (`:not(.pop-per)`): ele tem duas grades lado a lado
+   e não cabe nos 260px de uma lista de opções. Sem a exceção, esta regra
+   vencia por especificidade e o painel abria estreito e com rolagem. */
+.critbar .sel-side .pop:not(.pop-per){top:calc(100% + 4px);bottom:auto;left:0;right:auto;width:260px;box-shadow:var(--sh-pop)}
+#op-e-sh:checked ~ .p-blk .sel-esp .pop{display:block}
+#op-e-sh:checked ~ .p-blk .sel-esp .sel-trig{border-color:var(--g-600)}
+#op-e-sh:checked ~ .scrim-op-e-sh{display:block}
+#op-a-sh:checked ~ .p-blk .sel-area .pop{display:block}
+
+#e-gyn:checked ~ .p-blk .g-gyn{display:flex}
+#e-gyn:checked ~ #a-gyn-all:checked ~ .p-blk .v-a-gyn-all{display:flex}
+#a-gyn-all:checked ~ .p-blk label[for="a-gyn-all"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-all:checked ~ .p-blk label[for="a-gyn-all"] .ock{opacity:1}
+#e-gyn:checked ~ #a-gyn-rh:checked ~ .p-blk .v-a-gyn-rh{display:flex}
+#a-gyn-rh:checked ~ .p-blk label[for="a-gyn-rh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-rh:checked ~ .p-blk label[for="a-gyn-rh"] .ock{opacity:1}
+#e-gyn:checked ~ #a-gyn-mf:checked ~ .p-blk .v-a-gyn-mf{display:flex}
+#a-gyn-mf:checked ~ .p-blk label[for="a-gyn-mf"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-mf:checked ~ .p-blk label[for="a-gyn-mf"] .ock{opacity:1}
+#e-gyn:checked ~ #a-gyn-onc:checked ~ .p-blk .v-a-gyn-onc{display:flex}
+#a-gyn-onc:checked ~ .p-blk label[for="a-gyn-onc"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-onc:checked ~ .p-blk label[for="a-gyn-onc"] .ock{opacity:1}
+#e-gyn:checked ~ #a-gyn-uro:checked ~ .p-blk .v-a-gyn-uro{display:flex}
+#a-gyn-uro:checked ~ .p-blk label[for="a-gyn-uro"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-uro:checked ~ .p-blk label[for="a-gyn-uro"] .ock{opacity:1}
+#e-ort:checked ~ .p-blk .g-ort{display:flex}
+#e-ort:checked ~ #a-ort-all:checked ~ .p-blk .v-a-ort-all{display:flex}
+#a-ort-all:checked ~ .p-blk label[for="a-ort-all"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-all:checked ~ .p-blk label[for="a-ort-all"] .ock{opacity:1}
+#e-ort:checked ~ #a-ort-col:checked ~ .p-blk .v-a-ort-col{display:flex}
+#a-ort-col:checked ~ .p-blk label[for="a-ort-col"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-col:checked ~ .p-blk label[for="a-ort-col"] .ock{opacity:1}
+#e-ort:checked ~ #a-ort-jo:checked ~ .p-blk .v-a-ort-jo{display:flex}
+#a-ort-jo:checked ~ .p-blk label[for="a-ort-jo"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-jo:checked ~ .p-blk label[for="a-ort-jo"] .ock{opacity:1}
+#e-ort:checked ~ #a-ort-mao:checked ~ .p-blk .v-a-ort-mao{display:flex}
+#a-ort-mao:checked ~ .p-blk label[for="a-ort-mao"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-mao:checked ~ .p-blk label[for="a-ort-mao"] .ock{opacity:1}
+#e-ort:checked ~ #a-ort-pe:checked ~ .p-blk .v-a-ort-pe{display:flex}
+#a-ort-pe:checked ~ .p-blk label[for="a-ort-pe"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-pe:checked ~ .p-blk label[for="a-ort-pe"] .ock{opacity:1}
+#e-car:checked ~ .p-blk .g-car{display:flex}
+#e-car:checked ~ #a-car-all:checked ~ .p-blk .v-a-car-all{display:flex}
+#a-car-all:checked ~ .p-blk label[for="a-car-all"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-all:checked ~ .p-blk label[for="a-car-all"] .ock{opacity:1}
+#e-car:checked ~ #a-car-hemo:checked ~ .p-blk .v-a-car-hemo{display:flex}
+#a-car-hemo:checked ~ .p-blk label[for="a-car-hemo"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-hemo:checked ~ .p-blk label[for="a-car-hemo"] .ock{opacity:1}
+#e-car:checked ~ #a-car-eco:checked ~ .p-blk .v-a-car-eco{display:flex}
+#a-car-eco:checked ~ .p-blk label[for="a-car-eco"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-eco:checked ~ .p-blk label[for="a-car-eco"] .ock{opacity:1}
+#e-car:checked ~ #a-car-arr:checked ~ .p-blk .v-a-car-arr{display:flex}
+#a-car-arr:checked ~ .p-blk label[for="a-car-arr"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-arr:checked ~ .p-blk label[for="a-car-arr"] .ock{opacity:1}
+#e-gyn-sh:checked ~ .p-blk .g-gyn-sh{display:flex}
+#e-gyn-sh:checked ~ #a-gyn-all-sh:checked ~ .p-blk .v-a-gyn-all-sh{display:flex}
+#a-gyn-all-sh:checked ~ .p-blk label[for="a-gyn-all-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-all-sh:checked ~ .p-blk label[for="a-gyn-all-sh"] .ock{opacity:1}
+#e-gyn-sh:checked ~ #a-gyn-rh-sh:checked ~ .p-blk .v-a-gyn-rh-sh{display:flex}
+#a-gyn-rh-sh:checked ~ .p-blk label[for="a-gyn-rh-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-rh-sh:checked ~ .p-blk label[for="a-gyn-rh-sh"] .ock{opacity:1}
+#e-gyn-sh:checked ~ #a-gyn-mf-sh:checked ~ .p-blk .v-a-gyn-mf-sh{display:flex}
+#a-gyn-mf-sh:checked ~ .p-blk label[for="a-gyn-mf-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-mf-sh:checked ~ .p-blk label[for="a-gyn-mf-sh"] .ock{opacity:1}
+#e-gyn-sh:checked ~ #a-gyn-onc-sh:checked ~ .p-blk .v-a-gyn-onc-sh{display:flex}
+#a-gyn-onc-sh:checked ~ .p-blk label[for="a-gyn-onc-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-onc-sh:checked ~ .p-blk label[for="a-gyn-onc-sh"] .ock{opacity:1}
+#e-gyn-sh:checked ~ #a-gyn-uro-sh:checked ~ .p-blk .v-a-gyn-uro-sh{display:flex}
+#a-gyn-uro-sh:checked ~ .p-blk label[for="a-gyn-uro-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-gyn-uro-sh:checked ~ .p-blk label[for="a-gyn-uro-sh"] .ock{opacity:1}
+#e-ort-sh:checked ~ .p-blk .g-ort-sh{display:flex}
+#e-ort-sh:checked ~ #a-ort-all-sh:checked ~ .p-blk .v-a-ort-all-sh{display:flex}
+#a-ort-all-sh:checked ~ .p-blk label[for="a-ort-all-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-all-sh:checked ~ .p-blk label[for="a-ort-all-sh"] .ock{opacity:1}
+#e-ort-sh:checked ~ #a-ort-col-sh:checked ~ .p-blk .v-a-ort-col-sh{display:flex}
+#a-ort-col-sh:checked ~ .p-blk label[for="a-ort-col-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-col-sh:checked ~ .p-blk label[for="a-ort-col-sh"] .ock{opacity:1}
+#e-ort-sh:checked ~ #a-ort-jo-sh:checked ~ .p-blk .v-a-ort-jo-sh{display:flex}
+#a-ort-jo-sh:checked ~ .p-blk label[for="a-ort-jo-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-jo-sh:checked ~ .p-blk label[for="a-ort-jo-sh"] .ock{opacity:1}
+#e-ort-sh:checked ~ #a-ort-mao-sh:checked ~ .p-blk .v-a-ort-mao-sh{display:flex}
+#a-ort-mao-sh:checked ~ .p-blk label[for="a-ort-mao-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-mao-sh:checked ~ .p-blk label[for="a-ort-mao-sh"] .ock{opacity:1}
+#e-ort-sh:checked ~ #a-ort-pe-sh:checked ~ .p-blk .v-a-ort-pe-sh{display:flex}
+#a-ort-pe-sh:checked ~ .p-blk label[for="a-ort-pe-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-ort-pe-sh:checked ~ .p-blk label[for="a-ort-pe-sh"] .ock{opacity:1}
+#e-car-sh:checked ~ .p-blk .g-car-sh{display:flex}
+#e-car-sh:checked ~ #a-car-all-sh:checked ~ .p-blk .v-a-car-all-sh{display:flex}
+#a-car-all-sh:checked ~ .p-blk label[for="a-car-all-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-all-sh:checked ~ .p-blk label[for="a-car-all-sh"] .ock{opacity:1}
+#e-car-sh:checked ~ #a-car-hemo-sh:checked ~ .p-blk .v-a-car-hemo-sh{display:flex}
+#a-car-hemo-sh:checked ~ .p-blk label[for="a-car-hemo-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-hemo-sh:checked ~ .p-blk label[for="a-car-hemo-sh"] .ock{opacity:1}
+#e-car-sh:checked ~ #a-car-eco-sh:checked ~ .p-blk .v-a-car-eco-sh{display:flex}
+#a-car-eco-sh:checked ~ .p-blk label[for="a-car-eco-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-eco-sh:checked ~ .p-blk label[for="a-car-eco-sh"] .ock{opacity:1}
+#e-car-sh:checked ~ #a-car-arr-sh:checked ~ .p-blk .v-a-car-arr-sh{display:flex}
+#a-car-arr-sh:checked ~ .p-blk label[for="a-car-arr-sh"]{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+#a-car-arr-sh:checked ~ .p-blk label[for="a-car-arr-sh"] .ock{opacity:1}
+
+/* opção com n e estado */
+.opt{grid-template-columns:1fr 14px}
+
+/* cabeçalho fixo do bloco Análise */
+.p-sec>.disc{position:sticky;top:0;z-index:3}
+.calbtn{align-self:flex-start}
+
+/* diálogo de calibração */
+/* CLEAN V3: o diálogo flutua por sombra, não por borda dura. Raio um degrau
+   acima do resto (10px): é a superfície mais alta da tela, e o raio é o que
+   marca essa distância sem precisar de moldura. */
+.modal{display:none;position:fixed;z-index:9;inset:0;margin:auto;height:fit-content;width:560px;max-height:84vh;overflow:auto;background:#fff;border:0;border-radius:10px;box-shadow:0 24px 60px rgba(24,24,27,.24)}
+.modal-hd{padding:14px 16px;border-bottom:1px solid var(--line)}
+.modal-bd{padding:16px;display:flex;flex-direction:column;gap:16px}
+.modal-ft{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:var(--g-25);position:sticky;bottom:0}
+.modal .p-warn{background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-sm);padding:10px 12px}
+
+#cal:checked ~ .modal-cal{display:block}
+#cal:checked ~ .scrim-cal{display:block}
+#cal-sh:checked ~ .modal-cal-sh{display:block}
+#cal-sh:checked ~ .scrim-cal-sh{display:block}
+
+.scrim-dim{background:rgba(20,25,24,.32)}
+.modal-sm{padding:10px 16px;border-top:1px solid var(--line-soft);background:var(--g-25);font-size:11px;color:var(--g-500)}
+.csum{display:none}
+.csum-none,[class*="csum-none"]{color:var(--g-400)}
+.btn-off{color:var(--g-400);background:var(--g-50);border-color:var(--line-soft);cursor:not-allowed;pointer-events:none}
+[class*="cbtn-on"]{display:none}
+
+#vol-100:checked ~ .modal-cal .pv-vol-100,#vol-150:checked ~ .modal-cal .pv-vol-150{display:inline}
+#vol-100:checked ~ .modal-cal .csum-none{display:inline}
+#vol-150:checked ~ .modal-cal .csum-vol{display:inline}
+#vol-150:checked ~ .modal-cal .cbtn{display:none}
+#vol-150:checked ~ .modal-cal .cbtn-on{display:inline-flex}
+#vol-100-sh:checked ~ .modal-cal-sh .pv-vol-100-sh,#vol-150-sh:checked ~ .modal-cal-sh .pv-vol-150-sh{display:inline}
+#vol-100-sh:checked ~ .modal-cal-sh .csum-none-sh{display:inline}
+#vol-150-sh:checked ~ .modal-cal-sh .csum-vol-sh{display:inline}
+#vol-150-sh:checked ~ .modal-cal-sh .cbtn-sh{display:none}
+#vol-150-sh:checked ~ .modal-cal-sh .cbtn-on-sh{display:inline-flex}
+
+/* contexto pertence à página, não à shell */
+.ctxbar>.r,.ctxbar>.oc{position:absolute;opacity:0;pointer-events:none}
+.ctxbar{position:relative;display:flex;align-items:flex-end;gap:16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.p-blk-page{flex-direction:row;align-items:flex-end;gap:16px;padding:0;border-bottom:0}
+.p-blk-page>.stack{width:248px}
+.p-blk-page .p-lbl{display:none}
+
+/* wireframe do shell — diagrama de blocos, sem componentes vivos */
+.wf-legend{display:flex;flex-wrap:wrap;align-items:center;gap:20px;font-size:11.5px;color:var(--g-600)}
+.wf-legend i{width:16px;height:10px;display:inline-block;margin-right:7px;vertical-align:-1px;border-radius:2px}
+.wf-g{background:var(--g-100);border:1px solid var(--g-400)}
+.wf-p{background:#fff;border:1px dashed var(--g-400)}
+.wf{display:grid;grid-template-columns:280px 1fr;gap:12px;background:var(--g-25);border:1px solid var(--line);border-radius:var(--r-md);padding:12px}
+.wf-side,.wf-main{display:flex;flex-direction:column;gap:10px;position:relative}
+.wf-content{display:flex;flex-direction:column;gap:10px;position:relative;padding:12px;border:1px dashed var(--g-300);border-radius:var(--r-sm)}
+.wf-b{display:flex;flex-direction:column;gap:7px;padding:11px 12px;border-radius:var(--r-sm);background:var(--g-100);border:1px solid var(--g-400);position:relative}
+.wf-b.wf-page{background:#fff;border:1px dashed var(--g-400)}
+.wf-t{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--g-600);display:flex;align-items:center;gap:8px}
+.wf-tag{font-size:8.5px;font-weight:600;letter-spacing:.08em;color:var(--g-500);background:var(--g-50);border:1px solid var(--g-300);border-radius:2px;padding:1px 5px;text-transform:uppercase}
+.wf-tag-p{background:#fff;border-style:dashed}
+.wf-bar{display:block;height:10px;border-radius:2px;background:var(--g-200)}
+.wf-bar.wf-on{background:var(--acc-line);box-shadow:inset 2px 0 0 var(--acc)}
+.wf-bar.wf-h{height:26px}
+.wf-row{display:flex;align-items:center;gap:10px}
+.wf-stats{gap:24px}
+.wf-stats span{flex:1;height:26px;background:var(--g-200);border-radius:2px}
+.wf-n{font-size:10.5px;color:var(--g-500);line-height:1.45;text-wrap:pretty}
+.wf-m{font-size:10px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.wf-m-r{margin-left:auto}
+.wf-brand{flex-direction:row;align-items:center;justify-content:space-between}
+.wf-nav{gap:5px}
+.wf-par{margin-top:auto}
+.wf-work{min-height:120px;justify-content:flex-start;background:#fff;border:1px solid var(--g-500)}
+.wf-side-m{font-size:10px;color:var(--g-400);letter-spacing:.06em;text-transform:uppercase;text-align:right}
+
+/* botão — padrão do sistema */
+.btn{display:inline-flex;align-items:center;justify-content:center;height:32px;min-height:32px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;color:var(--g-700);font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}
+.btn:hover{background:var(--g-50);border-color:var(--line);color:var(--g-900);text-decoration:none}
+.btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+/* CLEAN V3: a ação primária é o ACENTO, não tinta neutra. O verde já é o
+   sinal institucional do sistema (referência, item ativo); usá-lo no botão que
+   confirma mantém um pigmento com um significado só. */
+.btn-primary{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn-primary:hover{background:var(--acc-strong);border-color:var(--acc-strong);color:#fff}
+.btn-disabled{background:var(--g-100);border-color:var(--line);color:var(--g-400);cursor:not-allowed;pointer-events:none}
+
+/* diálogo */
+.dlg-hd{display:flex;align-items:flex-start;gap:16px;padding:16px 24px;border-bottom:1px solid var(--line-soft)}
+.dlg-t{font-size:14px;font-weight:600;color:var(--g-900)}
+.dlg-s{font-size:12px;color:var(--g-500);line-height:1.45;max-width:56ch}
+.dlg-x{margin-left:auto;font-size:12px;color:var(--g-400);cursor:pointer;padding:2px 4px;border-radius:var(--r-sm)}
+.dlg-x:hover{color:var(--g-800);background:var(--g-50)}
+.dlg-x:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+/* Grade de dois campos por linha, cada um empilhado (rótulo -> controle ->
+   dica). Antes era uma lista de linhas com rótulo à esquerda e controle à
+   direita, separadas por régua: seis réguas horizontais para seis controles.
+   Empilhado, o rótulo cola no que ele nomeia e a régua deixa de ser
+   necessária. */
+.dlg-bd{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 24px}
+.dlg-row{display:flex;flex-direction:column;gap:8px;padding:0;border-bottom:0}
+.dlg-lb{display:flex;flex-direction:column;gap:2px;min-width:0;order:-1}
+.dlg-n{font-size:12px;font-weight:500;color:var(--g-700)}
+.dlg-h{font-size:11px;color:var(--g-400);line-height:1.4}
+.dlg-ct .stepper{width:100%}
+.dlg-ft{display:flex;align-items:center;gap:8px;padding:16px 24px;background:#fff;border-top:1px solid var(--line-soft)}
+.dlg-sum{font-size:11.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.dlg-act{display:flex;gap:8px;margin-left:auto}
+.dlg-note{grid-column:1/-1;padding:0;border-top:0;font-size:10.5px;color:var(--g-400)}
+
+.dlg-act .cbtn-on{display:none}
+#vol-150:checked ~ .modal-cal .cbtn-on{display:inline-flex}
+
+#cf-80:checked ~ .p-sec .pv-cf-80{display:inline}
+#cf-80:checked ~ .p-sec label[for="cf-80"]{background:var(--g-800);color:#fff;font-weight:600}
+#cf-80-sh:checked ~ .p-sec .pv-cf-80-sh{display:inline}
+#cf-80-sh:checked ~ .p-sec label[for="cf-80-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+
+.navdemo{position:relative;padding:8px;background:var(--shell-side-bg);border:1px solid var(--line);border-radius:var(--r-sm)}
+.nav-mod{display:flex;align-items:center;gap:8px;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g-500);padding:8px 10px 4px;cursor:pointer;border-radius:var(--r-sm)}
+label.nav-mod:hover{background:var(--g-100)}
+label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.nav-mod .car{margin-left:auto;font-size:9px;color:var(--g-400);display:inline-block;transform:rotate(0deg);transition:transform .12s ease}
+.nav-grp{display:flex;flex-direction:column;gap:2px}
+.navdemo>.oc{position:absolute;opacity:0;pointer-events:none}
+.nav-mod-off{color:var(--g-300);cursor:not-allowed;display:flex;align-items:center;gap:6px;margin-top:6px;border-top:1px solid var(--line-soft);padding-top:10px}
+
+
+/* ---------- faixa de parâmetros — da shell, montada em slot da página -----
+   Propriedade global, proximidade local: a SHELL desenha, a PÁGINA só cede o
+   lugar. Nenhuma tela redeclara estes controles, e nenhuma pode divergir deles.
+   Régua ESCREVE aqui; os chips da barra superior só LEEM (são carimbo de
+   proveniência, não controle).
+   Não há estado recolhido: o que governa a leitura de todo número da tela fica
+   à vista. ------------------------------------------------------------------ */
+.parambar{display:flex;align-items:center;gap:20px;min-height:48px;padding:0 var(--content-pad);background:#fff;border-bottom:1px solid var(--line)}
+.pfield{display:flex;align-items:center;gap:8px;flex:none}
+.plbl{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g-500);white-space:nowrap}
+.parambar .seg{flex:none}
+.parambar .seg>span,.parambar .seg>label{flex:none;padding:5px 11px}
+.parambar .btn{min-height:28px;padding:4px 12px;font-size:12px}
+
+/* ---------- affordance de informação por controle -------------------------
+   Substitui a prosa fixa sob cada controle. O texto curto em linguagem comum
+   vive aqui; o integral vive na Nota Metodológica, sempre linkada.
+   Por que não `title=`: tooltip nativo não abre por teclado, não formata e não
+   aceita link — e a explicação de um critério que acusa um médico tem de ser
+   alcançável sem mouse. ---------------------------------------------------- */
+.help{position:relative;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1px solid var(--g-300);border-radius:50%;font-size:9px;font-weight:600;color:var(--g-500);cursor:help;flex:none;letter-spacing:0}
+.help:hover{border-color:var(--g-500);color:var(--g-800)}
+.help:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.help .tip{position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);width:240px;opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:#fff;border-radius:var(--r-sm);padding:9px 11px;box-shadow:var(--sh-1);font-size:11px;font-weight:400;line-height:1.5;letter-spacing:0;text-transform:none;text-align:left;z-index:6}
+.help:hover .tip,.help:focus-visible .tip{opacity:1}
+.help .tip a{color:#fff;text-decoration:underline}
+/* No cabeçalho da tabela o ⓘ mora em `.tbl-hd`, que está FORA da área rolável:
+   bolha ancorada em conteúdo que rola sai de sincronia com o próprio conteúdo.
+   Dentro de `<th>` é proibido — o th é sticky dentro de `.tbl-scroll` e a bolha
+   seria recortada pela rolagem. Definição de coluna vive no cabeçalho da tabela
+   ou no painel da cascata. */
+.tbl-hd .help{transform:translateY(1px)}
+.tbl-hd .help .tip{z-index:6}
+/* perto da borda direita a bolha alinha pela direita em vez de centralizar */
+.help-r .tip{left:auto;right:-6px;transform:none}
+
+/* ---------- estado escondido, genérico -----------------------------------
+   `.oc` e `.r` existem por um motivo só: guardar estado de :checked sem serem
+   vistos. Antes cada contêiner repetia a regra (.cascade, .panel-in, .ctxbar,
+   .navdemo) e todo contêiner novo precisava da sua — inclusive .nav e
+   .parambar. Uma regra genérica substitui as cinco e vale para o próximo. ---- */
+.oc,.r{position:absolute;opacity:0;pointer-events:none}
+
+/* ---------- valor digitável dentro do stepper -----------------------------
+   Um limiar de faixa larga (volume mínimo anda em centenas) não se ajusta a
+   cliques: sair de 100 para 150 seriam 50 toques. O valor passa a ser campo; os
+   − e + continuam, para ajuste fino de uma unidade.
+
+   O campo NÃO desenha caixa própria: quem tem borda é o `.stepper`, e o foco
+   escurece a borda dele inteiro (`:focus-within`). Duas molduras aninhadas — a
+   do stepper e a do input — leriam como dois controles.
+
+   Spinner nativo removido: ele reintroduz setas do sistema operacional ao lado
+   das nossas, em outro desenho, e não é estilizável. ----------------------- */
+.stepnum{flex:1;min-width:3ch;border:0;padding:0 8px 0 0;background:transparent;font:inherit;font-variant-numeric:tabular-nums;color:var(--g-900);text-align:right;appearance:textfield;-moz-appearance:textfield}
+.stepnum::-webkit-outer-spin-button,.stepnum::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.stepnum:focus{outline:none}
+.stepper:focus-within{border-color:var(--g-600)}
+
+/* valor fora do domínio do parâmetro (vazio, não-numérico ou abaixo do mínimo).
+   Sem vermelho de alarme: --crit-line na borda e --crit-soft no fundo mantêm a
+   semântica discreta do sistema. O erro é do dado digitado, não do usuário. */
+.stepper.invalid{border-color:var(--crit-line);background:var(--crit-soft)}
+.stepper.invalid .stepnum{color:var(--crit)}
+.stepper.invalid:focus-within{border-color:var(--crit)}
+.step-err{font-size:10.5px;color:var(--crit);line-height:1.4;display:none}
+.stepper.invalid + .step-err{display:block}
+
+/* ---------- confirmação de descarte no diálogo ---------------------------
+   Esc é o gesto de abandonar. Num diálogo que só grava em "Aplicar", abandonar
+   com edição pendente perde trabalho em silêncio — então o diálogo pergunta.
+   Substitui o rodapé em vez de empilhar um segundo modal: sobrepor diálogo a
+   diálogo esconde justamente o valor sobre o qual se está decidindo.
+   Cor de ressalva (caveat), o mesmo tratamento de `.modal .p-warn`: é aviso de
+   método, não erro do usuário. -------------------------------------------- */
+.dlg-confirm{display:none;align-items:center;gap:16px;padding:12px 20px;background:var(--caveat-soft);border-top:1px var(--caveat-border-style) var(--caveat-line)}
+.dlg-confirm .dlg-sum{color:var(--caveat-ink)}
+.dlg-confirm .dlg-act{margin-left:auto}
+.modal.confirming .dlg-ft{display:none}
+.modal.confirming .dlg-confirm{display:flex}
+
+/* ---------- 1. unidade no rótulo da linha do diálogo ----------------------
+   A unidade pertence ao NOME da grandeza, não ao controle. Dentro do stepper ela
+   convivia com o valor e os dois botões, e cabia só truncada: mostrávamos
+   "100 consultas" quando o número é 100 consultas/ANO — o motor escala esse piso
+   pela janela. Encurtar para caber não limpou o controle, tornou o dado impreciso.
+   Um passo mais clara que `.dlg-h`: a unidade recua atrás da explicação. ----- */
+.dlg-u{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums}
+
+/* item 2 do pedido — largura flexível — foi absorvido pela declaração única de
+   `.stepnum` lá em cima, e não repetido aqui: duas declarações da mesma classe
+   no mesmo arquivo obrigam quem lê o contrato a simular a cascata de cabeça.
+   Sem a unidade ao lado, o campo ocupa o espaço livre com o número à direita —
+   alinhamento de coluna numérica, para comparar dígito com dígito entre as
+   linhas do diálogo. */
+
+/* ---------- 3. item de aba, independente do elemento ----------------------
+   `.tabs>span` só veste <span>. Um <button> (que é o elemento correto para algo
+   que aciona) ou um <a> (para aba que navega) não recebiam estilo nenhum — a
+   mesma armadilha que `.seg>span` criou para o controle segmentado. O item passa
+   a ter classe própria; o elemento fica a critério da semântica. --------------- */
+.tabs .tab{padding:9px 14px;font-size:13px;color:var(--g-500);border:0;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;background:none;font-family:inherit;font-weight:400;cursor:pointer}
+.tabs .tab:hover{color:var(--g-800)}
+.tabs .tab.on{color:var(--g-900);font-weight:600;border-bottom-color:var(--g-900)}
+.tabs .tab.off{color:var(--g-300);cursor:not-allowed}
+.tabs .tab.off:hover{color:var(--g-300)}
+.tabs .tab:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm);position:relative;z-index:4}
+
+/* ---------- 4. estado vazio / carregando: estilo sai da marcação ----------
+   O que era decisão VISUAL repetida em `style=` vira classe. O que é DADO
+   continua inline e deve continuar: a posição de cada ponto no gráfico
+   (`left`/`bottom`) vem do motor em runtime — promovê-la a classe congelaria
+   um valor medido dentro do contrato visual. -------------------------------- */
+.row-between{justify-content:space-between}
+.skel-cols{grid-template-columns:1.4fr .8fr .7fr 1.6fr}
+.skel-w45{width:45%}
+.skel-w60{width:60%}
+.skel-w75{width:75%}
+.skel-w88{width:88%}
+.lbl-caveat{color:var(--caveat-ink)}
+.provtag-caveat{border-color:var(--caveat-line)}
+.link-crit{font-size:12.5px;color:var(--crit);white-space:nowrap}
+
+/* últimas linhas do esqueleto e respiro acima da faixa de eixo */
+.skel-row-last{border-bottom:0}
+.mt10{margin-top:10px}
+
+/* ---------- aviso de desvio do recomendado -------------------------------
+   RESTAURADO (jul/2026). Havia sido removido do guia; o ajuste 3 do CLAUDE.md,
+   que o exige, permanece — o componente é que voltou.
+
+   Por que ele existe: a régua tem dezenas de combinações válidas, e todas
+   produzem números defensáveis isoladamente. O que não é defensável é ESCOLHER
+   a combinação depois de ver o resultado. O aviso é a defesa contra garimpo de
+   número, inclusive involuntário: quem desviou fica sabendo que desviou, e tem
+   um caminho de um clique para voltar.
+
+   Contorno tracejado em caveat, não crítico: desviar é legítimo. O que não pode
+   é ser silencioso. A ação de restaurar vai à direita (margin-left:auto) — ler
+   primeiro o que mudou, agir depois. ---------------------------------------- */
+.deviation{display:flex;align-items:center;gap:8px;font-size:11px;line-height:1.4;color:var(--caveat-ink);background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-sm);padding:6px 8px}
+.deviation a{color:var(--caveat-ink);text-decoration:underline;white-space:nowrap;margin-left:auto;cursor:pointer}
+.deviation a:hover{color:var(--caveat-ink)}
+.deviation a:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm)}
+
+
+/* Acionamento por CLASSE — mesmo efeito visual das regras com ID acima, que só
+   funcionam para o dataset fixo do guia. As áreas reais vêm da API e mudam com a
+   janela e o piso, então não existe CSS estático que as cubra: o JS liga .on no
+   valor escolhido e na opção correspondente. Nenhum token, cor ou medida nova —
+   apenas desacopla o componente do demo. (jul/2026, autorizado) */
+.sel-trig .v.on{display:flex}
+.opt.on{background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
+.opt.on .ock{opacity:1}
+/* opção que existe para mostrar o domínio, não para ser escolhida — mesmo
+   princípio de `.seg-o.na`: some a ação, fica o motivo no title. Nunca
+   desabilitado silencioso: sem motivo, desabilitado sugere que basta insistir. */
+.opt.opt-na{color:var(--g-300);cursor:not-allowed}
+.opt.opt-na:hover{background:transparent}
+
+/* ---------- seletor de perfil, no cabeçalho do bloco ----------------------
+   Mesmo combobox da barra lateral (.sel/.sel-trig/.pop/.opt); só o mecanismo de
+   abrir/fechar é próprio, porque as regras da lateral são escopadas em `.p-blk`.
+   Largura fixa: ele fica ao lado dos chips de recorte e não deve empurrá-los. */
+.selperfil{width:230px;flex:none}
+.selperfil .pop{min-width:230px}
+#perfil-sh:checked ~ .selperfil .pop{display:block}
+#perfil-sh:checked ~ .selperfil .sel-trig{border-color:var(--g-600)}
+#perfil-sh:checked ~ .scrim-perfil-sh{display:block}
+.pop-grp.on{display:flex}
+
+/* Painel lateral de parâmetros encostado na navegação, não no rodapé.
+   Dorme enquanto a régua vive na faixa horizontal; só volta a valer se o painel
+   lateral for reativado. PENDENTE DE RATIFICAÇÃO no Design. */
+.params{margin-top:0}
