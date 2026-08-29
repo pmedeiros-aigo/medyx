@@ -63,22 +63,17 @@ checar("meta · avaliáveis (todas as áreas)",
        sum(a["n_avaliaveis"] for a in meta["areas"]), config.SMOKE_N_AVALIAVEIS)
 
 _, gin = get("/api/area/ginecologia")
-# mediana/IQR/P90 saíram da faixa de estatísticas quando o gráfico entrou
-# (ajuste 5): agora vivem nas linhas de referência da distribuição.
-# `tipo == "referencia"` (era "mediana"): a linha passou a seguir o ALVO ativo
-# em 2026-08-19, e com o default ela É a mediana
-ref_mediana = next(r for r in gin["distribuicao"]["referencias"]
-                   if r["tipo"] == "referencia")
-checar("area · mediana (linha de referência do gráfico)",
-       round(ref_mediana["valor"], 2), config.SMOKE_MEDIANA_GINECOLOGIA)
-# o rótulo diz O QUE a linha é; o VALOR viaja em `valor_fmt` e no eixo
-checar("area · linha de referência nomeia o alvo ativo",
-       ref_mediana["rotulo"], "referência mediana")
-checar("area · valor da mediana em pt-BR", ref_mediana["valor_fmt"], "5,25")
-checar("area · e o eixo carrega o mesmo valor",
-       "5,25" in [t["valor_fmt"] for t in gin["distribuicao"]["eixo"]], True)
+# A distribuição NÃO desenha mais linha de referência nem de critério
+# (blocos.py, 2026-08-20): régua desenhada que não mede era o defeito do bloco,
+# e `referencias` passou a sair vazia POR DECISÃO. O smoke ainda exigia a linha
+# e morria com StopIteration antes de checar qualquer outra coisa — checagem
+# obsoleta, removida em ago/2026. A mediana continua provada pelo rodapé da
+# tabela, logo abaixo, que é onde ela aparece para o usuário.
+checar("area · distribuição não desenha régua de referência",
+       gin["distribuicao"]["referencias"], [])
 checar("area · mediana também no rodapé da tabela",
-       "mediana 5,25" in gin["cooperados"]["rodape"]["direita"], True)
+       f"mediana {config.SMOKE_MEDIANA_GINECOLOGIA:.2f}".replace(".", ",")
+       in gin["cooperados"]["rodape"]["direita"], True)
 # COMPARÁVEIS, não "elegíveis": a linha do bloco, o chip de recorte e a
 # estatística do cabeçalho falam do MESMO conjunto e com a MESMA palavra
 # (31/jul/2026). Antes o 58 aparecia como "elegíveis" ao lado de um chip
@@ -119,10 +114,13 @@ def parte(payload, chave):
     return next(x for x in payload["contexto"]["partes"] if x["chave"] == chave)
 
 n_stat = parte(gin, "em_revisao")["valor"]
-n_grafico = sum(1 for p in gin["distribuicao"]["pontos"] if p["classe"] == "crit")
 n_tabela = sum(1 for linha in gin["cooperados"]["linhas"] if linha["acima_do_criterio"])
-checar("acima do critério · estatística == gráfico == tabela",
-       (n_stat, n_grafico, n_tabela), (n_stat, n_stat, n_stat))
+# O GRÁFICO saiu deste cruzamento em ago/2026: quando a distribuição deixou de
+# desenhar régua de critério (blocos.py, 2026-08-20), o ponto passou a carregar
+# `intensidade` (0–1, contínua) no lugar de `classe == "crit"`. Não há mais flag
+# de critério no ponto para cruzar — e inventar uma aqui seria a prova medindo
+# a si mesma. Estatística e tabela continuam se cruzando.
+checar("acima do critério · estatística == tabela", (n_stat, n_tabela), (n_stat, n_stat))
 checar("gráfico · pontos == avaliáveis",
        len(gin["distribuicao"]["pontos"]), gin["area"]["n_avaliaveis"])
 checar("tabela · linhas == total da área",
@@ -306,15 +304,12 @@ checar("classificação em revisão sai no degrau de artefato",
 print("\n3. TROCA DE CRITÉRIO P90 -> P75 (aceite 5)")
 _, gin75 = get("/api/area/ginecologia", criterio="p75")
 n75_stat = parte(gin75, "em_revisao")["valor"]
-n75_graf = sum(1 for p in gin75["distribuicao"]["pontos"] if p["classe"] == "crit")
 n75_tab = sum(1 for linha in gin75["cooperados"]["linhas"] if linha["acima_do_criterio"])
 print(f"      P90: {n_stat} acima do critério   ->   P75: {n75_stat}")
-checar("P75 · os três blocos concordam", (n75_stat, n75_graf, n75_tab),
-       (n75_stat, n75_stat, n75_stat))
+# Sem o gráfico: ver a nota da checagem equivalente no P90, acima — o ponto não
+# carrega mais flag de critério, e a distribuição não desenha régua de critério.
+checar("P75 · estatística == tabela", (n75_stat, n75_tab), (n75_stat, n75_stat))
 checar("P75 sinaliza mais que P90", n75_stat > n_stat, True)
-checar("P75 · critério vigente na linha de referência do gráfico",
-       next(r for r in gin75["distribuicao"]["referencias"]
-            if r["tipo"] == "criterio")["rotulo"].startswith("critério P75"), True)
 checar("P75 · carimbo de proveniência acompanha",
        "gatilho p75" in gin75["proveniencia"]["carimbo"], True)
 
@@ -470,8 +465,7 @@ soma_procs = round(sum(l["excedente_itens"] or 0
 checar("dossiê · soma dos procedimentos devolve o excedente do cooperado",
        soma_procs, round(alvo["excedente_itens"], 1))
 checar("dossiê · cabeçalho com o par da área em todo número",
-       all("mediana dos comparáveis" in c["par_fmt"] for c in dossie["cabecalho"]),
-       True)
+       all("referência" in c["par_fmt"] for c in dossie["cabecalho"]), True)
 checar("dossiê · em revisão só quem passa os três portões",
        all(l["sinalizado"] is False for l in dossie["procedimentos"]["linhas"]
            if l["excedente_itens"] is None), True)

@@ -51,6 +51,47 @@ def carregar_executantes() -> pd.DataFrame:
     return pd.read_parquet(config.CAMINHO_DIM_EXECUTANTES)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Verificação dos marts — falha no BOOT, não na primeira consulta
+# ─────────────────────────────────────────────────────────────────────────────
+
+MARTS_EXIGIDOS = (
+    (config.CAMINHO_FATO_SOLICITACOES,
+     "fato analítico — taxa, norma, posição, persistência, concentração"),
+    (config.CAMINHO_CONTAS,
+     "contas — excedente em R$ e autorreferência"),
+    (config.CAMINHO_DIM_EXECUTANTES,
+     "de-para executante -> cooperado, exigido junto com contas"),
+    (config.CAMINHO_DIM_CLASSIFICACAO,
+     "classificação v1.0 — área, sub-perfis e exclusão por par"),
+)
+
+
+def verificar_marts() -> None:
+    """Confere os quatro marts que a aplicação lê. Levanta RuntimeError
+    listando o que falta.
+
+    Chamada no boot da API: sem isto o servidor sobe e só quebra na primeira
+    consulta, com FileNotFoundError cru — 20 a 60 segundos depois e longe da
+    causa. Só os MARTS são exigidos: os CSVs brutos de dados_iniciais/ são
+    insumo do preparar_fato (o 6º motor) e não são lidos em runtime.
+    """
+    faltando = [(caminho, papel) for caminho, papel in MARTS_EXIGIDOS
+                if not caminho.exists()]
+    if not faltando:
+        return
+
+    lista = "\n".join(f"  - {c.name}  ({papel})" for c, papel in faltando)
+    raise RuntimeError(
+        f"Dados ausentes: {len(faltando)} de {len(MARTS_EXIGIDOS)} marts não "
+        f"foram encontrados.\n{lista}\n\n"
+        f"Os dados ficam FORA do repositório, em:\n  {config.DIR_MARTS}\n\n"
+        "Obtenha os marts com a equipe responsável, ou gere-os com "
+        "app/utils/preparar_fato.py a partir dos CSVs de "
+        "unimed_natal/dados_iniciais/. Ver README.md, 'Antes de rodar'."
+    )
+
+
 @lru_cache(maxsize=1)
 def exclusao_por_par() -> frozenset:
     """Conjunto de exclusão por par (Mov 5) montado das regras do config."""
@@ -141,6 +182,28 @@ def rodar_pacientes_distintos(janela_ini: str, janela_fim: str, incluir_ps: bool
     """pacientes_distintos() por cooperado na janela (descritivo do dossiê)."""
     return pl.pacientes_distintos(carregar_fato(), janela_ini, janela_fim,
                                   incluir_ps=incluir_ps)
+
+
+@lru_cache(maxsize=32)
+def rodar_autorref_proc(janela_ini: str, janela_fim: str, area: str | None,
+                        incluir_ps: bool):
+    """autorreferencia_por_procedimento() de uma área, memoizado."""
+    return pl.autorreferencia_por_procedimento(
+        carregar_fato(), carregar_contas(), janela_ini, janela_fim,
+        area=area, incluir_ps=incluir_ps)
+
+
+def pacientes_do_procedimento(cooperado: str, cd: str, janela_ini: str,
+                              janela_fim: str, incluir_ps: bool):
+    """Os pacientes que concentram UM par (cooperado, procedimento).
+
+    Sem cache: a saída é pequena, o cálculo é de centésimos de segundo e a
+    combinação (cooperado x procedimento) é grande demais para caber num
+    lru_cache sem expulsar o que importa.
+    """
+    return pl.pacientes_do_procedimento(
+        carregar_fato(), cooperado, cd, janela_ini, janela_fim,
+        incluir_ps=incluir_ps)
 
 
 @lru_cache(maxsize=32)

@@ -34,6 +34,12 @@ export function montarBarraSuperior(meta, area) {
       partes.push({ txt: TELAS.metodologia.rotulo });
     } else if (tela === 'cooperados') {
       partes.push({ txt: TELAS.cooperados.rotulo });
+    } else if (tela === 'conta') {
+      /* "SADT" é o módulo ANALÍTICO, e a conta não pertence a ele: o rastro
+         começa no produto. Sem isto, a migalha classificaria a identidade do
+         usuário como um assunto de SADT. */
+      partes[0] = { txt: 'Medyx' };
+      partes.push({ txt: TELAS.conta.rotulo });
     } else if (tela === 'area') {
       partes.push({ txt: TELAS.area.rotulo });
       partes.push({ txt: escolhida?.titulo ?? '' });

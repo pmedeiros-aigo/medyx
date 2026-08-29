@@ -21,6 +21,7 @@ const PAGINAS = {
   cooperados: () => import('./paginas/cooperados.js'),
   cooperado: () => import('./paginas/cooperado.js'),
   metodologia: () => import('./paginas/metodologia.js'),
+  conta: () => import('./paginas/conta.js'),
 };
 
 const { tela } = rotaAtual();

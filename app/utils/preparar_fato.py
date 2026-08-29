@@ -99,8 +99,9 @@ CD_TO_DS_FIX_REQUISICOES = {
 }
 
 COLUNAS_FATO = [
-    "ID_COOPERADO", "AREA_ATUACAO", "IDENTIFICADOR_BENEFICIARIO",
-    "NR_SEQ_REQUISICAO", "DATA_REQUISICAO", "PERIODO_REQUISICAO", "ID_CONSULTA",
+    "ID_COOPERADO", "AREA_ATUACAO", "ID_BENEFICIARIO",
+    "NR_SEQ_REQUISICAO", "DATA_REQUISICAO", "TS_REQUISICAO",
+    "PERIODO_REQUISICAO", "ID_CONSULTA",
     "CD_PROCEDIMENTO", "DS_PROCEDIMENTO", "CARATER_ATENDIMENTO",
     "QT_SOLICITADO", "QT_EFETIVO", "EPISODIO_PS", "elegivel_norma",
 ]
@@ -134,6 +135,12 @@ def carregar_solicitacoes(caminho: str, coluna_data: str) -> pd.DataFrame:
         dtype=SOLICITACOES_DTYPE, parse_dates=[coluna_data], dayfirst=True,
         low_memory=False,
     )
+    # TS_REQUISICAO guarda o INSTANTE (a origem traz "DD/MM/AAAA HH:MM:SS");
+    # DATA_REQUISICAO segue normalizada porque é o eixo temporal de toda a
+    # análise — janela, trimestre e período mensal comparam datas, não horas.
+    # Até ago/2026 o horário era descartado aqui, e sem ele a consulta inferida
+    # não tinha como separar atendimentos dentro do mesmo dia.
+    solicitacoes["TS_REQUISICAO"] = solicitacoes[coluna_data]
     solicitacoes["DATA_REQUISICAO"] = solicitacoes[coluna_data].dt.normalize()
     solicitacoes["PERIODO_REQUISICAO"] = (
         solicitacoes["DATA_REQUISICAO"].dt.to_period("M").astype(str)
@@ -158,7 +165,8 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
         1. Carrega as duas bases com os contratos de dtype/encoding verificados.
         2. Filtra solicitações de cooperados (COOPERADO == 'S').
         3. Consulta inferida: solicitações do mesmo cooperado, para o mesmo
-           beneficiário, na mesma data de solicitação (doc §3.2).
+           beneficiário, dentro da janela de config.JANELA_CONSULTA_MINUTOS
+           entre lançamentos, com o dia como fronteira externa (doc §3.2).
         4. Episódio-PS (doc §5.6): consulta com caráter de urgência
            (config.STRING_URGENCIA) em QUALQUER item OU contendo o pacote de
            urgência (config.CD_PACOTE_URGENCIA) recebe EPISODIO_PS=True em TODOS
@@ -199,10 +207,39 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
 
     src = solicitacoes[solicitacoes["COOPERADO"] == "S"].copy()
 
-    # consulta inferida (denominador de todas as taxas)
-    src["ID_CONSULTA"] = src.groupby(
-        ["IDENTIFICADOR_SOLICITANTE", "IDENTIFICADOR_BENEFICIARIO", "DATA_REQUISICAO"]
-    ).ngroup()
+    # beneficiário: id sequencial por ordem de aparição, MESMA forma do
+    # ID_COOPERADO. O hash de 64 caracteres é chave — colecionável entre telas
+    # e exportações — e não precisa sair do mapa. O registro de preenchimento
+    # da origem (config.HASH_BENEFICIARIO_NAO_IDENTIFICADO) recebe id próprio e
+    # declarado, em vez de se disfarçar de paciente entre os demais.
+    _benef = src["IDENTIFICADOR_BENEFICIARIO"].unique()
+    dim_beneficiarios = pd.DataFrame({"IDENTIFICADOR_BENEFICIARIO": _benef})
+    _seq = 0
+    _ids = []
+    for _h in dim_beneficiarios["IDENTIFICADOR_BENEFICIARIO"]:
+        if _h == config.HASH_BENEFICIARIO_NAO_IDENTIFICADO:
+            _ids.append(config.ID_BENEFICIARIO_NAO_IDENTIFICADO)
+        else:
+            _seq += 1
+            _ids.append(f"beneficiario_{_seq}")
+    dim_beneficiarios["ID_BENEFICIARIO"] = _ids
+    dim_beneficiarios = dim_beneficiarios[["ID_BENEFICIARIO", "IDENTIFICADOR_BENEFICIARIO"]]
+    src = src.merge(dim_beneficiarios, on="IDENTIFICADOR_BENEFICIARIO", how="left")
+
+    # consulta inferida (denominador de todas as taxas): solicitações do mesmo
+    # cooperado para o mesmo beneficiário cujos lançamentos consecutivos distam
+    # no máximo config.JANELA_CONSULTA_MINUTOS. O DIA é fronteira externa —
+    # sessão não atravessa a meia-noite. A calibração da janela e a ressalva
+    # clínica pendente estão no config, junto da constante.
+    # A ordenação vive numa CÓPIA e o resultado volta pelo índice: `src` precisa
+    # manter a ordem de origem, porque ID_COOPERADO é atribuído adiante por
+    # ORDEM DE APARIÇÃO e reordenar aqui remapearia todos os cooperados.
+    _chave = ["IDENTIFICADOR_SOLICITANTE", "ID_BENEFICIARIO", "DATA_REQUISICAO"]
+    _ord = src.sort_values(_chave + ["TS_REQUISICAO"], kind="mergesort")
+    _g = _ord.groupby(_chave, sort=False)
+    _intervalo = _g["TS_REQUISICAO"].diff().dt.total_seconds() / 60
+    _abre = (_intervalo > config.JANELA_CONSULTA_MINUTOS) | _g.cumcount().eq(0)
+    src["ID_CONSULTA"] = (_abre.cumsum() - 1).reindex(src.index)
 
     # episódio-PS: marcado UMA vez, na origem (fato sobre o dado, não análise).
     # Caráter de urgência em qualquer item OU pacote de urgência => a marca desce
@@ -277,7 +314,7 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
         "linhas_cooperados": len(fato),
         "n_cooperados": int(fato["ID_COOPERADO"].nunique()),
         "n_consultas_inferidas": int(fato["ID_CONSULTA"].nunique()),
-        "n_pacientes": int(fato["IDENTIFICADOR_BENEFICIARIO"].nunique()),
+        "n_pacientes": int(fato["ID_BENEFICIARIO"].nunique()),
         "n_procedimentos": int(fato["CD_PROCEDIMENTO"].nunique()),
         "qt_tratadas": {
             "regra": (f"QT > {teto} não corroborada por liberação/execução -> 1 "
@@ -320,6 +357,7 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
 
     dims = {
         "dim_cooperados": dim_cooperados,
+        "dim_beneficiarios": dim_beneficiarios,
         "dim_executantes_cooperado": dim_executantes,
         "contas": contas,
     }
@@ -329,6 +367,7 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
         os.makedirs(dir_marts, exist_ok=True)
         fato.to_parquet(f"{dir_marts}/fato_solicitacoes.parquet", index=False)
         dim_cooperados.to_parquet(f"{dir_marts}/dim_cooperados.parquet", index=False)
+        dim_beneficiarios.to_parquet(f"{dir_marts}/dim_beneficiarios.parquet", index=False)
         dim_executantes.to_parquet(f"{dir_marts}/dim_executantes_cooperado.parquet", index=False)
         contas.to_parquet(f"{dir_marts}/contas.parquet", index=False)
         relatorio["marts_gravados_em"] = dir_marts

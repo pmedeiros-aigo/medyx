@@ -21,6 +21,7 @@
 import { buscar } from '../lib/api.js';
 import { abrirPagina } from '../lib/pagina.js';
 import { TELAS, rotaAtual } from '../lib/rotas.js';
+import { abrirPainel } from '../blocos/painel-procedimento.js';
 import { el, ordenar, cabecalho, ordemDaURL, gravarOrdem, proximaOrdem, moldura,
          celulaConsistencia, campoDeBusca, casa } from '../lib/tabelas.js';
 
@@ -245,9 +246,25 @@ const COLUNAS = [
     ordem: 'excedente', valor: (l) => l.excedente_itens },
 ];
 
-function linhaProcedimento(l, semMedida = '') {
+function linhaProcedimento(l, semMedida = '', aoAbrir = null) {
   const tr = document.createElement('tr');
   if (l.sinalizado) tr.classList.add('acima');
+  /* A linha inteira é o gatilho do painel — alvo grande, sem um botão a mais
+     numa tabela de dez colunas. Teclado incluído: `tabIndex` + Enter/Espaço,
+     porque linha clicável sem foco é linha que só existe para o mouse. */
+  if (aoAbrir) {
+    tr.classList.add('clicavel');
+    tr.tabIndex = 0;
+    tr.setAttribute('role', 'button');
+    tr.setAttribute('aria-label', `Detalhar ${l.descricao}`);
+    const acionar = () => aoAbrir(l);
+    tr.addEventListener('click', acionar);
+    tr.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      acionar();
+    });
+  }
 
   const nome = el('td', 'cell-name');
   nome.appendChild(document.createTextNode(l.codigo));
@@ -321,6 +338,7 @@ function linhaProcedimento(l, semMedida = '') {
 
 function montarProcedimentos(destino, d) {
   const dados = d.procedimentos;
+  let aoAbrirLinha = null;
   /* Sem par medido (área sem referência, cooperado abaixo do piso): o bloco
      declara o estado em vez de exibir moldura vazia. */
   if (!dados?.total_medidos) {
@@ -383,7 +401,11 @@ function montarProcedimentos(destino, d) {
     const coluna = COLUNAS.find((col) => col.ordem === ordemAtiva);
     const visiveis = ordenar(linhas, coluna, direcao);
     const corpo = document.createElement('tbody');
-    for (const l of visiveis) corpo.appendChild(linhaProcedimento(l, dados.sem_medida));
+    for (const l of visiveis) {
+      const tr = linhaProcedimento(l, dados.sem_medida,
+                                   (linha) => aoAbrirLinha?.(linha, tr));
+      corpo.appendChild(tr);
+    }
     tabela.replaceChildren(cabecalho(COLUNAS, ordemAtiva, direcao, alternarOrdem), corpo);
     const dizOrdem = coluna
       ? `${coluna.nome.toLowerCase()}, ${direcao === 'asc' ? 'crescente' : 'decrescente'}`
@@ -411,8 +433,41 @@ function montarProcedimentos(destino, d) {
     faixa.appendChild(b);
   }
 
+  /* Tabela e painel dividem uma faixa: a tabela continua visível e clicável
+     enquanto o painel está aberto, que é a razão de ser painel e não modal.
+     Sem painel aberto a tabela ocupa tudo — layout não reserva espaço para o
+     que ainda não foi pedido. */
+  const faixaConteudo = el('div', 'row-t g20');
+  const colTabela = el('div', 'painel-col-tabela');
+  colTabela.appendChild(cartao);
+  const colPainel = el('aside', 'painel-lateral stack g12');
+  colPainel.hidden = true;
+  faixaConteudo.appendChild(colTabela);
+  faixaConteudo.appendChild(colPainel);
+
+  let aberto = null;
+  function fechar() {
+    aberto = null;
+    colPainel.hidden = true;
+    colPainel.replaceChildren();
+    for (const tr of tabela.querySelectorAll('tr.selecionada')) {
+      tr.classList.remove('selecionada');
+    }
+  }
+  function abrir(linha, tr) {
+    /* Clicar de novo na linha aberta fecha: o mesmo gesto desfaz o que fez. */
+    if (aberto === linha.codigo) { fechar(); return; }
+    aberto = linha.codigo;
+    for (const outra of tabela.querySelectorAll('tr.selecionada')) {
+      outra.classList.remove('selecionada');
+    }
+    tr?.classList.add('selecionada');
+    abrirPainel(colPainel, d.cooperado.id, linha, fechar);
+  }
+  aoAbrirLinha = (linha, tr) => abrir(linha, tr);
+
   destino.appendChild(faixa);
-  destino.appendChild(cartao);
+  destino.appendChild(faixaConteudo);
   aplicar('revisao');
 }
 

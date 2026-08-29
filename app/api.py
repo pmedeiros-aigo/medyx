@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from functools import lru_cache
 from typing import Annotated, Any
@@ -29,12 +30,14 @@ for _p in (str(_RAIZ), str(_RAIZ / "app")):
         sys.path.insert(0, _p)
 
 import pandas as pd  # noqa: E402
-from fastapi import Depends, FastAPI, HTTPException, Path as PathParam, Query  # noqa: E402
+from fastapi import (Depends, FastAPI, HTTPException, Path as PathParam,  # noqa: E402
+                     Query, Request)
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
 import config  # noqa: E402
+import sessao  # noqa: E402
 from utils import apresentacao as apr  # noqa: E402
 from utils import blocos, cascata, dados  # noqa: E402
 from utils import pipeline as pl  # noqa: E402
@@ -42,11 +45,20 @@ from utils.pipeline import filtrar_sinalizados  # noqa: E402
 
 ESTATICOS = Path(__file__).parent / "static"
 
+@asynccontextmanager
+async def _ciclo_de_vida(app: FastAPI):
+    """Confere os marts antes de aceitar requisição. Sem isto o servidor sobe
+    normalmente e só quebra na primeira consulta — ver dados.verificar_marts."""
+    dados.verificar_marts()
+    yield
+
+
 app = FastAPI(
     title="Medyx · API da tela Área de atuação",
     description=("JSON dos blocos da tela + estáticos. Nenhum número é calculado "
                  "aqui: tudo vem do pipeline canônico (app/utils/pipeline.py)."),
     version=config.PIPELINE_VERSAO,
+    lifespan=_ciclo_de_vida,
 )
 
 
@@ -1313,6 +1325,154 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
     }
 
 
+@app.get("/api/cooperado/{cooperado_id}/procedimento/{cd}", tags=["tela dossiê"])
+def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id do cooperado")],
+                        cd: Annotated[str, PathParam(description="código do procedimento")],
+                        p: ParametrosDep) -> dict[str, Any]:
+    """Painel lateral de UM procedimento do dossiê (espec §3).
+
+    Segundo nível de evidência: abre quando uma linha da tabela chama atenção e
+    responde "de onde vem esse volume". Nenhum número novo nasce aqui — todos
+    saem dos mesmos motores da tela de área, em cache.
+
+    É endpoint próprio, e não campo do dossiê, porque o custo é por
+    procedimento: montar isto para os 269 procedimentos de um cooperado seria
+    pagar 269 vezes por um painel que se abre uma vez.
+    """
+    r = _rodar(p)
+    pos_all = r["posicao"]
+    sel = pos_all[pos_all["ID_COOPERADO"] == cooperado_id]
+    if sel.empty:
+        raise HTTPException(404, f"cooperado desconhecido: {cooperado_id}")
+    nome = str(sel.iloc[0]["AREA_ATUACAO"])
+
+    posproc = r["posicao_proc"]
+    par = posproc[(posproc["ID_COOPERADO"] == cooperado_id)
+                  & (posproc["CD_PROCEDIMENTO"] == cd)]
+    if par.empty:
+        raise HTTPException(404, f"procedimento não solicitado por {cooperado_id}: {cd}")
+    linha_par = par.iloc[0]
+
+    # POSIÇÃO na distribuição do procedimento, em RÉGUA e não em gráfico de
+    # pontos: aqui a pergunta é "onde ele está", e a forma da distribuição é
+    # pergunta da tela de Área, que segue com o gráfico completo a um clique.
+    #
+    # O p25 não viaja em norma_proc (que carrega mediana/p75/p90): sai da MESMA
+    # população que produziu os outros percentis — os formadores da norma neste
+    # procedimento —, nunca de outra amostra.
+    do_proc = posproc[(posproc["AREA_ATUACAO"] == nome)
+                      & (posproc["CD_PROCEDIMENTO"] == cd)]
+    formadores = do_proc[do_proc["elegivel_norma"].astype(bool)
+                         & do_proc["avaliavel"]]["taxa"]
+    regua = None
+    if (bool(linha_par["apresentavel"]) and bool(linha_par["avaliavel"])
+            and len(formadores)):
+        regua = blocos.regua_do_procedimento(
+            linha_par, float(formadores.quantile(0.25)),
+            float(linha_par["taxa"]), p.criterio)
+
+    conc = dados.rodar_concentracao(p.janela_ini, p.janela_fim, p.piso,
+                                    p.n_minimo, nome, p.incluir_ps)
+    c = conc[(conc["ID_COOPERADO"] == cooperado_id) & (conc["CD_PROCEDIMENTO"] == cd)]
+    conc_row = c.iloc[0] if len(c) else None
+
+    pacientes = dados.pacientes_do_procedimento(cooperado_id, cd, p.janela_ini,
+                                                p.janela_fim, p.incluir_ps)
+
+    aut = dados.rodar_autorref_proc(p.janela_ini, p.janela_fim, nome, p.incluir_ps)
+    a = aut[(aut["ID_COOPERADO"] == cooperado_id) & (aut["CD_PROCEDIMENTO"] == cd)]
+    autorref_row = a.iloc[0] if len(a) else None
+
+    # série de trimestres e piso de confiança: já calculados para o dossiê e até
+    # hoje não exibidos por procedimento
+    fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
+    serie = None
+    if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
+        pers = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
+                                        p.referencia, None,
+                                        config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
+        pj = pers["por_janela"]
+        serie = blocos._serie_do_procedimento(
+            pj[pj["ID_COOPERADO"] == cooperado_id], cd, len(fatias))
+
+    casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
+                         p.criterio, p.referencia, p.incluir_ps)
+    conf = casc.get("conf")
+    conf_row = None
+    if conf is not None and len(conf):
+        cc = conf[(conf["ID_COOPERADO"] == cooperado_id) & (conf["CD_PROCEDIMENTO"] == cd)]
+        conf_row = cc.iloc[0] if len(cc) else None
+
+    return blocos.painel_do_procedimento(
+        cd, str(linha_par.get("DS_PROCEDIMENTO", config.SEM_MEDIDA)).strip(),
+        conc_row, pacientes, autorref_row, regua, serie,
+        blocos._confianca_do_par(conf_row))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/conta — quem está usando o app (tela Minha conta + bloco da lateral)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Único endpoint do app que não fala de análise, e por isso não recebe
+# `ParametrosDep`: a régua não governa nada aqui.
+#
+# Contato de suporte: fica `None` até existir um endereço de verdade. A tela
+# OMITE a linha quando não há valor, em vez de imprimir um lugar vazio (ajuste
+# 1 do CLAUDE.md, ausência de atributo não vira etiqueta).
+CONTATO_SUPORTE: str | None = None
+
+
+@app.get("/api/conta", tags=["conta"])
+def conta(request: Request) -> dict[str, Any]:
+    """Identidade da sessão, estado da segurança e versão do app.
+
+    Sempre 200, inclusive sem sessão: "ninguém autenticado" é um ESTADO que a
+    tela desenha, não um erro que ela trata. 401 aqui faria a própria tela de
+    conta cair no banner de falha genérico, que é o oposto do que ela existe
+    para fazer.
+    """
+    usuario = sessao.usuario_da_requisicao(request)
+    app_ = {
+        "versao": config.PIPELINE_VERSAO,
+        "classificacao": config.CLASSIFICACAO_VERSAO,
+        "suporte": CONTATO_SUPORTE,
+    }
+    if usuario is None:
+        return {
+            "autenticado": False,
+            # A tela mostra esta frase; ela diz o que está acontecendo, não o
+            # que deu errado, porque nada deu errado.
+            "motivo": "O acesso por login ainda não foi ativado neste ambiente.",
+            "app": app_,
+        }
+    return {
+        "autenticado": True,
+        "usuario": usuario.para_tela(),
+        # Tudo `None` enquanto não há provedor: a tela desabilita a ação e diz
+        # por quê, em vez de oferecer um botão que não leva a lugar nenhum.
+        "seguranca": {
+            "provedor": None,
+            "url_senha": None,
+            "url_duas_etapas": None,
+            "duas_etapas": None,
+        },
+        "app": app_,
+    }
+
+
+@app.get("/sair", include_in_schema=False)
+def sair(request: Request):
+    """Encerra a sessão e devolve à porta de entrada.
+
+    Apaga o cookie mesmo quando não há provedor configurado: o dia em que
+    houver, só falta acrescentar o redirecionamento ao logout dele, e o resto
+    do caminho (botão, rota, limpeza) já estará provado em uso.
+    """
+    resposta = RedirectResponse("/", status_code=303)
+    resposta.delete_cookie(sessao.COOKIE_SESSAO, httponly=True, samesite="lax")
+    return resposta
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Estáticos — o contrato visual servido pela mesma origem da API
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1369,6 +1529,17 @@ def tela_cooperado(cooperado_id: str):
 @app.get("/metodologia", include_in_schema=False)
 def tela_metodologia():
     """Nota metodológica: o método e as defesas escritas (espec §4)."""
+    return FileResponse(PAGINA)
+
+
+@app.get("/conta", include_in_schema=False)
+def tela_conta():
+    """Minha conta: identidade da sessão e segurança do acesso.
+
+    Não está na espec funcional porque não é tela de análise: nenhum motor a
+    alimenta e nenhum número dela é comparado. É o entorno que todo app tem, e
+    a porta é o bloco de conta no rodapé da lateral.
+    """
     return FileResponse(PAGINA)
 
 

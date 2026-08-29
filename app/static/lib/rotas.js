@@ -10,6 +10,7 @@
  *     /cooperados           Índice de cooperados (a porta para um caso)
  *     /cooperado/{id}       Dossiê do cooperado
  *     /metodologia          Nota metodológica
+ *     /conta                Minha conta (identidade e segurança da sessão)
  *
  * `/cooperados` no plural é a COLEÇÃO e `/cooperado/{id}` é UM. Menu nomeia
  * coleção, não documento — é por isso que a lateral diz "Cooperados" e não
@@ -33,6 +34,9 @@ export const TELAS = {
   cooperado: { rotulo: 'Dossiê do Cooperado',
                caminho: (id) => `/cooperado/${encodeURIComponent(id)}` },
   metodologia: { rotulo: 'Nota Metodológica', caminho: () => '/metodologia' },
+  /* Não está na navegação lateral: a porta é o bloco de conta do rodapé. Entra
+     aqui porque a migalha e `inicio.js` leem deste mapa. */
+  conta: { rotulo: 'Minha Conta', caminho: () => '/conta' },
 };
 
 /**
@@ -48,6 +52,7 @@ export function rotaAtual() {
   if (raiz === 'cooperados') return { tela: 'cooperados' };
   if (raiz === 'cooperado') return { tela: 'cooperado', cooperado: alvo };
   if (raiz === 'metodologia') return { tela: 'metodologia' };
+  if (raiz === 'conta') return { tela: 'conta' };
   return { tela: null };
 }
 

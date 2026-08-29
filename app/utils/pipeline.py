@@ -62,7 +62,7 @@ def pacientes_distintos(fato, janela_ini, janela_fim,
     f = fato[(fato["DATA_REQUISICAO"] >= janela_ini)
              & (fato["DATA_REQUISICAO"] <= janela_fim)]
     f = filtrar_ps(f, incluir_ps)
-    return f.groupby("ID_COOPERADO")["IDENTIFICADOR_BENEFICIARIO"].nunique()
+    return f.groupby("ID_COOPERADO")["ID_BENEFICIARIO"].nunique()
 
 
 def _gatilho_efetivo(n, gatilho, n_min_p90, n_min_p75):
@@ -785,7 +785,7 @@ def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,
     base_coop = (
         f.groupby("ID_COOPERADO")
         .agg(consultas_totais=("ID_CONSULTA", "nunique"),
-             n_pacientes_carteira=("IDENTIFICADOR_BENEFICIARIO", "nunique"),
+             n_pacientes_carteira=("ID_BENEFICIARIO", "nunique"),
              elegivel_norma=("elegivel_norma", "first"))
         .reset_index()
     )
@@ -795,15 +795,35 @@ def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,
     area_map = f.drop_duplicates("ID_COOPERADO")[["ID_COOPERADO", "AREA_ATUACAO"]]
 
     # itens por (cooperado, procedimento, paciente)
-    ipp = (f.groupby(["ID_COOPERADO", "CD_PROCEDIMENTO", "IDENTIFICADOR_BENEFICIARIO"])
-           ["QT_EFETIVO"].sum().rename("itens").reset_index())
+    #
+    # OCASIÕES ao lado dos ITENS (ago/2026): itens soma QT_EFETIVO e empata "5
+    # unidades num pedido" com "5 pedidos em 5 datas" — clinicamente o oposto.
+    # Ocasião é consulta distinta (ID_CONSULTA), que desde ago/2026 é atendimento
+    # inferido por intervalo e não mais "o dia". O INTERVALO entre a primeira e a
+    # última solicitação divide pelo número de repetições: 5 pedidos em 12 meses é
+    # acompanhamento, 5 em 6 semanas é outra conversa, e a contagem não separa os dois.
+    ipp = (f.groupby(["ID_COOPERADO", "CD_PROCEDIMENTO", "ID_BENEFICIARIO"])
+           .agg(itens=("QT_EFETIVO", "sum"),
+                ocasioes=("ID_CONSULTA", "nunique"),
+                _ini=("TS_REQUISICAO", "min"),
+                _fim=("TS_REQUISICAO", "max"))
+           .reset_index())
+    _vaos = (ipp["ocasioes"] - 1).clip(lower=1)
+    ipp["intervalo_dias"] = np.where(
+        ipp["ocasioes"] > 1,
+        (ipp["_fim"] - ipp["_ini"]).dt.total_seconds() / 86400 / _vaos,
+        np.nan)
+    ipp = ipp.drop(columns=["_ini", "_fim"])
 
     conc = (
         ipp.groupby(["ID_COOPERADO", "CD_PROCEDIMENTO"])
         .agg(n_pacientes_proc=("itens", "size"),
              itens_total=("itens", "sum"),
              itens_por_paciente_media=("itens", "mean"),
-             itens_por_paciente_mediana=("itens", "median"))
+             itens_por_paciente_mediana=("itens", "median"),
+             ocasioes_por_paciente_mediana=("ocasioes", "median"),
+             n_pacientes_repetem=("ocasioes", lambda s: int((s >= 2).sum())),
+             intervalo_mediano_dias=("intervalo_dias", "median"))
         .reset_index()
     )
 
@@ -820,6 +840,11 @@ def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,
 
     conc = conc.merge(base_coop, on="ID_COOPERADO").merge(area_map, on="ID_COOPERADO")
     conc["pct_carteira"] = conc["n_pacientes_proc"] / conc["n_pacientes_carteira"]
+    # fração dos pacientes do procedimento que receberam o exame mais de uma vez.
+    # Média de ocasiões esconde o caso de um paciente com 40 pedidos entre 80 com
+    # um só; a fração que repete é robusta a esse desenho.
+    conc["pct_pacientes_repetem"] = (conc["n_pacientes_repetem"]
+                                     / conc["n_pacientes_proc"])
 
     # referência dos pares: solicitantes elegíveis do procedimento na área
     eleg = conc[conc["elegivel"]]
@@ -830,7 +855,11 @@ def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,
              pct_carteira_alto_pares=("pct_carteira", lambda s: s.quantile(q_alto)),
              intensidade_mediana_pares=("itens_por_paciente_mediana", "median"),
              intensidade_alto_pares=("itens_por_paciente_mediana",
-                                     lambda s: s.quantile(q_alto)))
+                                     lambda s: s.quantile(q_alto)),
+             repeticao_mediana_pares=("ocasioes_por_paciente_mediana", "median"),
+             repeticao_alta_pares=("ocasioes_por_paciente_mediana",
+                                   lambda s: s.quantile(q_alto)),
+             pct_repetem_mediana_pares=("pct_pacientes_repetem", "median"))
         .reset_index()
     )
     conc = conc.merge(ref, on=["AREA_ATUACAO", "CD_PROCEDIMENTO"], how="left")
@@ -859,6 +888,132 @@ def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,
     conc = conc.merge(desc, on="CD_PROCEDIMENTO", how="left")
     conc["base"] = carimbo_base(incluir_ps)   # proveniência por linha, como os ns obrigatórios
     return conc
+
+
+def pacientes_do_procedimento(fato, cooperado, cd_procedimento, janela_ini, janela_fim,
+                              topo=config.TOP_PACIENTES_PAINEL,
+                              incluir_ps=config.INCLUIR_PS_DEFAULT):
+    """Os pacientes que mais concentram UM procedimento de UM cooperado.
+
+    Método:
+        Descreve a distribuição observada — quantas ocasiões, que fração das
+        solicitações do exame, com que intervalo. NÃO atribui excedente a
+        paciente: excedente é a diferença entre a frequência do cooperado e a
+        referência do grupo sobre a prática INTEIRA, e não pertence a nenhum
+        paciente em particular (mesma razão declarada em
+        concentracao_por_beneficiario). "Este paciente responde por 18% das
+        solicitações" é fato; "por 18% do excedente" seria invenção.
+
+        A identidade que sai daqui é o ID_BENEFICIARIO do mapa
+        (`beneficiario_N`), nunca o hash de origem — que não sai do
+        dim_beneficiarios. Nenhum dado clínico ou demográfico acompanha.
+
+    Parâmetros:
+        fato: fato_solicitacoes.
+        cooperado, cd_procedimento: o par em cena.
+        janela_ini, janela_fim: janela pela DATA_REQUISICAO.
+        topo: quantos pacientes listar (o resto vai agregado em 'resto').
+        incluir_ps: default do config.
+
+    Retorna: dict com linhas (topo), resto, e os totais do par. None se o par
+    não existe na janela.
+    """
+    f = fato[(fato["DATA_REQUISICAO"] >= janela_ini) & (fato["DATA_REQUISICAO"] <= janela_fim)
+             & (fato["ID_COOPERADO"] == cooperado)
+             & (fato["CD_PROCEDIMENTO"] == cd_procedimento)]
+    f = filtrar_ps(f, incluir_ps)
+    if not len(f):
+        return None
+
+    por_pac = (f.groupby("ID_BENEFICIARIO")
+               .agg(ocasioes=("ID_CONSULTA", "nunique"),
+                    itens=("QT_EFETIVO", "sum"),
+                    _ini=("TS_REQUISICAO", "min"),
+                    _fim=("TS_REQUISICAO", "max"))
+               .reset_index())
+    vaos = (por_pac["ocasioes"] - 1).clip(lower=1)
+    por_pac["intervalo_dias"] = np.where(
+        por_pac["ocasioes"] > 1,
+        (por_pac["_fim"] - por_pac["_ini"]).dt.total_seconds() / 86400 / vaos,
+        np.nan)
+    por_pac = por_pac.drop(columns=["_ini", "_fim"])
+
+    total_itens = float(por_pac["itens"].sum())
+    por_pac["pct_do_procedimento"] = por_pac["itens"] / total_itens
+    # ordem: quem mais concentra primeiro; empate resolvido por ocasiões, para a
+    # lista não trocar de ordem entre execuções (mesma janela, mesmo resultado)
+    por_pac = por_pac.sort_values(["itens", "ocasioes", "ID_BENEFICIARIO"],
+                                  ascending=[False, False, True])
+
+    cabeca = por_pac.head(topo)
+    cauda = por_pac.iloc[topo:]
+    return {
+        "linhas": cabeca.to_dict("records"),
+        "resto": {"n_pacientes": int(len(cauda)),
+                  "itens": float(cauda["itens"].sum()),
+                  "pct_do_procedimento": float(cauda["itens"].sum() / total_itens)
+                  if total_itens else 0.0},
+        "n_pacientes": int(len(por_pac)),
+        "itens_total": total_itens,
+        "base": carimbo_base(incluir_ps),
+    }
+
+
+def autorreferencia_por_procedimento(fato, contas, janela_ini, janela_fim, area=None,
+                                     incluir_ps=config.INCLUIR_PS_DEFAULT):
+    """Autorreferência por (cooperado, procedimento), com a cobertura ao lado.
+
+    Método:
+        Mesmo cruzamento do agregado em pipeline_execucao (item da solicitação
+        contra a conta, por NR_SEQ_REQUISICAO + código), só que sem colapsar o
+        procedimento. A PREMISSA continua a mesma e continua não verificada:
+        itens sem conta localizada se autorreferem como os observados.
+
+        A diferença é de escala e é ela que exige portão: o cruzamento acha 31%
+        dos itens no agregado, mas a mediana por (cooperado, procedimento) cai
+        para 11%, e sobre 11% a taxa salta entre 0% e 100%. Por isso
+        `apresentavel` viaja na saída, governado por MIN_ITENS_AUTORREF_PROC e
+        MIN_COBERTURA_AUTORREF_PROC — indicador investigativo, nunca flag, e
+        nunca exibido sem a cobertura.
+
+    Retorna: DataFrame (cooperado × procedimento) com taxa_autorref, cobertura,
+    itens, itens_com_conta e apresentavel.
+    """
+    f = fato[(fato["DATA_REQUISICAO"] >= janela_ini) & (fato["DATA_REQUISICAO"] <= janela_fim)]
+    if area is not None:
+        f = f[f["AREA_ATUACAO"] == area]
+    f = filtrar_ps(f, incluir_ps)
+    c = contas[(contas["DATA_EXECUCAO"] >= janela_ini) & (contas["DATA_EXECUCAO"] <= janela_fim)]
+
+    # Sem lambda em groupby: a coluna booleana nasce vetorizada e o .any() é a
+    # agregação nativa. Com lambda esta função levava 20s — tempo de request, não
+    # de motor. Mesma conta, ~40x mais rápida.
+    c = c.assign(_auto=(c["SOLIC_IGUAL_EXEC"] == "S"))
+    cont_item = (
+        c.groupby(["NR_SEQ_REQUISICAO", "CODIGO"])["_auto"].any()
+        .rename("autoexec").reset_index()
+        .rename(columns={"CODIGO": "CD_PROCEDIMENTO"})
+    )
+    rc = f.merge(cont_item, on=["NR_SEQ_REQUISICAO", "CD_PROCEDIMENTO"], how="left")
+    # NaN = item sem conta localizada; separar "tem conta" de "se autorreferiu"
+    # deixa as duas contas serem soma simples, e a taxa sai da razão entre elas
+    rc = rc.assign(_com_conta=rc["autoexec"].notna(),
+                   _auto=rc["autoexec"].eq(True))   # NaN -> False, sem downcast
+    out = (
+        rc.groupby(["ID_COOPERADO", "CD_PROCEDIMENTO"])
+        .agg(itens=("_com_conta", "size"),
+             itens_com_conta=("_com_conta", "sum"),
+             _autos=("_auto", "sum"))
+        .reset_index()
+    )
+    out["taxa_autorref"] = (out["_autos"] / out["itens_com_conta"]).where(
+        out["itens_com_conta"] > 0)
+    out = out.drop(columns=["_autos"])
+    out["cobertura"] = out["itens_com_conta"] / out["itens"]
+    out["apresentavel"] = ((out["itens_com_conta"] >= config.MIN_ITENS_AUTORREF_PROC)
+                           & (out["cobertura"] >= config.MIN_COBERTURA_AUTORREF_PROC))
+    out["base"] = carimbo_base(incluir_ps)
+    return out
 
 
 def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
@@ -925,7 +1080,7 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
     out = []
     for coop, pares_c in pares.groupby("ID_COOPERADO", sort=True):
         fc = f[f["ID_COOPERADO"] == coop]
-        cons_pac = fc.groupby("IDENTIFICADOR_BENEFICIARIO")["ID_CONSULTA"].nunique()
+        cons_pac = fc.groupby("ID_BENEFICIARIO")["ID_CONSULTA"].nunique()
         pacientes = cons_pac.index
         n_consultas_pac = cons_pac.to_numpy(dtype=float)
         n_pac = len(pacientes)
@@ -936,7 +1091,7 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
         for _, par in pares_c.sort_values("CD_PROCEDIMENTO").iterrows():
             alvo = float(par["alvo_valor"])
             itens = (fc[fc["CD_PROCEDIMENTO"] == par["CD_PROCEDIMENTO"]]
-                     .groupby("IDENTIFICADOR_BENEFICIARIO")["QT_EFETIVO"].sum())
+                     .groupby("ID_BENEFICIARIO")["QT_EFETIVO"].sum())
             n_recebem = int((itens > 0).sum())
             itens_pac = itens.reindex(pacientes).fillna(0).to_numpy(dtype=float)
             taxa_real = itens_pac.sum() / consultas_reais

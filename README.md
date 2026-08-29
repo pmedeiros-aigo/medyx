@@ -32,8 +32,14 @@ A aplicação espera encontrar os dados numa pasta **irmã** do repositório:
 ```
 
 O caminho é resolvido em `config.py` como `Path(__file__).parent.parent /
-"unimed_natal"`. Sem essa pasta no lugar, a aplicação sobe e falha na primeira
-consulta.
+"unimed_natal"`. A aplicação lê **quatro** arquivos, todos em `marts/`:
+`fato_solicitacoes.parquet`, `contas.parquet`,
+`dim_executantes_cooperado.parquet` e `dim_classificacao.csv`. Os CSVs brutos
+de `dados_iniciais/` são insumo do `preparar_fato` (o 6º motor) e não são lidos
+em runtime.
+
+Se algum dos quatro faltar, o servidor **não sobe**: `dados.verificar_marts()`
+roda no boot e diz exatamente o que está faltando.
 
 Os arquivos são obtidos com a equipe responsável; não há download automatizado.
 
@@ -65,6 +71,38 @@ motores leem o Parquet e calculam a norma de todas as áreas. As seguintes são
 servidas de cache. **Editar um arquivo `.py` reinicia o servidor e zera esse
 cache**, então a requisição seguinte volta a pagar o custo integral.
 
+### Entrar com uma sessão (tela Minha conta)
+
+**O app ainda não tem login.** O Cognito é a decisão tomada, e ainda não foi
+ligado. Enquanto isso, o comportamento normal é o de quem não está autenticado:
+
+- o rodapé da barra lateral fica vazio, **sem bloco de conta**;
+- `/conta` monta e declara que não há sessão.
+
+Isso é deliberado, não uma tela pela metade: sem autenticação, um nome fixo na
+tela seria ficção, e ficção em produto de auditoria custa confiança.
+
+Para construir ou conferir a tela com uma sessão, existe um override **de
+desenvolvimento**:
+
+```bash
+export MEDYX_SESSAO_DEV="Seu Nome <seu.email@exemplo.com>"
+uvicorn app.api:app --reload --port 8770
+```
+
+Com ele, o bloco de conta aparece no rodapé da lateral (nome, e-mail, e o menu
+com "Minha conta" e "Sair") e `/conta` mostra a tela cheia.
+
+Três coisas que ele NÃO é:
+
+1. **Não é login.** Vale para o servidor inteiro, não para um navegador. Quem
+   abrir o app é essa pessoa.
+2. **Não prova que o Sair funciona.** A rota apaga o cookie de sessão, mas a
+   identidade vem da variável de ambiente, que continua lá. O logout de verdade
+   só existe com o provedor de identidade.
+3. **Não sobrevive ao Cognito.** Sessão real tem precedência no `app/sessao.py`,
+   então a variável deixa de ter efeito mesmo se alguém esquecer de removê-la.
+
 ## Provas
 
 ```bash
@@ -73,9 +111,18 @@ python smoke_api.py      # a API entrega o gabarito (exige o servidor no ar)
 python smoke_front.py    # as telas montam sem erro de console (idem)
 ```
 
-`smoke_fase3.py` está em dia. `smoke_api.py` e `smoke_front.py` estão
-**desatualizados** em relação à reestruturação de agosto e falham em pontos que
-mudaram por decisão de produto; ver `PENDENCIAS.md`.
+Estado em 29/ago/2026: `smoke_fase3.py` e `smoke_api.py` **passam inteiros**.
+
+`smoke_front.py` **aborta na seção 2** e por isso as seções 3 a 11 não chegam a
+rodar. A causa está nas seções 1 e 2, da tela de Área: a suíte procura elementos
+(`.stats`, `.selperfil`, os chips de recorte) que a reestruturação de agosto
+tirou da página, e o clique num chip que não existe estoura por timeout. É o
+teste que está atrasado em relação à tela, não a tela que quebrou.
+
+Consequência prática: **hoje o `smoke_front.py` não prova nada além da seção 1.**
+A seção 10 (tela de conta) foi conferida à parte, com um script equivalente, nos
+dois estados (com e sem sessão). Destravar a suíte pede atualizar as seções 1 e
+2 para a tela de Área como ela ficou.
 
 ---
 
@@ -86,11 +133,12 @@ mudaram por decisão de produto; ver `PENDENCIAS.md`.
 | API | FastAPI, serve JSON **e** os estáticos |
 | Interface | HTML/CSS/JS puro, sem build e sem npm |
 | Análise | pandas, sobre Parquet |
-| Contrato visual | projeto no Claude Design, sincronizado para `app/static/css/` |
+| Contrato visual | `app/static/css/`, editado aqui (o Claude Design foi a origem, não é mais a fonte da verdade) |
 
 ```
 app/
 ├── api.py            FastAPI: entrega os blocos da tela; não calcula nada
+├── sessao.py         quem está usando o app; o Cognito entra só aqui
 ├── utils/
 │   ├── pipeline.py       os motores analíticos
 │   ├── preparar_fato.py  ingestão CSV bruto → fato + dimensões
@@ -117,7 +165,8 @@ Cada assunto tem um dono. Não duplicar conteúdo entre eles.
 | `CLAUDE.md` | regras operacionais de como construir |
 | `CONTEXTO_NEGOCIO.md` | estratégia, valor, por quê |
 | `METODOLOGIA_ANALITICA.md` | como calcular (método, sem números) |
-| `ESPECIFICACAO_FUNCIONAL_APP.md` | o que cada tela mostra |
+| `ESPECIFICACAO_FUNCIONAL_APP.md` | o que cada tela de ANÁLISE mostra |
+| `DIRETRIZES_PRODUTO_UI.md` | padrão de produto e UX do front |
 | `LEXICO_PRODUTO.md` | vocabulário da interface |
 | `PENDENCIAS.md` | o que está em aberto |
 | `config.py` | todos os valores numéricos da metodologia |

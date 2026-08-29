@@ -2019,8 +2019,8 @@ def cabecalho_dossie(linha: dict, posicao_area: pd.DataFrame,
     return [
         _par_da_area("Consultas", linha["consultas_fmt"],
                      fmt(comp["consultas_totais"].median(), 0) if len(comp) else None,
-                     "Consultas atendidas no período, apuradas por beneficiário e data de "
-                     "solicitação."),
+                     "Atendimentos distintos no período, agrupados por paciente. "
+                     "Contagem agregada, sem identificação individual."),
         _par_da_area("Pacientes distintos",
                      config.SEM_MEDIDA if pac_coop is None else fmt(pac_coop, 0),
                      fmt(pac_comp.median(), 0) if len(pac_comp) else None,
@@ -2332,6 +2332,185 @@ def contexto_do_cooperado(resumo_row, perfil_row) -> list[dict]:
                 "alerta": False,
                 "ajuda": "Parcela das execuções em regime de internação."})
     return itens
+
+
+def _intervalo_fmt(dias) -> str | None:
+    """Intervalo médio entre repetições, na unidade que o número comporta."""
+    if dias is None or pd.isna(dias):
+        return None
+    d = float(dias)
+    if d < 1:
+        return "mesmo dia"
+    if d < 2:
+        return "1 dia"
+    return f"{fmt(d, 0)} dias"
+
+
+_ROTULO_NIVEL = {"mediana": "mediana", "p75": "P75", "p90": "P90"}
+
+
+def regua_do_procedimento(linha_par, p25: float | None, taxa: float,
+                          criterio_pedido: str) -> dict | None:
+    """A posição do cooperado na distribuição DESTE procedimento, em uma régua.
+
+    Por que régua e não o gráfico de pontos: no painel a pergunta é "onde ELE
+    está", não "qual a forma da distribuição da área" — essa é a pergunta da
+    tela de Área, que continua com o gráfico completo a um clique. Cinquenta e
+    seis pontos numa coluna de 380px viram ruído, e o painel deixa de caber sem
+    rolagem justo quando o gesto seguinte é clicar na próxima linha da tabela.
+
+    Reusa o `.ruler` do contrato visual e a MESMA geometria (`_escala`/`_pos`)
+    da régua da tabela: é o que faz a marca cair no mesmo lugar nas duas telas
+    (componente-assinatura, guia §04).
+
+    ── referência e critério são PARÂMETROS, e a régua obedece ────────────────
+
+    As duas linhas seguem o que está ativo na barra de critérios, não valores
+    fixos: a referência é o ALVO em vigor (`alvo_usado` — mediana, P75 ou P90) e
+    o critério é o GATILHO EFETIVO (`gatilho_usado`), que pode ter degradado por
+    n. Os rótulos nomeiam qual é qual, porque uma linha sem nome numa régua que
+    muda de posição conforme o parâmetro é pior que nenhuma linha.
+
+    Quando não há gatilho (grupo pequeno demais para sustentar percentil), a
+    linha de critério NÃO é desenhada e o motivo viaja: régua desenhada que não
+    mede é o defeito que o gráfico da área carregava.
+    """
+    if linha_par is None or p25 is None or pd.isna(p25):
+        return None
+    alvo = str(linha_par["alvo_usado"]) if pd.notna(linha_par.get("alvo_usado")) else "mediana"
+    if pd.isna(linha_par.get(alvo)):
+        return None
+    referencia = float(linha_par[alvo])
+    p75 = float(linha_par["p75"]) if pd.notna(linha_par.get("p75")) else None
+
+    gatilho = (str(linha_par["gatilho_usado"])
+               if pd.notna(linha_par.get("gatilho_usado")) else None)
+    valor_crit = (float(linha_par[gatilho])
+                  if gatilho and pd.notna(linha_par.get(gatilho)) else None)
+
+    # a escala cobre tudo que vai ser desenhado: sem incluir a marca, um
+    # cooperado muito acima do grupo sai do eixo e a régua mente por omissão
+    escala = _escala([v for v in (p25, p75, referencia, valor_crit, taxa, 0.0)
+                      if v is not None])
+
+    razao = (taxa / referencia) if referencia else None
+    return {
+        "iqr": {"pos_pct": _pos(p25, escala),
+                "largura_pct": (round(_pos(p75, escala) - _pos(p25, escala), 2)
+                                if p75 is not None else 0.0),
+                "rotulo": "metade central dos pares"},
+        "referencia": {"valor_fmt": fmt_frequencia(referencia),
+                       "pos_pct": _pos(referencia, escala),
+                       "rotulo": f"referência {_ROTULO_NIVEL.get(alvo, alvo)}"},
+        "criterio": (None if valor_crit is None else
+                     {"valor_fmt": fmt_frequencia(valor_crit),
+                      "pos_pct": _pos(valor_crit, escala),
+                      "rotulo": f"critério {gatilho.upper()}",
+                      "ajustado": gatilho != criterio_pedido}),
+        "marca": {"valor_fmt": fmt_frequencia(taxa),
+                  "pos_pct": _pos(taxa, escala),
+                  "classe": {"crit": "critmk", "read": "warnmk", "neutro": ""}[
+                      _classe_ponto(taxa, p75, valor_crit)]},
+        "razao_fmt": None if razao is None else f"{fmt(razao, 1)}×",
+        "sem_criterio_motivo": (None if valor_crit is not None else
+                                "grupo pequeno demais para sustentar percentil — "
+                                "posição descritiva, sem critério"),
+    }
+
+
+def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | None,
+                           autorref_row, regua: dict | None,
+                           serie: list[dict] | None, confianca: dict | None) -> dict:
+    """O painel lateral do procedimento (espec §3): a evidência de segundo nível.
+
+    Nada nasce aqui — é a saída dos motores vestida para a tela. Três regras que
+    a montagem faz cumprir, e que são o motivo do painel existir:
+
+    1. **Nenhum número de repetição sem o par ao lado.** Repetir é o protocolo em
+       pré-natal (cardiotocografia repete em 62% dos casos) e é achado em
+       rastreio. "2,4 por paciente" isolado não diz nada; contra "pares: 1,3" diz.
+    2. **Ausência declarada, nunca zero.** Par sem referência, procedimento com
+       poucos pacientes e autorreferência sem cobertura têm cada um o seu motivo
+       escrito — célula vazia lê como medição, e não é.
+    3. **O paciente é `beneficiario_N`**, o pseudônimo do mapa, sem nada clínico
+       ou demográfico ao lado. O hash de origem não sai do dim_beneficiarios.
+    """
+    def num(row, campo, casas=1):
+        if row is None or campo not in row or pd.isna(row[campo]):
+            return None
+        return fmt(float(row[campo]), casas)
+
+    # ── repetição ───────────────────────────────────────────────────────────
+    n_pac = None if conc_row is None else int(conc_row["n_pacientes_proc"])
+    pouco = n_pac is not None and n_pac < config.MIN_PACIENTES_PAINEL
+    sem_ref = conc_row is None or not bool(conc_row.get("referencia_solida", False))
+    repeticao = {
+        "n_pacientes": n_pac,
+        "ocasioes_mediana_fmt": num(conc_row, "ocasioes_por_paciente_mediana"),
+        "pares_fmt": num(conc_row, "repeticao_mediana_pares"),
+        "pct_repetem_fmt": (None if conc_row is None
+                            or pd.isna(conc_row.get("pct_pacientes_repetem"))
+                            else fmt_pct(float(conc_row["pct_pacientes_repetem"]))),
+        "pct_repetem_pares_fmt": (None if conc_row is None
+                                  or pd.isna(conc_row.get("pct_repetem_mediana_pares"))
+                                  else fmt_pct(float(conc_row["pct_repetem_mediana_pares"]))),
+        "intervalo_dias_fmt": num(conc_row, "intervalo_mediano_dias", 0),
+        "motivo": ("pouco volume" if pouco
+                   else "referência insuficiente" if sem_ref else None),
+    }
+
+    # ── concentração ────────────────────────────────────────────────────────
+    concentracao = None
+    if pacientes and not pouco:
+        concentracao = {
+            "n_pacientes": pacientes["n_pacientes"],
+            "linhas": [{
+                "id": l["ID_BENEFICIARIO"],
+                "ocasioes": int(l["ocasioes"]),
+                "itens_fmt": fmt(float(l["itens"]), 0),
+                "pct_fmt": fmt_pct(float(l["pct_do_procedimento"])),
+                "pct": round(float(l["pct_do_procedimento"]), 4),
+                # "0 dias" lê como ausência de intervalo; o caso é repetição no
+                # MESMO dia, que desde a regra de sessão significa dois
+                # atendimentos separados por mais de uma hora — e é o caso mais
+                # apertado que existe, não o mais frouxo
+                "intervalo_fmt": _intervalo_fmt(l["intervalo_dias"]),
+            } for l in pacientes["linhas"]],
+            "resto": {
+                "n_pacientes": pacientes["resto"]["n_pacientes"],
+                "pct_fmt": fmt_pct(pacientes["resto"]["pct_do_procedimento"]),
+            },
+            "share_top_fmt": (None if conc_row is None or pd.isna(conc_row.get("share_top"))
+                              else fmt_pct(float(conc_row["share_top"]))),
+        }
+
+    # ── autorreferência (com portão) ────────────────────────────────────────
+    if autorref_row is None:
+        autorreferencia = {"apresentavel": False, "motivo": "sem itens na janela",
+                           "taxa_fmt": None, "cobertura_fmt": None}
+    else:
+        ok = bool(autorref_row["apresentavel"])
+        autorreferencia = {
+            "apresentavel": ok,
+            "taxa_fmt": (fmt_pct(float(autorref_row["taxa_autorref"]))
+                         if ok and pd.notna(autorref_row["taxa_autorref"]) else None),
+            "cobertura_fmt": fmt_pct(float(autorref_row["cobertura"])),
+            "itens_com_conta": int(autorref_row["itens_com_conta"]),
+            "itens": int(autorref_row["itens"]),
+            "motivo": None if ok else "cobertura insuficiente",
+        }
+
+    return {
+        "codigo": cd,
+        "descricao": descricao,
+        "regua": regua,
+        "repeticao": repeticao,
+        "concentracao": concentracao,
+        "autorreferencia": autorreferencia,
+        "trimestres": serie,
+        "confianca": confianca,
+        "sem_medida": config.SEM_MEDIDA,
+    }
 
 
 def _pareto_vazio(titulo: str, colunas: dict, subtitulo: str | None,

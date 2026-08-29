@@ -1,4 +1,24 @@
-/* Medyx · components.css — CÓPIA SINCRONIZADA · NÃO EDITAR À MÃO
+/* Medyx · components.css
+ *
+ *   ── MUDANÇA DE REGIME (29/ago/2026) ────────────────────────────────────
+ *   O Claude Design DEIXOU DE SER a fonte da verdade do contrato visual
+ *   (decisão do usuário). Ele foi a origem do sistema e continua sendo a
+ *   genealogia de tudo que está acima da seção "COMPONENTES NOVOS", mas a
+ *   partir daqui o arquivo é ORIGINAL e é editado à mão neste repositório.
+ *
+ *   O que isso muda na prática:
+ *     · não há mais sincronização, e portanto não há mais o que ser
+ *       sobrescrito: a lista de "desvios autorizados" do CLAUDE.md vira
+ *       histórico, não dívida;
+ *     · componente que falta passa a ser CONSTRUÍDO aqui, e não descrito e
+ *       encaminhado (a Regra 2 do CLAUDE.md caduca junto);
+ *     · o que NÃO muda: os tokens continuam sendo a única origem de cor,
+ *       espaço, tipo e raio. Componente novo compõe token existente. Valor
+ *       solto no meio de uma regra continua sendo defeito (DIRETRIZES §7).
+ *
+ *   O CLAUDE.md ainda descreve o regime antigo e precisa ser atualizado.
+ *
+ *   ── genealogia (o que veio do Design, até a 29ª sincronização) ─────────
  *
  *   origem : Claude Design · projeto "Medyx - Style tile Enterprise"
  *            (3a94742c-5e71-4672-aaa8-8ac768f9a7fd) · arquivo components.css
@@ -942,11 +962,16 @@ th{vertical-align:bottom}
 .side-ft .navitem{color:var(--g-500)}
 .side-user{width:100%;display:flex;align-items:center;gap:8px;padding:8px;border:0;border-radius:var(--r-sm);background:transparent;cursor:pointer;text-align:left;font-family:inherit}
 .side-user:hover{background:var(--g-100)}
-.side-user .av{width:26px;height:26px;border-radius:50%;background:var(--acc-soft);color:var(--acc-strong);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none}
+/* AVATAR de iniciais. Era `.side-user .av`, virou classe própria (29/ago): a
+   tela de conta usa o mesmo círculo maior, e duas cópias de um componente é
+   como começa a divergência silenciosa. Geometria e tinta idênticas ao que
+   estava aqui; `.av-lg` só troca a escala. */
+.av{width:26px;height:26px;border-radius:50%;background:var(--acc-soft);color:var(--acc-strong);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none}
+.av-lg{width:44px;height:44px;font-size:15px}
 .side-user .nm{display:flex;flex-direction:column;line-height:1.25;min-width:0}
 .side-user .nm b{font-size:12px;font-weight:500;color:var(--g-900)}
 .side-user .nm span{font-size:11px;color:var(--g-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.side-user .car{margin-left:auto;flex:none;stroke:var(--g-400)}
+.side-user .car{margin-left:auto;flex:none;color:var(--g-400);font-size:10px;display:inline-block;transform:rotate(0deg);transition:transform .12s ease}
 
 /* ---------- LATERAL ESCURA ---------------------------------------------------
    Da página "Área de Atuação" do Claude Design (2026-08-19). A régua vertical
@@ -974,7 +999,7 @@ th{vertical-align:bottom}
 .side-user .av{background:rgba(255,255,255,.12);color:var(--side-ink)}
 .side-user .nm b{color:var(--side-ink)}
 .side-user .nm span{color:var(--side-ink-3)}
-.side-user .car{stroke:var(--side-ink-3)}
+.side-user .car{color:var(--side-ink-3)}
 
 .params{margin-top:auto;background:#fff;border-top:1px solid var(--line)}
 .params-hd{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line-soft)}
@@ -2156,3 +2181,135 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    Dorme enquanto a régua vive na faixa horizontal; só volta a valer se o painel
    lateral for reativado. PENDENTE DE RATIFICAÇÃO no Design. */
 .params{margin-top:0}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENTES NOVOS · escritos neste repositório
+   ═══════════════════════════════════════════════════════════════════════════
+   Daqui para baixo nada veio do Claude Design (ver o carimbo no topo). Regra
+   que continua valendo: só token, nunca valor solto de cor, raio ou sombra.
+   ═════════════════════════════════════════════════════════════════════════ */
+
+
+/* ---------- MENU · lista de ações que sai de um gatilho ---------------------
+   Genérico de propósito: nasceu para o bloco de conta, mas não sabe nada de
+   conta. Difere do `.pop` do combobox, que é ESCOLHA (tem estado marcado, ✓ e
+   opção não escolhível); aqui cada linha é uma AÇÃO e nada fica selecionado.
+
+   Sai do rodapé da lateral, que é escura, então o painel é claro e flutua
+   sobre o conteúdo: mesmo tratamento do `.pf-pop`, que é o outro popover do
+   app. Abrir e fechar é `.on` aplicado pelo JS, e não checkbox, porque este
+   gatilho precisa de `aria-expanded` para leitor de tela (DIRETRIZES §19). */
+.menu-anc{position:relative}
+.menu{position:absolute;z-index:9;display:none;flex-direction:column;min-width:200px;padding:4px;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-pop)}
+.menu.on{display:flex}
+/* Ancorado no rodapé: abre PARA CIMA, alinhado ao gatilho. */
+.menu-acima{bottom:calc(100% + 6px);left:0;right:0}
+.menu-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:12.5px;font-weight:500;color:var(--g-800);cursor:pointer;text-align:left;text-decoration:none;white-space:nowrap}
+.menu-item:hover{background:var(--g-100);color:var(--g-900);text-decoration:none}
+.menu-item:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+.menu-item svg{stroke:var(--g-500);flex:none}
+.menu-item:hover svg{stroke:var(--g-700)}
+.menu-sep{height:1px;margin:4px 0;background:var(--line-soft)}
+/* O chevron do gatilho diz o estado, e o estado é lido do ARIA: um só lugar
+   define "aberto", e ele é o mesmo que o leitor de tela anuncia. */
+.side-user[aria-expanded="true"] .car{transform:rotate(180deg)}
+
+
+/* ---------- DEFLIST · rótulo à esquerda, valor à direita, ação no fim -------
+   A linha de leitura de um atributo. Serve a identidade (rótulo + valor) e a
+   segurança (rótulo + estado + botão) com a MESMA linha: a ação é um slot
+   opcional, não um segundo componente.
+
+   Não é `.tbl`: tabela é para comparar linhas entre si, e aqui cada linha é um
+   assunto diferente. Também não é `.dlg-row`, que empilha rótulo sobre campo
+   dentro de diálogo. */
+.deflist{display:flex;flex-direction:column}
+.def-row{display:flex;align-items:center;gap:16px;padding:13px 0;border-top:1px solid var(--line-soft)}
+.def-row:first-child{border-top:0;padding-top:0}
+.def-row:last-child{padding-bottom:0}
+.def-k{width:168px;flex:none;font-size:12px;color:var(--g-500)}
+.def-v{min-width:0;font-size:13px;color:var(--g-900);overflow-wrap:anywhere}
+/* A linha de apoio explica o valor sem competir com ele. */
+.def-v .sub{display:block;margin-top:3px}
+.def-act{margin-left:auto;flex:none}
+
+/* Primeira consulta de mídia do arquivo: o app é de mesa, mas uma linha de
+   rótulo fixo em 168px vira duas colunas espremidas no celular. Empilha em vez
+   de encolher (DIRETRIZES §18: não é para reduzir o layout de mesa). */
+@media (max-width:640px){
+  .def-row{flex-wrap:wrap;gap:5px 16px}
+  .def-k{width:100%}
+  .def-act{margin-left:0;width:100%}
+}
+
+/* ── PAINEL DO PROCEDIMENTO (dossiê) ─────────────────────────────────────────
+   ATENÇÃO — este bloco NASCEU AQUI e ainda não existe no contrato do Claude
+   Design. `app/static/css/` é cópia sincronizada, não a origem: estas regras
+   precisam subir para o contrato antes da próxima sincronização, ou serão
+   perdidas. Nenhum valor novo foi inventado — só tokens já existentes.
+
+   O painel divide a faixa com a tabela em vez de cobri-la: o gesto seguinte
+   depois de abrir é quase sempre "e o exame de baixo?", e cobrir a tabela
+   obrigaria a fechar para continuar lendo. */
+.painel-col-tabela{flex:1;min-width:0}
+/* `.stack` traz display:flex e vence o `[hidden]{display:none}` do UA — sem
+   esta linha o painel "fechado" continua na tela. */
+.painel-lateral[hidden]{display:none}
+.painel-lateral{width:380px;flex:0 0 380px;padding:16px;background:#fff;
+  border:1px solid var(--line);border-radius:var(--r-md);align-self:flex-start;
+  position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto}
+.painel-x{width:28px;height:28px;flex:0 0 28px;display:flex;align-items:center;
+  justify-content:center;border:0;border-radius:var(--r-sm);background:transparent;
+  color:var(--g-500);font-family:inherit;font-size:14px;cursor:pointer}
+.painel-x:hover{background:var(--g-50);color:var(--g-900)}
+.painel-x:focus-visible{outline:2px solid var(--g-400);outline-offset:1px}
+
+/* A linha da tabela é o gatilho: precisa PARECER acionável e receber foco de
+   teclado com contorno visível — linha clicável sem foco só existe pro mouse. */
+tr.clicavel{cursor:pointer}
+tr.clicavel:hover{background:var(--g-25)}
+tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
+
+/* Abaixo do ponto em que as duas colunas cabem lado a lado, o painel passa a
+   ocupar a largura inteira, abaixo da tabela. Continua sendo o mesmo conteúdo
+   na mesma ordem de leitura — só empilhado. */
+@media (max-width:1100px){
+  .painel-lateral{width:auto;flex:1 1 auto;position:static;max-height:none}
+  .row-t.g20:has(> .painel-lateral){flex-wrap:wrap}
+}
+
+
+/* ---------- `hidden` volta a esconder -------------------------------------
+   O atributo `hidden` só vale `display:none` no estilo do navegador, e QUALQUER
+   regra de `display` do arquivo o vence por especificidade. Foi o que
+   aconteceu com `.side-ft[hidden]` (o ninho do bloco de conta): `display:flex`
+   ganhava, e a lateral mostrava um rodapé vazio com um traço em cima.
+
+   Uma regra de base resolve a classe inteira do defeito, em vez de um remendo
+   por elemento. É a única declaração `!important` do arquivo, e é o uso para o
+   qual ela existe: garantir uma primitiva do navegador contra especificidade
+   acidental. */
+[hidden]{display:none!important}
+
+
+/* ---------- COLUNA DE LEITURA ---------------------------------------------
+   As telas de análise são fluidas até `--content-max` porque tabela e gráfico
+   usam a largura que houver. Uma tela de LEITURA não: com 1600px, um rótulo à
+   esquerda e a sua ação à direita ficam a meio metro um do outro, e o olho
+   perde a linha no caminho.
+
+   Vale para toda página sem tabela e sem gráfico: conta, e depois os estados
+   de sistema (não encontrado, sem acesso, sessão expirada). */
+.leitura{max-width:720px;width:100%}
+
+/* Legenda da régua do painel: chaves de cor com o MESMO desenho dos elementos
+   da `.ruler`, para o olho ligar um ao outro sem esforço. Hover não serve de
+   legenda — não existe no toque, e o painel precisa ser legível parado. */
+.lg{width:12px;height:8px;flex:0 0 12px;border-radius:1px}
+.lg-iqr{background:var(--ch-iqr-fill);border-left:1px solid var(--ch-iqr-line);
+  border-right:1px solid var(--ch-iqr-line)}
+.lg-med{width:var(--ch-ref-w);height:12px;flex-basis:var(--ch-ref-w);background:var(--acc)}
+.lg-crit{width:0;height:12px;flex-basis:var(--ch-ref-w);border-radius:0;
+  border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--read-above)}
+.lg-mk{width:2px;height:12px;flex-basis:2px;background:var(--g-500)}

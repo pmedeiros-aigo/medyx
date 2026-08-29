@@ -67,9 +67,18 @@ para qualquer função de valor. Por isso a metodologia é única.
 
 ### 3.2 Consulta inferida
 
-`consultas_inferidas` é o denominador. Uma consulta é o conjunto de todas as solicitações
-feitas por um mesmo cooperado, para um mesmo paciente, na mesma data de solicitação. O
-denominador é a contagem dessas consultas distintas na janela.
+`consultas_inferidas` é o denominador. Uma consulta é o conjunto de solicitações feitas
+por um mesmo cooperado, para um mesmo paciente, cujos lançamentos consecutivos distam no
+máximo `config.JANELA_CONSULTA_MINUTOS` (60 min). O dia é fronteira externa: uma consulta
+não atravessa a meia-noite, porque o eixo temporal de toda análise é a data de solicitação.
+O denominador é a contagem dessas consultas distintas na janela.
+
+A regra anterior — "mesma data", sem hora — era aproximação forçada: a ingestão descartava
+o horário e não havia como separar dois atendimentos no mesmo dia. Revisto em ago/2026,
+quando o horário passou a ser preservado (`TS_REQUISICAO`). Efeito medido: +4,21% de
+consultas (188.605 -> 196.542), taxa mediana por cooperado de 5,124 -> 4,925, com o
+ranking preservado (Spearman 0,978). Calibração e ressalva clínica pendente: `config.py`,
+junto da constante.
 
 ### 3.3 Os parâmetros do pipeline
 

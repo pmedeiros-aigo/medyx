@@ -382,6 +382,76 @@ COLUNA_DATA_SOLICITACAO = "DT_REQUISICAO"
 
 
 # ---------------------------------------------------------------------------
+# JANELA_CONSULTA_MINUTOS  —  DECISÃO (PROVISÓRIO)  —  ago/2026
+# A consulta inferida é o conjunto de solicitações do MESMO cooperado para o
+# MESMO beneficiário cujos lançamentos consecutivos distam no máximo isto. O
+# DIA continua sendo fronteira externa: sessão não atravessa a meia-noite,
+# porque o eixo temporal de toda análise é a data de solicitação.
+#
+# Substitui a regra anterior ("mesmo dia", sem hora), que era aproximação
+# forçada: `preparar_fato` descartava o horário com .dt.normalize(), e sem ele
+# não havia como separar atendimentos.
+#
+# Calibração (base de abril/2025 a abril/2026, lado solicitante):
+#   · 85,2% das consultas têm lançamento ÚNICO — não são afetadas pela regra;
+#   · entre as com mais de um lançamento, o intervalo mediano é de 8 minutos e
+#     72,4% cabem dentro de 1 hora;
+#   · aplicada a todos: 188.605 -> 196.542 consultas (+4,21%), taxa mediana por
+#     cooperado de 5,124 -> 4,925 itens/consulta;
+#   · ranking preservado: Spearman 0,978, movimento mediano de 2 posições;
+#   · 0,97% dos intervalos de pacientes identificados passam de 1h e são
+#     divididos — erro conhecido, para o lado conservador.
+#
+# RESSALVA REGISTRADA (não resolvida): consultas de span longo têm assinatura
+# clínica — citopatologia (lift 20x), vulvoscopia (7x) e captura híbrida (4x),
+# começando por procedimento de consultório e terminando em imagem. Podem ser
+# UM atendimento de investigação de colo, e não dois. Pendente de validação
+# clínica com a Unimed; decisão de produto foi seguir com a regra única.
+JANELA_CONSULTA_MINUTOS = 60
+
+
+# ---------------------------------------------------------------------------
+# BENEFICIÁRIO NÃO IDENTIFICADO  —  MEDIÇÃO (ago/2026)
+# Registro que o sistema de origem grava quando o campo do beneficiário chega
+# vazio. Não é uma pessoa: é o ÚNICO da base com SEXO='I' (contra 1.006.931
+# linhas F ou M), idade constante 26 ao longo de 229 datas, 2.537 linhas
+# distribuídas por 6 cooperados, com painel ocupacional (ácido hipúrico e
+# metilhipúrico — marcadores de exposição a tolueno e xileno).
+#
+# NÃO é excluído: os pedidos são reais e o volume e o custo estão certos — o
+# que está inválido é um campo. Ele recebe id próprio no mapa de beneficiários
+# e a regra de sessão (JANELA_CONSULTA_MINUTOS) o trata como todos os outros.
+#
+# Concentração: 78,4% das linhas do cooperado_116 e 75,4% do cooperado_112.
+# Pendente de confirmação da Unimed de que SEXO='I' + idade fixa é mesmo o
+# registro de preenchimento deles.
+HASH_BENEFICIARIO_NAO_IDENTIFICADO = (
+    "178ADA1D734416F2057C250AFA7427D10AEB88DE88FF0D433FED91EE59D96ECC"
+)
+ID_BENEFICIARIO_NAO_IDENTIFICADO = "beneficiario_nao_identificado"
+
+
+# ---------------------------------------------------------------------------
+# PAINEL DO PROCEDIMENTO (espec §3)  —  DECISÃO (PROVISÓRIO)  —  ago/2026
+# Portões do detalhe por (cooperado, procedimento). Nenhum deles altera cálculo:
+# governam o que é APRESENTÁVEL, no mesmo espírito de N_MINIMO_PEER_GROUP.
+#
+# Repetição/concentração exigem um mínimo de pacientes para a distribuição não
+# ser anedota — abaixo disso o painel declara "pouco volume" (mesmo vocabulário
+# de concentracao_por_beneficiario).
+MIN_PACIENTES_PAINEL = 5           # PROVISÓRIO
+TOP_PACIENTES_PAINEL = 5           # linhas da lista de concentração
+
+# Autorreferência POR PROCEDIMENTO só é apresentável com base suficiente. O
+# cruzamento solicitação x conta acha 31% dos itens no agregado, mas a mediana
+# por (cooperado, procedimento) cai para 11% — e sobre 11% a taxa salta entre 0%
+# e 100% (medido ago/2026: mediana 0,00 e p90 1,00 nos pares com volume). Abaixo
+# do portão a UI diz "cobertura insuficiente" com o número real, nunca a taxa.
+MIN_ITENS_AUTORREF_PROC = 20       # PROVISÓRIO, itens com conta localizada
+MIN_COBERTURA_AUTORREF_PROC = 0.50 # PROVISÓRIO, fração de itens com conta
+
+
+# ---------------------------------------------------------------------------
 # EXCLUSÃO POR PAR (Mov 5)  —  DECISÃO (PROVISÓRIO)  —  notebook §13.3
 # Portadores de sub-perfil não FORMAM a norma dos pares (área, procedimento)
 # onde o teste de distorção mostrou movimento >15% da mediana; seguem MEDIDOS.
@@ -525,14 +595,20 @@ SEM_SINALIZACAO = "sem sinalização comparativa"
 # re-execução do notebook com dado novo.
 # ---------------------------------------------------------------------------
 SMOKE_JANELA = ("2025-05-01", "2026-04-30")        # 12m do teste de aceitação
-SMOKE_MEDIANA_GINECOLOGIA = 5.25
+# RE-BASELINE ago/2026: a consulta inferida passou de "mesma data" para janela
+# de JANELA_CONSULTA_MINUTOS entre lançamentos, o que mudou o DENOMINADOR de
+# todas as taxas. Valores da régua anterior, preservados para rastreabilidade:
+#   SMOKE_MEDIANA_GINECOLOGIA = 5.25   ·   cooperado_85: 75 procedimentos
+# O resto do gabarito (n na norma, total da área, avaliáveis, topo por razão,
+# cooperado_71, os zeros) atravessou a mudança sem se mover.
+SMOKE_MEDIANA_GINECOLOGIA = 5.11
 SMOKE_N_NA_NORMA_GINECOLOGIA = 58                  # elegíveis que formam a norma
 SMOKE_N_TOTAL_GINECOLOGIA = 64
 # As 4 previsões do notebook §13.4 rodam sobre posicao_proc COM OS TRÊS PORTÕES
 # (avaliavel & apresentavel & sinalizado — pipeline.filtrar_sinalizados), NÃO sobre
 # o agregado: são pares (cooperado, procedimento). Positivos trazem a contagem de
 # procedimentos sinalizados; negativos exigem zero.
-SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 75, "cooperado_71": 97}
+SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 76, "cooperado_71": 97}   # 85: era 75 (ver re-baseline acima)
 SMOKE_NAO_SINALIZADOS_ESPERADOS = ("cooperado_31", "cooperado_116")
 # Referência agregada da MESMA janela (notebook §9, bloco "ANO"): avaliáveis e o
 # topo por razão — ancoram a migração no lado agregado, não só na norma.

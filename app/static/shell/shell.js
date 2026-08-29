@@ -29,6 +29,7 @@ import { montarFaixaCriterios, montarDialogoCriterios, fecharDialogo, lembrarAbr
   from './criterios.js';
 import { montarBarraSuperior, montarNavegacao } from './barra.js';
 import { montarPeriodo } from './periodo.js';
+import { montarConta, fecharMenuConta } from './conta.js';
 import { rotaAtual } from '../lib/rotas.js';
 
 /* ── fechar por teclado ─────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ function ligarTeclado() {
     for (const campo of ['esp', 'area']) {
       if (fecharPopover(campo)) { ev.preventDefault(); return; }
     }
+    if (fecharMenuConta()) { ev.preventDefault(); return; }
     if (cal.checked) { ev.preventDefault(); fecharDialogo(); }
   });
 }
@@ -71,6 +73,10 @@ function ligarTeclado() {
  *   Cooperados  escopo · janela                (nenhum número comparado; e ali
  *                                              o escopo FILTRA a lista em vez
  *                                              de navegar, abrindo em "Todas")
+ *   Conta       (nenhum)                      não é tela de análise: não há
+ *                                              número, logo não há régua. A
+ *                                              lateral fica só com navegação e
+ *                                              o bloco de conta.
  *
  * No dossiê, escopo não era só inútil: o seletor de área PISCAVA mostrando a
  * área errada até a resposta chegar (o id do cooperado não a carrega), e usá-lo
@@ -84,6 +90,15 @@ function ligarTeclado() {
 function ajustarControlesDaTela() {
   const { tela } = rotaAtual();
   const fora = [];
+  /* A CONTA não é tela de análise: sai a FAIXA INTEIRA, não controle a
+     controle. A faixa é o carimbo de proveniência dos números da tela, e numa
+     tela sem número nenhum ela declararia a régua de um cálculo que não
+     aconteceu. `.topbar` já fecha com a sua própria linha, então o cabeçalho
+     volta a ser de uma altura só, sem remendo. */
+  if (tela === 'conta') {
+    document.querySelector('.critbar')?.remove();
+    return;
+  }
   if (tela === 'cooperado') fora.push('esp', 'area');
   for (const campo of fora) {
     document.querySelector(`[data-trig="${campo}"]`)?.closest('.fil')?.remove();
@@ -152,6 +167,9 @@ export async function montarShell({ aoTrocarArea, escopo } = {}) {
      controle primeiro fazia a faixa explodir e a tela inteira não subir. */
   ajustarControlesDaTela();
   ligarTeclado();
+  /* Sem `await`: o bloco de conta é contexto do chassi, e a tela não deve
+     esperar por ele para desenhar a análise. Ele aparece quando chegar. */
+  montarConta();
 
   /** O Dossiê só descobre a área DEPOIS de buscar o cooperado (o id não a
    *  carrega). Até lá o chassi mostra a primeira; esta função corrige a

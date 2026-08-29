@@ -170,7 +170,11 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
   const cartao = el('div', 'tbl');
   const topo = el('div', 'tbl-hd');
   const titulo = el('div', 'stack g4');
-  titulo.appendChild(el('span', 't', 'Distribuição do índice de solicitação'));
+  /* O TÍTULO vem do payload quando o contexto não é a área: o mesmo desenhador
+     serve a distribuição do índice (tela de área) e a de UM procedimento
+     (painel do dossiê), e chamar as duas de "índice de solicitação" diria ao
+     leitor que ele está vendo o agregado quando está vendo um exame. */
+  titulo.appendChild(el('span', 't', d.titulo ?? 'Distribuição do índice de solicitação'));
   if (d.subtitulo) titulo.appendChild(el('span', 'sub', d.subtitulo));
   /* Sem "passe o cursor sobre um ponto": instrução de uso não é conteúdo, e o
      ponteiro sobre o ponto já muda de forma. */

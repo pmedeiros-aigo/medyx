@@ -109,8 +109,34 @@ Pergunta: "por que este caso existe — e o que o defende?"
 sub-perfis, confiança, versão) — **todo número com o par da área ao lado**. [v0]
 - Posição nas duas réguas · duas lentes por procedimento · trajetória contra a banda
 da área por trimestre · consistência por procedimento · concentração por
-beneficiário (só agregados) · fatores de contexto · piso de confiança ou "intervalo
+beneficiário · fatores de contexto · piso de confiança ou "intervalo
 não calculável". [v0]
+- **Painel do procedimento** — abre ao clicar numa linha da tabela de procedimentos e
+fica ao LADO dela, não sobre ela: o auditor troca de exame sem fechar nada e compara.
+Não vira coluna — a tabela já carrega dez, e o que este painel mostra é evidência de
+segundo nível, procurada depois que uma linha chama atenção. Quatro blocos: [v1]
+  1. **Posição na área** — a distribuição daquele procedimento, um ponto por cooperado.
+     Mesmo componente da distribuição da área, alimentado por `norma_por_procedimento`.
+  2. **Repetição por paciente** — quantas vezes o mesmo exame foi solicitado para a
+     mesma pessoa na janela, em OCASIÕES (consultas distintas), com o intervalo mediano
+     entre elas. Nunca sem o par da área ao lado: repetição é o protocolo em pré-natal
+     (cardiotocografia repete em 62% dos casos) e é achado em rastreio. O número
+     sozinho não acusa.
+  3. **Concentração entre pacientes** — lista ordenada dos que mais concentram, com a
+     participação de cada um nas solicitações do exame e o intervalo entre repetições,
+     mais o share do topo contra a referência dos pares.
+  4. **Autorreferência do procedimento** — COM PORTÃO: só aparece acima de um mínimo de
+     itens com conta localizada e de cobertura do cruzamento. A cobertura mediana por
+     (cooperado, procedimento) é de 11% — abaixo do portão a célula declara "cobertura
+     insuficiente" com o número real, nunca uma taxa apoiada em nada.
+  Sem custo adicional, já calculados e hoje não exibidos: a série por trimestre do
+  procedimento e o piso de confiança do par.
+
+  **Identificação do beneficiário.** A lista usa o `ID_BENEFICIARIO` do mapa
+  (`beneficiario_N`) — pseudônimo estável, nunca o hash de origem, que não sai do
+  `dim_beneficiarios`. O id é estável de propósito: reconhecer que a mesma pessoa
+  concentra dois exames diferentes é achado, e rótulo local ao painel esconderia isso.
+  Nenhum dado clínico ou demográfico acompanha o id.
 - Sem grupo de pares / referência insuficiente → dossiê intra-cooperado + posto. [v0]
 - Ação "sinalizar classificação incorreta" → fila de revisão. [v1 — F4]
 - Case-mix descritivo · exportar PDF. [v1]

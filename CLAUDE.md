@@ -27,9 +27,10 @@ Cada assunto tem UM dono. Não duplicar conteúdo entre eles; apontar.
 | `CONTEXTO_NEGOCIO.md`           | estratégia, valor, por quê                    | antes de sugerir/avaliar feature    |
 | `METODOLOGIA_ANALITICA.md`      | **como calcular** (método, pipeline, regras)  | antes de qualquer cálculo analítico |
 | `ESPECIFICACAO_FUNCIONAL_APP.md`| **o que cada página mostra** (elemento←motor) | antes de construir/alterar tela     |
+| `DIRETRIZES_PRODUTO_UI.md`      | **padrão de produto e UX do front**           | antes de construir/alterar tela     |
 | `LEXICO_PRODUTO.md`             | **vocabulário da UI** (interno → institucional)| antes de escrever rótulo/texto     |
 | `config.py`                     | **todos os valores numéricos** (fonte única)  | sempre que precisar de um número    |
-| projeto **Claude Design**       | **o contrato visual** (tokens, componentes)   | toda sessão que toque a camada visual |
+| `app/static/css/`               | **o contrato visual** (tokens, componentes)   | toda sessão que toque a camada visual |
 | skill `rigor-estatistico`       | reflexo estatístico (armadilhas)              | dispara em cálculo/comparação       |
 
 
@@ -57,124 +58,75 @@ Streamlit foi **abandonado** (jul/2026). Nenhum código Streamlit vive mais em `
 **Regra inviolável do front:** JavaScript **não calcula nada**. Todo número exibido vem de
 uma função Python do pipeline, via JSON. Valor que não existe no motor não aparece na tela.
 
-## Contrato visual — fonte da verdade e sincronização
+## Contrato visual — o repositório é a fonte da verdade (desde 29/ago/2026)
 
-**A fonte da verdade é o Claude Design, não o disco.**
+**O Claude Design deixou de ser a fonte da verdade.** Decisão do usuário, 29/ago/2026.
+
+Ele foi a origem do sistema visual e continua sendo a GENEALOGIA de quase tudo que
+está em `app/static/css/`. Não é mais o dono: o dono é este repositório.
 
 | | |
 | --- | --- |
-| Projeto | **Medyx - Style tile Enterprise** |
-| `projectId` | `3a94742c-5e71-4672-aaa8-8ac768f9a7fd` |
-| Abrir | `https://claude.ai/design/p/3a94742c-5e71-4672-aaa8-8ac768f9a7fd` · ou `/guia` no app |
-| Ferramenta | `DesignSync` (se pedir autorização, o usuário roda `/design-login`) |
-| Guia canônico | **`Medyx Style Guide.html`** — o único. Confirmado jul/2026 |
-| Abrir o guia | `…/p/3a94742c-5e71-4672-aaa8-8ac768f9a7fd?file=Medyx+Style+Guide.html` |
+| Fonte da verdade | `app/static/css/tokens.css` e `app/static/css/components.css` |
+| Editar | à mão, aqui, como qualquer outro arquivo do projeto |
+| Sincronização | **não existe mais** — nada é sobrescrito, nada precisa ser reaplicado |
+| Claude Design | arquivo histórico. `/guia` continua abrindo o projeto de origem |
 
-`app/static/css/tokens.css` e `app/static/css/components.css` são **cópia sincronizada**, não
-original. Existem em disco por um motivo só: o navegador os busca em `/static` e o
-Claude Design não é CDN. **Não editar à mão** — mudança de token ou componente se faz no
-Design e desce por sincronização. Cada um carrega no topo um carimbo com origem, data da
-última sincronização e desvio conhecido.
+### O que caducou com a mudança
 
-Continua valendo: não redesenhar, não trocar tokens, não substituir o CSS — reutilizar as
-classes.
+- **Regra 1 (sincronizar e reler antes de escrever marcação).** Não há mais o que
+  sincronizar. Continua valendo a parte útil dela: **ler o CSS antes de montar
+  marcação**, porque pode já existir a classe que você ia escrever à mão.
+- **Regra 2 (componente que falta: parar e descrever).** Componente ou estado que
+  falta agora é **construído aqui**. Não se descreve e encaminha mais.
+- **A lista de "desvios autorizados".** Existia para sobreviver à sincronização.
+  Sem sincronização, não há desvio: são regras normais do arquivo.
 
-O projeto tem outros arquivos (`… (standalone).html`, `Medyx Style Tile.html`,
-`Medyx Style Tile.dc.html`, `Area de Atuacao.dc.html`). **Nenhum deles é o contrato** —
-são estudos e variantes. Contrato é só o `Medyx Style Guide.html`.
+### O que NÃO mudou
 
-### Regra 1 — sincronizar e RELER, antes de escrever marcação
+1. **Token continua sendo a única origem** de cor, espaço, tipo, raio e sombra.
+   Componente novo COMPÕE token existente. Valor solto no meio de uma regra
+   (`#17624A`, `13px`, `border-radius:7px`) continua sendo defeito. Token novo é
+   decisão consciente, anunciada, não um valor que apareceu.
+2. **Um token, um significado.** Continua valendo, e é a razão de o item 8 do
+   `PENDENCIAS.md` (o âmbar de `tr.acima`) seguir aberto: agora ele é resolvível
+   aqui mesmo, sem ida ao Design.
+3. **Não criar duas versões do mesmo componente** (DIRETRIZES §5). Foi por isso
+   que `.side-user .av` virou `.av` + `.av-lg` quando a tela de conta precisou do
+   mesmo círculo maior, em vez de nascer um `.conta-av`.
+4. **JavaScript não decide aparência.** Ele alterna classe e escreve estado ARIA;
+   quem desenha é o CSS. Proibido `style=` inline, cor ou medida em JS.
 
-No início de **qualquer** sessão que toque a camada visual — CSS, HTML, `shell.js`,
-qualquer tela — sincronizar o guia **antes da primeira linha de marcação**. Não no meio,
-não depois de montar o bloco: antes.
+### Componentes escritos neste repositório
 
-1. `DesignSync` `get_file` em `Medyx Style Guide.html`, `tokens.css` e `components.css`.
-2. Gravar as versões remotas em arquivo temporário e `diff` contra `app/static/`.
-   Diferença esperada = **só** o carimbo de topo e o desvio autorizado listado abaixo.
-3. Qualquer outra diferença é **defasagem**: relatar ao usuário ANTES de codificar, com o
-   diff na mão. Não escolher lado sozinho — disco e Design divergindo é sinal de que
-   alguém editou no lugar errado.
-4. Ao ressincronizar: sobrescrever com a versão do Design, **reaplicar o desvio
-   autorizado** e atualizar a data do carimbo.
-5. **RELER o guia depois de sincronizar.** Este passo não é opcional e não é o mesmo que
-   o passo 1. O guia é vivo: pode ter entrado classe nova exatamente para o componente
-   que você ia montar à mão com as classes que já conhecia. Ler antes de construir custa
-   uma leitura; descobrir depois custa o bloco inteiro refeito.
+Vivem no fim do `components.css`, sob o cabeçalho `COMPONENTES NOVOS`. Hoje:
 
-### Regra 2 — componente que falta: PARAR e descrever
+| Classe | O que é | Nasceu em |
+| --- | --- | --- |
+| `.av` · `.av-lg` | avatar de iniciais (promovido de `.side-user .av`) | tela de conta |
+| `.menu-anc` · `.menu` · `.menu-item` · `.menu-sep` | menu de AÇÕES que sai de um gatilho (diferente do `.pop`, que é ESCOLHA) | bloco de conta |
+| `.deflist` · `.def-row` · `.def-k` · `.def-v` · `.def-act` | linha de atributo: rótulo, valor, apoio e ação opcional | tela de conta |
+| `.leitura` | coluna estreita (720px) para tela sem tabela nem gráfico | tela de conta |
+| `[hidden]` | garante `display:none` contra especificidade acidental | corrigiu o rodapé da lateral e o painel do dossiê |
 
-Ao precisar de um componente ou de um **estado** (aberto, ativo, selecionado,
-desabilitado, carregando, vazio, erro) que não existe no guia: **parar**.
-
-Não construir versão provisória. **Não montar com classes existentes "parecidas"** —
-essa é a falha específica que esta regra existe para impedir: aproximação com classe
-alheia não fica provisória, fica, e vira um segundo contrato visual não documentado que
-ninguém sabe que existe.
-
-Em vez disso, descrever ao usuário exatamente o que falta:
-
-- **nome sugerido** para o componente ou estado;
-- **para que serve** — o comportamento ou a informação que ele carrega;
-- **em qual bloco de qual tela** ele entra.
-
-Depois que o usuário criar no Design: sincronizar de novo, **reler o guia** (Regra 1,
-passo 5) e continuar de onde parou.
-
-### Desvio autorizado do disco em relação ao Design
-
-Um só, hoje. Some se for esquecido numa ressincronização — daí o passo 4.
-
-- **`components.css` — acionamento do combobox por CLASSE.** No Design, o componente
-  `.cascade`/`.sel`/`.pop` é ligado por IDs do próprio demo
-  (`#esp-gyn:checked ~ … .v-esp-gyn`), uma regra por opção. As áreas reais vêm da API e
-  mudam com janela e piso, então nenhum CSS estático as cobre. O disco acrescenta quatro
-  regras com o MESMO efeito visual, acionadas por `.on`: `.sel-trig .v.on` · `.opt.on` ·
-  `.opt.on .ock` · `.pop-grp.on`. Nenhum token, cor ou medida nova. Abrir/fechar continua
-  puro CSS pelos ids genéricos `op-esp`/`op-area`. Autorizado.
-
-- **`components.css` — `@import "tokens.css"` na primeira linha. NÃO DECIDIDO.**
-  Não existe na origem, e é redundante: `index.html` já carrega `tokens.css` antes de
-  `components.css`, então o `@import` só provoca uma segunda busca do mesmo arquivo.
-  Mantido como estava (jul/2026) — remover é mudança de comportamento e precisa de
-  decisão do usuário. Ou vira desvio autorizado, ou sai na próxima sincronização.
-
-- **`components.css` — `.kpis` com colunas AUTOMÁTICAS.** A origem traz
-  `repeat(4,1fr)`. A faixa da tela de Área foi a cinco (26/08) e a do Dossiê a
-  sete (27/08), e um número fixo de colunas quebra a cada KPI novo. Trocado por
-  `repeat(auto-fit,minmax(150px,1fr))`: com 4, 5 ou 7 itens todos cabem numa
-  linha só, e não há mais um valor para reajustar. Único valor alterado, nenhum
-  token novo. Autorizado pelo usuário em 27/08. **Sai na próxima sincronização
-  se a regra não for atualizada no Claude Design.**
-
-- **`components.css` — campo de busca ATIVO no `.search`.** A origem traz o
-  `.search` como caixa de EXIBIÇÃO, feita de `<span>`; não há no guia um campo
-  digitável, e o `.field` é gatilho de combobox (`cursor:pointer`), não entrada
-  de texto. O disco acrescenta as regras do `input` (sem moldura própria, herda
-  a do `.search`), o placeholder, o anel de foco no `:focus-within`, e
-  `position:relative`/`overflow:visible` para um popover poder ancorar dentro.
-  **Nenhum token novo, nenhuma cor nova.** Autorizado pelo usuário em 27/08, com
-  a instrução de usar as cores e o padrão do app atual. Usado hoje pela tela de
-  Cooperados; esteve na barra superior por algumas horas em 27/08 e saiu de lá
-  por decisão de produto (busca não é régua).
-
-- ~~**`@font-face` removidas do `components.css`.**~~ **Encerrado (jul/2026).** A origem
-  no Design já não traz as regras — não há o que reaplicar por este caminho. Volta a
-  valer só se o CSS for reextraído do HTML do guia, que aponta para `.woff2` inexistentes
-  e gera 404 em toda carga.
 
 ### Fronteira de responsabilidade do JavaScript
 
-**O Claude Design é dono dos estados visuais; este repositório é dono de quando eles são
-aplicados.**
+**O CSS é dono dos estados visuais; o JavaScript é dono de QUANDO eles são aplicados.**
+A fronteira sobreviveu à mudança de regime: o que mudou foi quem escreve o CSS, não quem
+decide aparência.
 
-No JavaScript, nenhuma decisão visual: apenas **alternar classes que já existem no guia**
+No JavaScript, nenhuma decisão visual: apenas **alternar classes que existem no CSS**
 e **ler tokens** (`--ch-*` para o gráfico). Proibido: `style=` inline, cor, tamanho,
 espaçamento ou fonte definidos em JS, e configurar biblioteca de gráfico com os defaults
 dela.
 
 Se um estado de interação — **aberto, ativo, selecionado, desabilitado, carregando,
-erro** — não tiver classe no guia, **pare e pergunte; não invente**.
+erro** — não tiver classe no CSS, **escreva a classe** (no bloco COMPONENTES NOVOS),
+compondo tokens existentes. O que continua proibido é decidir a aparência DENTRO do JS.
+
+Estado que o leitor de tela precisa anunciar mora no ARIA, e o CSS o lê de lá: uma origem
+só para "aberto" (`.side-user[aria-expanded="true"] .car` é o exemplo vivo).
 
 O guia não fornece JavaScript, e isso é deliberado: comportamento de componente já está
 expresso como classe de estado, e um terceiro artefato para sincronizar reintroduziria a
@@ -232,11 +184,12 @@ medyx/
 │   ├── static/                 ← o front vanilla (sem build, sem npm)
 │   │   ├── index.html          ← o ÚNICO hospedeiro; o servidor o devolve em toda rota
 │   │   ├── inicio.js           ← escolhe o módulo da página pela rota
-│   │   ├── css/                ← CÓPIA SINCRONIZADA do contrato (original no Claude Design)
+│   │   ├── css/                ← O CONTRATO VISUAL: tokens + componentes (fonte da verdade)
 │   │   ├── shell/              ← o chassi: markup, seletores, régua, migalha
 │   │   ├── lib/                ← dom, api, vista, pagina, tabelas (não sabem de domínio)
 │   │   ├── blocos/             ← um bloco da tela por arquivo; desenham o que recebem
 │   │   └── paginas/            ← orquestram: buscam dados, guardam o estado da vista
+│   ├── sessao.py               ← fronteira de autenticação: quem está usando o app
 │   └── utils/                  ← motores e acesso a dado (nada de apresentação)
 │       ├── pipeline.py         ← os 5 motores analíticos (pipeline canônico)
 │       ├── preparar_fato.py    ← 6º motor: ingestão CSV bruto → fato + dims + relatório
@@ -317,7 +270,7 @@ Python: `/Users/pedromedeiros/.venvs/global-env/bin/python`
 | `área de atuação`             | A ESPECIALIDADE da classificação v1.0 (coluna `AREA_ATUACAO` do fato): Ginecologia, GO, Mastologia, Obstetrícia, Reprodução, Ultrassonografista, Geral — mais o estado INDEFINIDO (sem peer group). GO e Ginecologia SEPARADOS (decisão jul/2026, ratificada pelo Mov 4) |
 | `peer group`                  | Conjunto de cooperados da mesma área de atuação (= especialidade) — base de toda comparação justa. **Sub-perfil (opera, alto risco, plantão, PTGI, US) é IDENTIDADE visível, nunca subdivisão de régua**                                                                  |
 | `elegivel_norma`              | Flag da classificação: quem FORMA a norma. `False` (INDEFINIDO, confiança baixa, alerta de perfil, ultrassonografista) segue MEDIDO contra ela — só não a define                  |
-| `consulta inferida`           | Conjunto de solicitações de um mesmo cooperado, para um mesmo paciente, na mesma data de solicitação. É o denominador das taxas                                                  |
+| `consulta inferida`           | Conjunto de solicitações de um mesmo cooperado, para um mesmo paciente, dentro de uma janela de `config.JANELA_CONSULTA_MINUTOS` entre lançamentos (o dia é fronteira externa). É o denominador das taxas — método em `METODOLOGIA_ANALITICA.md` §3.2 |
 | `sadt`                        | Serviço Auxiliar de Diagnóstico e Terapia — exame/procedimento solicitado                                                                                                        |
 | `base_contas` / `df_cont`     | Tabela de contas pagas/executadas (lado executante)                                                                                                                              |
 | `base_requisicoes` / `df_req` | Tabela de requisições/autorizações (lado solicitante)                                                                                                                            |
@@ -391,11 +344,12 @@ maternidade). Tratar como "sem evidência neste dataset", não como "não faz".
 - Não criar venv local (`.venv/`, `venv/`)
 - Não reintroduzir Streamlit (stack abandonada) — a apresentação é FastAPI + HTML/CSS/JS
 - Não calcular nada em JavaScript — todo número vem do pipeline, via JSON
-- Não redesenhar o contrato visual; componente ou estado que falta no guia → **Regra 2**
-  (parar e descrever), nunca improvisar com classe "parecida"
-- Não escrever marcação sem ter sincronizado e **relido** o guia na sessão → **Regra 1**
-- Não editar `app/static/css/tokens.css` nem `css/components.css` à mão — são cópia sincronizada
-  do Claude Design; mudança se faz lá e desce por sincronização
+- Não inventar valor de cor, espaço, tipo, raio ou sombra: componente novo COMPÕE token
+  existente. Token novo é decisão anunciada, não um número que apareceu no meio de uma regra
+- Não criar segunda versão de um componente que já existe (DIRETRIZES §5): promova o que
+  está lá (foi o caso de `.side-user .av` → `.av` + `.av-lg`)
+- Não escrever marcação sem ter LIDO o `components.css` na sessão: a classe que você ia
+  escrever à mão pode já existir
 - Não modificar CSVs em `../unimed_natal/dados_iniciais/`
 - **Não usar travessão (`—`) em NENHUM texto que chegue à tela.** Vale para rótulo,
   frase, carimbo, mensagem de erro e valor. É tique de texto gerado por máquina, e este
@@ -416,5 +370,17 @@ maternidade). Tratar como "sem evidência neste dataset", não como "não faz".
 
 - `**rigor-estatistico`** → reflexo estatístico; dispara em qualquer cálculo de métrica,
 distribuição, percentil, outlier, ranking ou comparação entre cooperados
-- FastAPI → `/fastapi` · front/design → `/frontend-design` · testes de tela → `/webapp-testing`
+- FastAPI → `/fastapi` · testes de tela → `/webapp-testing`
+- A skill `frontend-design` foi REMOVIDA em 29/ago/2026: ela mandava escolher uma
+  estética "ousada/maximalista/inesquecível", o oposto do que `DIRETRIZES_PRODUTO_UI.md`
+  pede (calmo, neutro, padrões consolidados). Está no histórico do git se precisar.
 
+---
+
+## Anexo carregado automaticamente
+
+O documento abaixo entra em contexto junto com este arquivo em toda sessão.
+Ele é dono do **padrão de produto e UX do front**; a precedência sobre os demais
+donos está declarada no §0 dele.
+
+@DIRETRIZES_PRODUTO_UI.md

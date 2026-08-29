@@ -210,7 +210,30 @@ def main() -> int:
         checar("cooperado desconhecido vira estado declarado",
                pg.locator(".banner-err").count(), 1)
 
-        print("\n10. NENHUM ERRO DE JAVASCRIPT EM TODA A SUITE")
+        print("\n10. MINHA CONTA: A TELA DO ENTORNO, E OS SEUS DOIS ESTADOS")
+        # Esta suíte roda SEM sessão (nada exporta MEDYX_SESSAO_DEV), então o
+        # que ela prova aqui é o estado honesto: a tela monta, declara que não
+        # há sessão, e o bloco de conta NÃO aparece na lateral. É a regra que
+        # manteve o bloco fora do chassi até existir login, e ela precisa de
+        # guarda: um nome de exemplo aparecendo por engano é exatamente o tipo
+        # de defeito que ninguém repara até estar em produção.
+        pg.goto(f"{BASE}/conta")
+        pg.wait_for_selector("[data-slot='conteudo'] h2", timeout=120_000)
+        checar("a tela monta", pg.locator("h2").inner_text(), "Minha conta")
+        checar("sem sessão, sem bloco de conta na lateral",
+               pg.locator(".side-user").count(), 0)
+        checar("o rodapé da lateral fica escondido, não vazio",
+               pg.locator("[data-slot='conta']").is_hidden(), True)
+        checar("o estado é declarado, não é banner de erro",
+               pg.locator(".tbl-hd .t").first.inner_text(),
+               "Nenhuma sessão autenticada")
+        checar("nenhum banner de falha", pg.locator(".banner-err").count(), 0)
+        # Tela sem número não carrega régua: a faixa de critérios declararia o
+        # critério de um cálculo que não aconteceu.
+        checar("faixa de critérios fora da tela",
+               pg.locator(".critbar").count(), 0)
+
+        print("\n11. NENHUM ERRO DE JAVASCRIPT EM TODA A SUITE")
         # Dois ruídos que NÃO são defeito: o ícone da aba, que o navegador pede
         # sozinho, e o 404 que o próprio passo 9 provoca de propósito. Qualquer
         # outra linha de console vermelha é falha.
