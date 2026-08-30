@@ -1,10 +1,19 @@
 # API (JSON + estáticos) — fase 4; front é HTML/CSS/JS vanilla, sem build,
 # sem npm, sem framework. Gráficos: ECharts via CDN (não é dependência Python).
-fastapi
-uvicorn[standard]
+#
+# VERSÕES FIXAS (29/ago/2026). São exatamente as do `global-env`, o ambiente em
+# que os números foram conferidos contra o notebook de referência.
+#
+# Por que fixar: sem versão, o servidor instala o que for a última do dia. Uma
+# mudança de comportamento do pandas moveria os resultados SEM ERRO NENHUM, que
+# é a pior falha possível num produto cujos números vão ser contestados por
+# médicos. Subir a versão de qualquer uma destas é uma decisão, e a prova de que
+# deu certo é o `smoke_fase3.py` continuar reproduzindo o notebook.
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
 
 # Motor de análise (app/utils/pipeline.py, preparar_fato.py)
-pandas
-numpy
-scipy
-pyarrow
+pandas==2.2.3
+numpy==2.3.1
+scipy==1.16.0
+pyarrow==20.0.0
