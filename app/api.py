@@ -1319,6 +1319,10 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
             "grupos": linha["grupos"],
         },
         "procedimentos": procs,
+        # onde está o dinheiro DELE, por procedimento, com a parcela acima da
+        # referência dentro de cada barra. `rs_todos` já está montado acima para
+        # o preço da tabela — nenhum motor novo roda por causa deste bloco.
+        "pareto_custo": blocos.pareto_custo_do_cooperado(rs_todos),
         "contexto": blocos.contexto_do_cooperado(resumo_row, perfil_row),
         "justificativa": base.get("justificativa"),
         "proveniencia": base.get("proveniencia"),
@@ -1369,7 +1373,8 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
             and len(formadores)):
         regua = blocos.regua_do_procedimento(
             linha_par, float(formadores.quantile(0.25)),
-            float(linha_par["taxa"]), p.criterio)
+            float(linha_par["taxa"]), p.criterio,
+            taxas_pares=formadores.to_numpy())
 
     conc = dados.rodar_concentracao(p.janela_ini, p.janela_fim, p.piso,
                                     p.n_minimo, nome, p.incluir_ps)
@@ -1403,10 +1408,26 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
         cc = conf[(conf["ID_COOPERADO"] == cooperado_id) & (conf["CD_PROCEDIMENTO"] == cd)]
         conf_row = cc.iloc[0] if len(cc) else None
 
+    # PESO E DINHEIRO deste procedimento. Vem dos mesmos motores em cache, e não
+    # de uma chamada ao dossiê inteiro: montar as 269 linhas da tabela para ler
+    # uma é pagar 269 vezes por um número.
+    re_ = dados.rodar_pipeline_execucao(
+        p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
+        config.PISO_EXECUCOES_ANO, config.Q_CONFUNDIDOR, None,
+        p.criterio, p.referencia, p.incluir_ps)
+    rs = re_["posicao_proc_rs"]
+    linha_rs = rs[(rs["ID_COOPERADO"] == cooperado_id)
+                  & (rs["CD_PROCEDIMENTO"] == cd)]
+    preco = (float(linha_rs.iloc[0]["preco_mediano"])
+             if len(linha_rs) and pd.notna(linha_rs.iloc[0]["preco_mediano"]) else None)
+    # denominador do peso: tudo que o cooperado solicitou na janela
+    total_coop = float(posproc[posproc["ID_COOPERADO"] == cooperado_id]
+                       ["n_solicitacoes"].sum())
+
     return blocos.painel_do_procedimento(
         cd, str(linha_par.get("DS_PROCEDIMENTO", config.SEM_MEDIDA)).strip(),
         conc_row, pacientes, autorref_row, regua, serie,
-        blocos._confianca_do_par(conf_row))
+        blocos._confianca_do_par(conf_row), linha_par, conc_row, preco, total_coop)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1442,14 +1463,22 @@ def conta(request: Request) -> dict[str, Any]:
             "autenticado": False,
             # A tela mostra esta frase; ela diz o que está acontecendo, não o
             # que deu errado, porque nada deu errado.
-            "motivo": "O acesso por login ainda não foi ativado neste ambiente.",
+            "motivo": "A autenticação de acesso ainda não foi ativada neste ambiente.",
             "app": app_,
         }
     return {
         "autenticado": True,
         "usuario": usuario.para_tela(),
-        # Tudo `None` enquanto não há provedor: a tela desabilita a ação e diz
-        # por quê, em vez de oferecer um botão que não leva a lugar nenhum.
+        # Tudo `None` enquanto não há provedor: a tela declara o estado em vez
+        # de oferecer botão que não leva a lugar nenhum.
+        #
+        # `duas_etapas` tem TRÊS valores, e a distinção é de produto:
+        #   True  -> ativa
+        #   False -> prevista na política de acesso, ainda não configurada
+        #   None  -> FORA da política; a tela OMITE a linha
+        # O MVP vai SEM segundo fator (decisão de 29/ago), então aqui segue
+        # `None` mesmo depois que o provedor entrar. Vira `False` no dia em que
+        # a política do pool passar a prever MFA.
         "seguranca": {
             "provedor": None,
             "url_senha": None,

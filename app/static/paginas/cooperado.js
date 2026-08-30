@@ -22,6 +22,7 @@ import { buscar } from '../lib/api.js';
 import { abrirPagina } from '../lib/pagina.js';
 import { TELAS, rotaAtual } from '../lib/rotas.js';
 import { abrirPainel } from '../blocos/painel-procedimento.js';
+import { montarPareto } from '../blocos/pareto.js';
 import { el, ordenar, cabecalho, ordemDaURL, gravarOrdem, proximaOrdem, moldura,
          celulaConsistencia, campoDeBusca, casa } from '../lib/tabelas.js';
 
@@ -336,6 +337,49 @@ function linhaProcedimento(l, semMedida = '', aoAbrir = null) {
   return tr;
 }
 
+function montarCusto(destino, d) {
+  const p = d.pareto_custo;
+  if (!p?.eixos?.length) return;
+
+  /* DOIS CHIPS que trocam o Pareto inteiro — não a ordenação. Num Pareto a
+     barra, a ordem e o acumulado são a mesma grandeza; ordenar por um eixo
+     desenhando o outro deixaria o acumulado somando uma coisa numa ordem
+     ditada por outra. Mesmo componente de chip do recorte da tabela abaixo. */
+  const faixa = el('div', 'row flexwrap');
+  faixa.appendChild(el('span', 'micro', 'Eixo'));
+  const botoes = new Map();
+  const caixa = el('div', null);
+  destino.appendChild(faixa);
+  destino.appendChild(caixa);
+
+  const bloco = montarPareto(caixa, p.dados[p.default], null, 'custo');
+  let ativo = p.default;
+
+  function aplicar(chave) {
+    if (!p.dados[chave]) return;
+    ativo = chave;
+    for (const [k, b] of botoes) b.classList.toggle('pill-on', k === chave);
+    bloco.atualizar(p.dados[chave]);
+  }
+
+  for (const e of p.eixos) {
+    const b = el('span', 'pill', e.rotulo);
+    b.tabIndex = 0;
+    b.setAttribute('role', 'button');
+    const acionar = () => aplicar(e.chave);
+    b.addEventListener('click', acionar);
+    b.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      acionar();
+    });
+    botoes.set(e.chave, b);
+    faixa.appendChild(b);
+  }
+  aplicar(ativo);
+}
+
+
 function montarProcedimentos(destino, d) {
   const dados = d.procedimentos;
   let aoAbrirLinha = null;
@@ -433,23 +477,24 @@ function montarProcedimentos(destino, d) {
     faixa.appendChild(b);
   }
 
-  /* Tabela e painel dividem uma faixa: a tabela continua visível e clicável
-     enquanto o painel está aberto, que é a razão de ser painel e não modal.
-     Sem painel aberto a tabela ocupa tudo — layout não reserva espaço para o
-     que ainda não foi pedido. */
-  const faixaConteudo = el('div', 'row-t g20');
-  const colTabela = el('div', 'painel-col-tabela');
-  colTabela.appendChild(cartao);
-  const colPainel = el('aside', 'painel-lateral stack g12');
+  /* O painel é DRAWER ancorado na viewport, fora do fluxo da página: painel no
+     fluxo tem altura de conteúdo e a tabela tem altura de linhas, e as duas
+     nunca coincidem. Ele mora no <body> e o conteúdo cede margem (`com-painel`)
+     em vez de ser coberto — a tabela continua inteira e clicável, que é a razão
+     de ser painel e não modal. */
+  const colPainel = el('aside', 'painel-lateral');
   colPainel.hidden = true;
-  faixaConteudo.appendChild(colTabela);
-  faixaConteudo.appendChild(colPainel);
+  colPainel.setAttribute('role', 'complementary');
+  colPainel.setAttribute('aria-label', 'Detalhe do procedimento');
+  document.body.appendChild(colPainel);
+  const conteudoEl = document.querySelector('.content');
 
   let aberto = null;
   function fechar() {
     aberto = null;
     colPainel.hidden = true;
     colPainel.replaceChildren();
+    conteudoEl?.classList.remove('com-painel');
     for (const tr of tabela.querySelectorAll('tr.selecionada')) {
       tr.classList.remove('selecionada');
     }
@@ -462,12 +507,22 @@ function montarProcedimentos(destino, d) {
       outra.classList.remove('selecionada');
     }
     tr?.classList.add('selecionada');
+    conteudoEl?.classList.add('com-painel');
     abrirPainel(colPainel, d.cooperado.id, linha, fechar);
   }
   aoAbrirLinha = (linha, tr) => abrir(linha, tr);
 
+  /* Esc fecha — convenção de qualquer superfície sobreposta, e aqui é a única
+     alternativa ao botão quando o foco está na tabela.
+     Sem desmontagem: trocar de tela é `location.href`, ou seja, carregamento
+     inteiro (o `replaceState` do app só grava filtro na URL, não navega). O
+     ouvinte e o drawer morrem com o documento. */
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && aberto) fechar();
+  });
+
   destino.appendChild(faixa);
-  destino.appendChild(faixaConteudo);
+  destino.appendChild(cartao);
   aplicar('revisao');
 }
 
@@ -513,6 +568,11 @@ await abrirPagina({
 
     montarIdentidade(conteudo, d);
     montarLeitura(conteudo, d);
+    /* ONDE ESTÁ O DINHEIRO, antes da tabela: a tabela responde "como ele se
+       compara em cada procedimento", e essa pergunta só faz sentido depois de
+       saber quais procedimentos importam. O mesmo `montarPareto` da tela de
+       Área — aqui as barras vêm com o nível de excesso dentro. */
+    montarCusto(conteudo, d);
     montarProcedimentos(conteudo, d);
     montarContexto(conteudo, d);
 

@@ -440,7 +440,22 @@ ID_BENEFICIARIO_NAO_IDENTIFICADO = "beneficiario_nao_identificado"
 # ser anedota — abaixo disso o painel declara "pouco volume" (mesmo vocabulário
 # de concentracao_por_beneficiario).
 MIN_PACIENTES_PAINEL = 5           # PROVISÓRIO
-TOP_PACIENTES_PAINEL = 5           # linhas da lista de concentração
+
+# LIMIAR_CONCENTRACAO_PACIENTE — participação de UM paciente nas solicitações de
+# um exame a partir da qual ele é listado nominalmente no painel.
+#
+# Substitui um "top 5 fixo" (ago/2026) que era chute meu e, pior, convivia com o
+# FRAC_TOP_CONCENTRACAO do método no mesmo card: a lista falava de 5 pessoas e o
+# rodapé de 39, sem nada dizer que eram conjuntos diferentes. Um conceito de
+# concentração por card, e ele sai do dado.
+#
+# Medido (10.981 pares com >=5 pacientes, janela anual, sem PS):
+#   participação de um paciente: mediana 0,5% · p90 3,3% · p99 16,7%
+# 10% é 20x a mediana e 3x o p90 — quem passa disso destoa de verdade. Efeito:
+#   dispara em 40,7% dos pares; lista de 5 linhas na mediana, 8 no p90, 9 no máximo
+# ou seja, quando há achado a lista é curta o bastante para caber no painel, e
+# quando não há ela simplesmente não existe — que é a leitura correta.
+LIMIAR_CONCENTRACAO_PACIENTE = 0.10   # PROVISÓRIO
 
 # Autorreferência POR PROCEDIMENTO só é apresentável com base suficiente. O
 # cruzamento solicitação x conta acha 31% dos itens no agregado, mas a mediana

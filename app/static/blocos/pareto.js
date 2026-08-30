@@ -111,9 +111,15 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
 
   d.linhas.forEach((l, i) => {
     const linha = el('div', 'pareto-l');
-    if (l.no_nucleo) linha.classList.add('nucleo');
-    // a régua tracejada fecha a última linha do núcleo
-    if (l.no_nucleo && !d.linhas[i + 1]?.no_nucleo) linha.classList.add('corte');
+    /* O REALCE DO NÚCLEO é opcional (`destacar_nucleo`): ele responde "quais
+       poucos concentram a maior parte", pergunta da tela de Área. No Pareto de
+       custo do dossiê a ordem e o acumulado já dizem isso, e a segunda tinta
+       virava uma terceira leitura que ninguém pediu. */
+    if (d.destacar_nucleo !== false) {
+      if (l.no_nucleo) linha.classList.add('nucleo');
+      // a régua tracejada fecha a última linha do núcleo
+      if (l.no_nucleo && !d.linhas[i + 1]?.no_nucleo) linha.classList.add('corte');
+    }
 
     const barra = document.createElement('i');
     barra.style.width = `${l.largura_pct}%`;
@@ -168,9 +174,18 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
     legenda.appendChild(s);
   };
   const pct = Math.round(limiar * 100);
-  marca('bar-nucleo', `concentram ${pct}% do excesso`);
-  marca('bar-cauda', 'demais');
-  legenda.appendChild(el('span', null, `linha tracejada = corte de ${pct}%`));
+  /* A GRANDEZA vem do payload: este mesmo bloco serve o Pareto de excesso da
+     tela de Área e o de custo do dossiê, e "80% do excesso" numa lista ordenada
+     por custo total seria simplesmente falso. */
+  if (d.destacar_nucleo !== false) {
+    marca('bar-nucleo', `concentram ${pct}% ${d.grandeza ?? 'do excesso'}`);
+    marca('bar-cauda', 'demais');
+    legenda.appendChild(el('span', null, `linha tracejada = corte de ${pct}%`));
+  } else {
+    /* Sem realce, a leitura de concentração vira TEXTO — o dado não se perde,
+       muda de suporte. */
+    legenda.appendChild(el('span', null, d.leitura ?? ''));
+  }
   partes.push(legenda);
 
   // a ressalva é parte do número: método no rodapé, visível sem hover

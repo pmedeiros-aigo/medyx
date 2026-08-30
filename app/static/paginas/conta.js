@@ -1,30 +1,45 @@
-/* conta.js — Minha conta: identidade da sessão e segurança do acesso.
+/* conta.js — Minha conta: identidade e segurança do acesso.
  *
  * A pergunta da página: "com que conta eu estou aqui, e como eu troco senha ou
  * saio?" Não é tela de análise. Nenhum motor a alimenta, nenhum número dela é
  * comparado, e por isso a faixa de critérios some no chassi: uma régua sobre
  * uma tela sem número declararia o cálculo que não houve.
  *
+ * ── composição: a identidade é o CABEÇALHO, não um cartão ───────────────────
+ *
+ * A primeira versão punha identidade e segurança em dois cartões. Ficava pobre,
+ * e o defeito não era falta de conteúdo: era moldura demais para pouco fato.
+ * Um cartão intitulado "Identidade" numa página chamada "Minha conta" repete o
+ * título com outras palavras, e uma barra de rodapé com uma frase explicativa
+ * ocupando 720px anuncia vazio (DIRETRIZES §8: cartão desnecessário, moldura
+ * excessiva, texto redundante).
+ *
+ * O arranjo agora é o de produto maduro: a pessoa É o cabeçalho da página
+ * (avatar, nome, e-mail, papel), e abaixo vem UMA seção com as ações, sem
+ * moldura nenhuma. A estrutura vem da régua sob o título e das divisórias
+ * entre linhas, não de caixas. Menos moldura, mais hierarquia.
+ *
+ * ── linguagem ───────────────────────────────────────────────────────────────
+ *
+ * Voz institucional, frase curta, verbo no processo (LEXICO_PRODUTO §Tom).
+ * Nada de "fale com quem administra", "aqui aparecem", "até lá": a tela informa
+ * um estado, não conversa com quem lê.
+ *
  * ── o que ficou de fora, e por quê ──────────────────────────────────────────
  *
- * Preferências de análise (janela, critério, referência como "meu padrão").
- * A régua vive na URL de propósito, para que um link de evidência reabra a
- * mesma leitura, e os padrões são do `config.py`, anunciados na tela como
- * recomendados (ajuste 3). Um padrão pessoal escondido num painel contradiria
- * as duas coisas: o link deixaria de reproduzir a leitura, e o "recomendado"
- * passaria a significar coisas diferentes para pessoas diferentes. Se um dia
- * fizer sentido, é decisão de método, não de tela.
+ * Preferências de análise. A régua vive na URL de propósito, para que um link
+ * de evidência reabra a mesma leitura, e os padrões são do `config.py`,
+ * anunciados na tela como recomendados (ajuste 3). Um padrão pessoal escondido
+ * num painel quebraria as duas coisas.
  *
- * Foto de perfil. As iniciais já identificam, e o avatar já está na lateral.
- * Upload seria um recurso inteiro (guardar, cortar, servir) por nenhum ganho
- * de leitura (DIRETRIZES §8).
+ * Foto de perfil. As iniciais identificam, e o avatar já está na lateral.
  *
- * Editar nome e e-mail. Vêm do login; campo editável aqui criaria duas fontes
- * para o mesmo dado.
+ * Edição de nome e e-mail. Vêm do provedor de identidade; campo editável aqui
+ * criaria duas fontes para o mesmo dado.
  *
- * "Encerrar sessão em todos os dispositivos". A ação depende do provedor de
- * identidade e hoje não teria efeito nenhum. Botão que não faz o que promete é
- * pior que ausência (DIRETRIZES §17). Entra junto com o provedor.
+ * Encerramento de sessão em todos os dispositivos. Depende do provedor e hoje
+ * não teria efeito. Entra junto com ele, e com diálogo de confirmação, porque
+ * derruba sessões que não são a desta tela.
  */
 'use strict';
 
@@ -33,33 +48,22 @@ import { el } from '../lib/dom.js';
 import { abrirPagina } from '../lib/pagina.js';
 import { TELAS } from '../lib/rotas.js';
 
-/** Cartão no padrão das outras telas: cabeçalho com título e apoio, corpo, e
- *  rodapé opcional. Reaproveita `.tbl`, que é a superfície de bloco do app. */
-function cartao(titulo, apoio) {
-  const c = el('div', 'tbl');
-  const cab = el('div', 'tbl-hd');
-  const tt = el('div', 'stack g4');
-  tt.appendChild(el('span', 't', titulo));
-  if (apoio) tt.appendChild(el('span', 'sub', apoio));
-  cab.appendChild(tt);
-  c.appendChild(cab);
-  const corpo = el('div', 'tbl-band');
-  c.appendChild(corpo);
-  return { cartao: c, corpo };
-}
-
 /**
  * Uma linha de atributo: rótulo, valor, apoio opcional e ação opcional.
  *
- * A MESMA linha serve identidade (rótulo + valor) e segurança (rótulo + estado
- * + botão), porque a ação é um slot, não um segundo componente.
+ * `valor` aceita texto ou elemento, e é o que deixa a MESMA linha servir a um
+ * estado escrito ("Ativa neste navegador") e a um estado etiquetado (a
+ * verificação em duas etapas, que se lê de relance por cor e forma).
  */
 function linha({ rotulo, valor, apoio, acao }) {
   const l = el('div', 'def-row');
   l.appendChild(el('span', 'def-k', rotulo));
   const v = el('div', 'def-v');
-  v.appendChild(document.createTextNode(valor));
-  if (apoio) v.appendChild(el('span', 'sub', apoio));
+  v.append(typeof valor === 'string' ? document.createTextNode(valor) : valor);
+  if (apoio) {
+    v.appendChild(el('span', 'sub', apoio));
+    l.classList.add('def-topo');
+  }
   l.appendChild(v);
   if (acao) {
     const caixa = el('div', 'def-act');
@@ -69,153 +73,176 @@ function linha({ rotulo, valor, apoio, acao }) {
   return l;
 }
 
-/** Botão que NAVEGA (sair, provedor de identidade): `<a>`, não `<button>`. */
-function botaoLink(href, rotulo, classe = 'btn') {
-  const a = el('a', classe, rotulo);
+/** Etiqueta de estado. `.tag-ctx` (verde, com marca) é o estado verificado do
+ *  sistema; `.tag-off` é o estado ausente. Cor NUNCA sozinha: o texto diz o
+ *  mesmo que a cor (DIRETRIZES §19). */
+function etiqueta(texto, ativo) {
+  const t = el('span', `tag ${ativo ? 'tag-ctx' : 'tag-off'}`);
+  if (ativo) t.appendChild(el('span', 'mk'));
+  t.appendChild(document.createTextNode(texto));
+  return t;
+}
+
+/** Ação que NAVEGA (sair, provedor de identidade): `<a>`, não `<button>`. */
+function botaoLink(href, rotulo) {
+  const a = el('a', 'btn', rotulo);
   a.href = href;
   return a;
+}
+
+/**
+ * Seção: título com régua embaixo, e o conteúdo solto sob ela.
+ *
+ * NÃO é `.tbl`. O cartão das telas de análise envolve uma TABELA, e a moldura
+ * dele separa um objeto denso do resto da página. Aqui envolveria três linhas
+ * de texto, sobre `--canvas`, que é branco, contra um `.tbl` que também é
+ * branco: a borda não separaria figura de fundo, só acrescentaria moldura.
+ * DIRETRIZES §8 nomeia os dois defeitos: cartão desnecessário e borda
+ * excessiva.
+ *
+ * `.sec` e `.sec-hd` já existiam no contrato e não eram usados por nenhuma
+ * tela. É exatamente o caso deles.
+ */
+function secao(titulo) {
+  const s = el('div', 'sec');
+  const cab = el('div', 'sec-hd');
+  cab.appendChild(el('h3', null, titulo));
+  s.appendChild(cab);
+  return s;
 }
 
 /* ── os dois estados da tela ─────────────────────────────────────────────── */
 
 /**
- * SEM SESSÃO. Não é erro, e por isso não vai para o banner de falha: é o
- * estado normal deste ambiente enquanto o login não foi ligado. A tela diz o
- * que está acontecendo, em vez de mostrar campos vazios ou um nome de exemplo.
+ * SEM SESSÃO. Não é erro, e por isso não vai para o banner de falha: é o estado
+ * corrente do ambiente enquanto a autenticação não foi ativada. Duas frases,
+ * sem pedido de desculpas e sem promessa de data.
  */
-function semSessao(conteudo, conta) {
-  const { cartao: c, corpo } = cartao(
-    'Nenhuma sessão autenticada',
-    'esta tela mostra a sua identidade e a segurança do seu acesso');
-  const pilha = el('div', 'stack g10');
+function semSessao(col, conta) {
+  const sec = secao('Sessão não autenticada');
+  const pilha = el('div', 'stack g8');
   pilha.appendChild(el('span', 'sub', conta.motivo));
   pilha.appendChild(el('span', 'note',
-    'Quando o acesso por login estiver ativo, aqui aparecem o seu nome e '
-    + 'e-mail, a troca de senha, a verificação em duas etapas e a ação de '
-    + 'sair. Até lá não há sessão a mostrar, e inventar uma seria descrever '
-    + 'um acesso que não existe.'));
-  corpo.appendChild(pilha);
-  conteudo.appendChild(c);
+    'Identidade, redefinição de senha e verificação em duas etapas ficam '
+    + 'disponíveis após a integração com o provedor de identidade.'));
+  sec.appendChild(pilha);
+  col.appendChild(sec);
 }
 
-/** COM SESSÃO: identidade, depois segurança. Nessa ordem porque a primeira
- *  pergunta é "sou eu mesmo?" e só a segunda é "o que eu faço com isso". */
-function comSessao(conteudo, conta) {
+/** COM SESSÃO: a pessoa no cabeçalho, as ações num bloco só. */
+function comSessao(col, conta) {
   const { usuario, seguranca } = conta;
 
-  /* ── quem é você ───────────────────────────────────────────────────────── */
-  const ident = cartao('Identidade',
-    'o que o seu login informa ao Medyx');
+  /* ── identidade: cabeçalho da página, sem moldura ──────────────────────── */
+  const ident = el('div', 'row g14');
+  ident.appendChild(el('span', 'av av-lg', usuario.iniciais));
 
-  /* A pessoa aparece como pessoa, não como formulário: avatar, nome, e-mail.
-     Nome e e-mail NÃO se repetem em linhas abaixo; repetir o mesmo dado em
-     dois lugares da mesma tela é ruído (DIRETRIZES §8). */
-  const cabeca = el('div', 'row g12');
-  cabeca.appendChild(el('span', 'av av-lg', usuario.iniciais));
   const quem = el('div', 'stack g4');
-  quem.appendChild(el('b', null, usuario.nome));
+  const nome = el('div', 'row g8');
+  nome.appendChild(el('b', null, usuario.nome));
+  /* Papel só aparece se existir: ausência de atributo não vira etiqueta
+     (ajuste 1 do CLAUDE.md), e "sem perfil" seria exatamente essa etiqueta. */
+  if (usuario.papel) nome.appendChild(el('span', 'tag tag-attr', usuario.papel));
+  quem.appendChild(nome);
   quem.appendChild(el('span', 'sub', usuario.email));
-  cabeca.appendChild(quem);
-  ident.corpo.appendChild(cabeca);
+  ident.appendChild(quem);
+  col.appendChild(ident);
 
-  /* Perfil de acesso só aparece se existir: ausência de atributo não vira
-     etiqueta (ajuste 1 do CLAUDE.md). Sem papel definido, a linha não existe,
-     em vez de dizer "sem perfil". */
-  if (usuario.papel) {
-    const lista = el('div', 'deflist');
-    lista.appendChild(linha({ rotulo: 'Perfil de acesso', valor: usuario.papel }));
-    ident.corpo.appendChild(lista);
-  }
+  col.appendChild(el('span', 'note',
+    'Nome, e-mail e perfil são fornecidos pelo provedor de identidade. '
+    + 'Alterações são tratadas pela administração de acessos.'));
 
-  const pe = el('div', 'tbl-ft');
-  pe.appendChild(el('span', null,
-    'Nome e e-mail vêm do seu login. Para alterar, fale com quem administra o '
-    + 'acesso ao Medyx.'));
-  ident.cartao.appendChild(pe);
-  conteudo.appendChild(ident.cartao);
-
-  /* ── segurança e sessão ────────────────────────────────────────────────── */
-  const seg = cartao('Segurança e sessão',
-    'senha, verificação em duas etapas e saída');
+  /* ── acesso e sessão: uma seção, as três linhas que existem ────────────── */
+  const sec = secao('Acesso e sessão');
   const lista = el('div', 'deflist');
 
   if (seguranca?.provedor) {
-    /* Com provedor configurado, senha e duas etapas são dele: o Medyx leva
-       para lá em vez de manter uma segunda tela de senha, que seria uma
-       segunda superfície de credencial para proteger (DIRETRIZES §22). */
+    /* Senha e segundo fator são do provedor: o Medyx encaminha em vez de
+       manter formulário próprio, que seria uma segunda superfície de
+       credencial para proteger (DIRETRIZES §22). */
     lista.appendChild(linha({
       rotulo: 'Senha',
       valor: `Gerenciada pelo ${seguranca.provedor}`,
-      acao: botaoLink(seguranca.url_senha, 'Trocar senha'),
+      acao: botaoLink(seguranca.url_senha, 'Redefinir senha'),
     }));
-    lista.appendChild(linha({
-      rotulo: 'Verificação em duas etapas',
-      valor: seguranca.duas_etapas ? 'Ativa' : 'Não configurada',
-      apoio: seguranca.duas_etapas
-        ? null
-        : 'um segundo fator reduz o risco de acesso indevido a dado de saúde',
-      acao: botaoLink(seguranca.url_duas_etapas,
-                      seguranca.duas_etapas ? 'Gerenciar' : 'Configurar'),
-    }));
+    /* Duas etapas tem TRÊS estados, e o terceiro é a ausência da linha:
+         true  -> ativa
+         false -> disponível na política de acesso, ainda não configurada
+         null  -> FORA da política; a linha não existe.
+       `null` não é `false`. Imprimir "Não configurada" com um botão
+       "Configurar" onde o segundo fator não faz parte da política ofereceria
+       um recurso que o produto não tem, que é o defeito que esta tela evita em
+       todo lugar. Ausência de atributo não vira etiqueta (ajuste 1). */
+    if (seguranca.duas_etapas !== null && seguranca.duas_etapas !== undefined) {
+      lista.appendChild(linha({
+        rotulo: 'Verificação em duas etapas',
+        valor: etiqueta(seguranca.duas_etapas ? 'Ativa' : 'Não configurada',
+                        seguranca.duas_etapas),
+        apoio: seguranca.duas_etapas
+          ? null
+          : 'Segundo fator reduz o risco de acesso indevido a dado assistencial.',
+        acao: botaoLink(seguranca.url_duas_etapas,
+                        seguranca.duas_etapas ? 'Gerenciar' : 'Configurar'),
+      }));
+    }
   } else {
-    /* Sem provedor: uma frase que explica, e nenhum botão desabilitado. Três
-       controles apagados anunciariam recursos que a tela não tem como
-       cumprir, e o leitor passaria a desconfiar dos que funcionam. */
+    /* Sem provedor: uma linha que declara o estado, e nenhum botão apagado.
+       Controles desabilitados anunciariam recursos que a tela não cumpre, e o
+       leitor passaria a desconfiar dos que funcionam. */
     lista.appendChild(linha({
-      rotulo: 'Senha e duas etapas',
-      valor: 'Ainda não disponíveis',
-      apoio: 'passam a ser configuráveis aqui quando o provedor de '
-        + 'identidade estiver conectado',
+      rotulo: 'Autenticação',
+      valor: etiqueta('Provedor não conectado', false),
+      apoio: 'Redefinição de senha e verificação em duas etapas ficam '
+        + 'disponíveis após a integração.',
     }));
   }
 
-  /* Sair funciona hoje, com provedor ou sem: a rota limpa a sessão do lado do
-     servidor. É a única ação viva da tela, e por isso é a única com botão. */
+  /* Sair funciona com provedor ou sem: a rota encerra a sessão no servidor. */
   lista.appendChild(linha({
     rotulo: 'Sessão',
-    valor: 'Você está autenticado neste navegador',
+    valor: 'Ativa neste navegador',
     acao: botaoLink('/sair', 'Sair'),
   }));
 
-  seg.corpo.appendChild(lista);
-  conteudo.appendChild(seg.cartao);
+  sec.appendChild(lista);
+  col.appendChild(sec);
 }
 
 /* ── a tela ──────────────────────────────────────────────────────────────── */
 
 await abrirPagina({
   titulo: 'Minha Conta',
-  /* Trocar de área na lateral não faz sentido aqui, mas o chassi expõe o
-     seletor em toda tela e o contrato de `abrirPagina` exige o destino. Se
-     alguém usar, vai para a Área, que é onde a escolha governa alguma coisa.
-     (Na prática o seletor é removido nesta tela por `ajustarControlesDaTela`.) */
+  /* O seletor de área é removido nesta tela por `ajustarControlesDaTela`; o
+     destino existe porque o contrato de `abrirPagina` o exige. */
   aoTrocarArea: (id) => TELAS.area.caminho(id),
   montar: async ({ conteudo }) => {
-    /* Coluna estreita, e não a largura fluida das telas de análise: aqui não
-       há tabela nem gráfico para ocupar 1600px, e um rótulo à esquerda com o
-       seu botão na outra ponta da tela não se lê como uma linha só. */
+    /* Coluna estreita, e não a largura fluida das telas de análise: aqui não há
+       tabela nem gráfico para ocupar 1600px, e um rótulo à esquerda com o seu
+       botão na outra ponta da tela não se lê como uma linha só. */
     const col = el('div', 'stack leitura');
     conteudo.appendChild(col);
 
     const topo = el('div', 'stack g6');
     topo.appendChild(el('h2', null, 'Minha conta'));
-    topo.appendChild(el('span', 'sub',
-      'sua identidade no Medyx e a segurança do seu acesso'));
+    topo.appendChild(el('span', 'sub', 'Identidade e segurança do acesso'));
     col.appendChild(topo);
 
     const conta = await buscar('/api/conta',
-                               { anunciarEm: col, rotulo: 'carregando a sua conta…' });
+                               { anunciarEm: col, rotulo: 'carregando a conta…' });
 
     if (conta.autenticado) comSessao(col, conta);
     else semSessao(col, conta);
 
-    /* Rodapé de versão: quem for relatar um problema precisa dizer sobre qual
-       versão está falando. A proveniência dos DADOS não se repete aqui, ela
-       vive nas telas de análise, onde governa a leitura de um número. */
+    /* Versão da aplicação: quem relata um problema precisa dizer sobre qual
+       versão fala. A proveniência dos DADOS não se repete aqui; ela vive nas
+       telas de análise, onde governa a leitura de um número. */
+    /* Sem régua acima: `.note-t` usa a MESMA cor e espessura das divisórias
+       entre linhas, e colada ao fim da lista ela lia como mais uma linha. A
+       versão da aplicação não pertence a "Acesso e sessão"; o espaço em branco
+       já separa, e uma régua ali sugeriria parentesco que não existe. */
     const rodape = el('div', 'stack g4');
-    const versoes = `Medyx ${conta.app.versao} · classificação `
-      + `${conta.app.classificacao}`;
-    rodape.appendChild(el('span', 'note', versoes));
+    rodape.appendChild(el('span', 'note',
+      `Aplicação ${conta.app.versao} · classificação ${conta.app.classificacao}`));
     if (conta.app.suporte) {
       const s = el('span', 'note');
       const a = el('a', null, conta.app.suporte);

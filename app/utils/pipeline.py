@@ -856,6 +856,8 @@ def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,
              intensidade_mediana_pares=("itens_por_paciente_mediana", "median"),
              intensidade_alto_pares=("itens_por_paciente_mediana",
                                      lambda s: s.quantile(q_alto)),
+             share_top_mediana_pares=("share_top", "median"),
+             intervalo_mediano_pares=("intervalo_mediano_dias", "median"),
              repeticao_mediana_pares=("ocasioes_por_paciente_mediana", "median"),
              repeticao_alta_pares=("ocasioes_por_paciente_mediana",
                                    lambda s: s.quantile(q_alto)),
@@ -891,7 +893,7 @@ def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,
 
 
 def pacientes_do_procedimento(fato, cooperado, cd_procedimento, janela_ini, janela_fim,
-                              topo=config.TOP_PACIENTES_PAINEL,
+                              limiar=config.LIMIAR_CONCENTRACAO_PACIENTE,
                               incluir_ps=config.INCLUIR_PS_DEFAULT):
     """Os pacientes que mais concentram UM procedimento de UM cooperado.
 
@@ -912,7 +914,11 @@ def pacientes_do_procedimento(fato, cooperado, cd_procedimento, janela_ini, jane
         fato: fato_solicitacoes.
         cooperado, cd_procedimento: o par em cena.
         janela_ini, janela_fim: janela pela DATA_REQUISICAO.
-        topo: quantos pacientes listar (o resto vai agregado em 'resto').
+        limiar: participação a partir da qual um paciente é listado. Lista por
+            LIMIAR e não por "os N maiores": com top-N sempre há uma lista, mesmo
+            quando ninguém concentra nada, e cinco linhas de 1% lidas em sequência
+            sugerem um achado que não existe. Por limiar, ausência de concentração
+            produz lista vazia — que é a resposta certa.
         incluir_ps: default do config.
 
     Retorna: dict com linhas (topo), resto, e os totais do par. None se o par
@@ -945,14 +951,12 @@ def pacientes_do_procedimento(fato, cooperado, cd_procedimento, janela_ini, jane
     por_pac = por_pac.sort_values(["itens", "ocasioes", "ID_BENEFICIARIO"],
                                   ascending=[False, False, True])
 
-    cabeca = por_pac.head(topo)
-    cauda = por_pac.iloc[topo:]
+    destacados = por_pac[por_pac["pct_do_procedimento"] > limiar]
     return {
-        "linhas": cabeca.to_dict("records"),
-        "resto": {"n_pacientes": int(len(cauda)),
-                  "itens": float(cauda["itens"].sum()),
-                  "pct_do_procedimento": float(cauda["itens"].sum() / total_itens)
-                  if total_itens else 0.0},
+        "linhas": destacados.to_dict("records"),
+        "pct_destacados": float(destacados["pct_do_procedimento"].sum()),
+        "maior_pct": float(por_pac["pct_do_procedimento"].max()) if len(por_pac) else 0.0,
+        "limiar": float(limiar),
         "n_pacientes": int(len(por_pac)),
         "itens_total": total_itens,
         "base": carimbo_base(incluir_ps),

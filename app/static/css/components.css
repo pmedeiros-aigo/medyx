@@ -251,6 +251,11 @@ h1{font-size:34px;line-height:1.12;font-weight:600;letter-spacing:-.02em;color:v
    (14px, 600) e a hierarquia da página tinha um degrau só. 26px com tracking
    negativo é o porte de título de página do sistema. */
 h2{font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.2;color:var(--g-900)}
+/* Título de SEÇÃO. Não existia: o app só tinha h2, porque toda subdivisão vinha
+   embrulhada num cartão e o título era o `.tbl-hd .t`. Onde a seção dispensa
+   moldura, ela ainda precisa de nome. Mesmo tamanho e peso do título de bloco,
+   para os dois lerem como o mesmo nível de hierarquia. */
+h3{font-size:14px;font-weight:600;color:var(--g-900)}
 .lead{font-size:15px;color:var(--g-600);max-width:62ch;text-wrap:pretty}
 .lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500)}
 .sub{font-size:12.5px;color:var(--g-500)}
@@ -2228,7 +2233,7 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .def-row{display:flex;align-items:center;gap:16px;padding:13px 0;border-top:1px solid var(--line-soft)}
 .def-row:first-child{border-top:0;padding-top:0}
 .def-row:last-child{padding-bottom:0}
-.def-k{width:168px;flex:none;font-size:12px;color:var(--g-500)}
+.def-k{width:200px;flex:none;font-size:12px;color:var(--g-500)}
 .def-v{min-width:0;font-size:13px;color:var(--g-900);overflow-wrap:anywhere}
 /* A linha de apoio explica o valor sem competir com ele. */
 .def-v .sub{display:block;margin-top:3px}
@@ -2246,19 +2251,44 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 /* ── PAINEL DO PROCEDIMENTO (dossiê) ─────────────────────────────────────────
    ATENÇÃO — este bloco NASCEU AQUI e ainda não existe no contrato do Claude
    Design. `app/static/css/` é cópia sincronizada, não a origem: estas regras
-   precisam subir para o contrato antes da próxima sincronização, ou serão
-   perdidas. Nenhum valor novo foi inventado — só tokens já existentes.
+   precisam subir para o contrato antes da próxima sincronização.
 
-   O painel divide a faixa com a tabela em vez de cobri-la: o gesto seguinte
-   depois de abrir é quase sempre "e o exame de baixo?", e cobrir a tabela
-   obrigaria a fechar para continuar lendo. */
-.painel-col-tabela{flex:1;min-width:0}
-/* `.stack` traz display:flex e vence o `[hidden]{display:none}` do UA — sem
-   esta linha o painel "fechado" continua na tela. */
+   ── por que DRAWER ancorado na viewport, e não painel no fluxo ─────────────
+
+   Um painel dentro do fluxo tem altura ditada pelo CONTEÚDO; a tabela ao lado
+   tem altura ditada pelas LINHAS. As duas nunca coincidem, e a diferença
+   aparece como um bloco que desce além do outro — não é ajuste de CSS, é
+   consequência de estarem no mesmo fluxo. Ancorado na viewport, o painel é
+   sempre da altura da tela e rola por dentro.
+
+   EMPURRA, não cobre: o conteúdo ganha margem à direita enquanto o painel está
+   aberto. A tabela continua inteira e clicável — trocar de procedimento sem
+   fechar nada é a razão de ser painel e não modal. Cobrir devolveria o defeito
+   do modal com outra geometria.
+
+   UMA superfície: seções separadas por régua fina e respiro, nunca por cartão.
+   A versão anterior empilhava sete `.tbl` (borda + sombra + raio) dentro de um
+   aside que já tinha borda. Mesma decisão que `.tbl-hd`/`.tbl-band` tomaram com
+   `border-bottom:0` — a moldura é do quadro, não de cada parte dele. */
+.painel-lateral{position:fixed;top:0;right:0;bottom:0;z-index:40;
+  width:min(420px,34vw);background:#fff;border-left:1px solid var(--line);
+  box-shadow:-8px 0 24px -12px rgb(0 0 0 / .18);
+  display:flex;flex-direction:column;overflow:hidden}
 .painel-lateral[hidden]{display:none}
-.painel-lateral{width:380px;flex:0 0 380px;padding:16px;background:#fff;
-  border:1px solid var(--line);border-radius:var(--r-md);align-self:flex-start;
-  position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto}
+.pnl-hd{flex:none;padding:16px;border-bottom:1px solid var(--line-soft);background:#fff}
+.pnl-corpo{flex:1;min-height:0;overflow-y:auto;padding:0 16px;
+  overscroll-behavior:contain}
+.pnl-sec{display:flex;flex-direction:column;gap:8px;padding:16px 0;
+  border-top:1px solid var(--line-soft)}
+.pnl-corpo>.pnl-sec:first-child{border-top:0}
+.pnl-rot{text-transform:uppercase;letter-spacing:.04em;font-weight:600;color:var(--g-400)}
+
+/* O conteúdo cede espaço em vez de ser coberto. Transição só na margem: a
+   tabela reflui uma vez, sem animar o próprio layout interno. */
+.content.com-painel{margin-right:min(420px,34vw)}
+.content{transition:margin-right .16s ease}
+@media (prefers-reduced-motion:reduce){.content{transition:none}}
+
 .painel-x{width:28px;height:28px;flex:0 0 28px;display:flex;align-items:center;
   justify-content:center;border:0;border-radius:var(--r-sm);background:transparent;
   color:var(--g-500);font-family:inherit;font-size:14px;cursor:pointer}
@@ -2269,47 +2299,39 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    teclado com contorno visível — linha clicável sem foco só existe pro mouse. */
 tr.clicavel{cursor:pointer}
 tr.clicavel:hover{background:var(--g-25)}
+tr.clicavel.selecionada{background:var(--g-50)}
 tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 
-/* Abaixo do ponto em que as duas colunas cabem lado a lado, o painel passa a
-   ocupar a largura inteira, abaixo da tabela. Continua sendo o mesmo conteúdo
-   na mesma ordem de leitura — só empilhado. */
+/* Sem largura para as duas coisas, o painel passa a cobrir — em tela estreita
+   ceder 420px deixaria a tabela ilegível, e aí cobrir é o mal menor. */
 @media (max-width:1100px){
-  .painel-lateral{width:auto;flex:1 1 auto;position:static;max-height:none}
-  .row-t.g20:has(> .painel-lateral){flex-wrap:wrap}
+  .painel-lateral{width:min(420px,88vw)}
+  .content.com-painel{margin-right:0}
 }
 
+/* Curva de densidade do painel do procedimento. Tokens do contrato — nenhum
+   valor de cor nasce aqui. A curva é o grupo de pares; a marca é o cooperado, e
+   é o único elemento que precisa saltar. */
+.dens{display:block;width:100%;height:auto;overflow:visible}
+.dens-area{fill:var(--ch-iqr-fill);stroke:var(--ch-iqr-line);stroke-width:1;
+  vector-effect:non-scaling-stroke}
+.dens-box{fill:var(--g-200)}
+.dens-med{stroke:var(--acc);stroke-width:2;vector-effect:non-scaling-stroke}
+.dens-crit{stroke:var(--read-above);stroke-width:1.5;stroke-dasharray:3 3;
+  vector-effect:non-scaling-stroke}
+.dens-mk{stroke:var(--g-700);stroke-width:2;vector-effect:non-scaling-stroke}
+.dens-mk.warnmk{stroke:var(--read-above)}
+.dens-mk.critmk{stroke:var(--crit)}
+.v-mk{color:var(--crit)}
 
-/* ---------- `hidden` volta a esconder -------------------------------------
-   O atributo `hidden` só vale `display:none` no estilo do navegador, e QUALQUER
-   regra de `display` do arquivo o vence por especificidade. Foi o que
-   aconteceu com `.side-ft[hidden]` (o ninho do bloco de conta): `display:flex`
-   ganhava, e a lateral mostrava um rodapé vazio com um traço em cima.
-
-   Uma regra de base resolve a classe inteira do defeito, em vez de um remendo
-   por elemento. É a única declaração `!important` do arquivo, e é o uso para o
-   qual ela existe: garantir uma primitiva do navegador contra especificidade
-   acidental. */
-[hidden]{display:none!important}
-
-
-/* ---------- COLUNA DE LEITURA ---------------------------------------------
-   As telas de análise são fluidas até `--content-max` porque tabela e gráfico
-   usam a largura que houver. Uma tela de LEITURA não: com 1600px, um rótulo à
-   esquerda e a sua ação à direita ficam a meio metro um do outro, e o olho
-   perde a linha no caminho.
-
-   Vale para toda página sem tabela e sem gráfico: conta, e depois os estados
-   de sistema (não encontrado, sem acesso, sessão expirada). */
-.leitura{max-width:720px;width:100%}
-
-/* Legenda da régua do painel: chaves de cor com o MESMO desenho dos elementos
-   da `.ruler`, para o olho ligar um ao outro sem esforço. Hover não serve de
-   legenda — não existe no toque, e o painel precisa ser legível parado. */
-.lg{width:12px;height:8px;flex:0 0 12px;border-radius:1px}
-.lg-iqr{background:var(--ch-iqr-fill);border-left:1px solid var(--ch-iqr-line);
-  border-right:1px solid var(--ch-iqr-line)}
-.lg-med{width:var(--ch-ref-w);height:12px;flex-basis:var(--ch-ref-w);background:var(--acc)}
-.lg-crit{width:0;height:12px;flex-basis:var(--ch-ref-w);border-radius:0;
-  border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--read-above)}
-.lg-mk{width:2px;height:12px;flex-basis:2px;background:var(--g-500)}
+/* Barra aninhada do Pareto de custo (dossiê): o comprimento é o custo total, o
+   preenchimento interno é a parcela acima da referência. Mesma pista e mesma
+   altura das outras barras do Pareto — muda o que está DENTRO, não a forma. */
+.pareto-l .trilho i.duplo{position:relative;overflow:hidden}
+.pareto-l .trilho i.duplo b{position:absolute;left:0;top:0;bottom:0;display:block;
+  background:var(--crit);border-radius:2px 0 0 2px}
+.pareto-legenda{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--g-400)}
+.pareto-legenda i{width:18px;height:8px;border-radius:2px;background:var(--g-300);
+  position:relative;overflow:hidden;display:block}
+.pareto-legenda i b{position:absolute;left:0;top:0;bottom:0;width:60%;background:var(--crit);
+  border-radius:2px 0 0 2px}

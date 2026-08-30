@@ -225,8 +225,12 @@ def main() -> int:
         checar("o rodapé da lateral fica escondido, não vazio",
                pg.locator("[data-slot='conta']").is_hidden(), True)
         checar("o estado é declarado, não é banner de erro",
-               pg.locator(".tbl-hd .t").first.inner_text(),
-               "Nenhuma sessão autenticada")
+               pg.locator(".sec-hd h3").first.inner_text(),
+               "Sessão não autenticada")
+        # A tela é de LEITURA, não de análise: sem cartão, sem moldura. Guarda
+        # contra alguém reintroduzir `.tbl` aqui por hábito das outras telas.
+        checar("sem cartão em volta da seção",
+               pg.locator("[data-slot='conteudo'] .tbl").count(), 0)
         checar("nenhum banner de falha", pg.locator(".banner-err").count(), 0)
         # Tela sem número não carrega régua: a faixa de critérios declararia o
         # critério de um cálculo que não aconteceu.

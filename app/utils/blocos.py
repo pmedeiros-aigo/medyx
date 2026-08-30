@@ -21,6 +21,7 @@ em Python, pela mesma razão, JavaScript não faz conta, nem de layout de dado.
 """
 from __future__ import annotations
 
+import math
 import numpy as np
 import pandas as pd
 
@@ -617,7 +618,7 @@ def cards_do_recorte(reais_por_coop: dict[str, float],
          "apoio": "em quarentena",
          "titulo_longo": (f"o custo dos {fmt(itens, 0)} exames acima do padrão, "
                           "calculado exame a exame contra a referência de cada "
-                          "um · preço provisório até a tabela contratual — não "
+                          "um · preço provisório até a tabela contratual. Não "
                           "é economia realizada")},
     ]
 
@@ -1947,9 +1948,9 @@ def _pareto_montar(valores: list[tuple[str, float]], unidade: str) -> tuple | No
 # diretoria lê-se como rascunho. O que a ressalva precisa dizer continua inteiro
 # e continua conservador — a base de preço é interna, o valor é teto, e teto não
 # é economia realizada.
-_PARETO_METODO = ("Estimativa de teto: valora as solicitações — nem toda é "
-                  "executada — a preços de referência internos. Não representa "
-                  "economia realizada.")
+_PARETO_METODO = ("Estimativa de teto: valora a preços de referência internos "
+                  "todas as solicitações, e nem toda solicitação é executada. "
+                  "Não representa economia realizada.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2062,12 +2063,20 @@ def _confianca_do_par(row_conf) -> dict:
         return {"estado": "nao_avaliado", "rotulo": None, "detalhe": None}
     if not bool(row_conf["calculavel"]):
         return {"estado": "nao_calculavel", "rotulo": None, "detalhe": None}
+    piso = fmt(row_conf["excedente_piso"], 0)
+    central = fmt(row_conf["excedente_central"], 0)
+    # O texto responde à objeção que o cooperado vai levantar — "esse número vem
+    # de uns poucos casos atípicos" —, e não descreve o método. "Limite inferior
+    # do intervalo de confiança" era exato e ilegível: quem lê a tela é auditor
+    # assistencial, não estatístico. O método vai no hover, para quem quiser.
     return {"estado": "calculavel",
             "piso_itens": round(float(row_conf["excedente_piso"]), 2),
-            "rotulo": f"mínimo: {fmt(row_conf['excedente_piso'], 0)}",
-            "detalhe": (f"Limite inferior do intervalo de confiança: o excedente "
-                        f"não fica abaixo de "
-                        f"{fmt(row_conf['excedente_piso'], 0)} solicitações.")}
+            "rotulo": f"{piso} de {central} se sustentam",
+            "detalhe": (f"Das {central} solicitações acima da referência, {piso} "
+                        f"se mantêm mesmo sem o peso dos beneficiários que mais "
+                        f"receberam. Verificado sorteando a carteira do cooperado "
+                        f"mil vezes: em 9 de cada 10 sorteios a variação excedente "
+                        f"ficou acima de {piso}.")}
 
 
 def _serie_do_procedimento(janelas_proc: pd.DataFrame | None, cd: str,
@@ -2349,8 +2358,36 @@ def _intervalo_fmt(dias) -> str | None:
 _ROTULO_NIVEL = {"mediana": "mediana", "p75": "P75", "p90": "P90"}
 
 
+def _densidade(valores: list[float], escala: dict, n: int = 48) -> list[float]:
+    """Curva de densidade dos pares, em alturas 0–1 prontas para desenhar.
+
+    Kernel gaussiano com largura de Silverman, avaliado em `n` pontos do eixo.
+    Feito aqui e não no front pela mesma razão de todo o resto: a tela imprime,
+    não calcula — e uma segunda implementação em JS divergiria da primeira no
+    dia em que alguém mexesse numa só.
+
+    A curva é NORMALIZADA pelo próprio máximo: a altura comunica onde a massa
+    está, não quantos cooperados são. O `n` do grupo viaja como número ao lado.
+    """
+    v = np.asarray([x for x in valores if x is not None and not np.isnan(x)], dtype=float)
+    if len(v) < 2:
+        return []
+    dp = float(v.std(ddof=1))
+    iqr = float(np.subtract(*np.percentile(v, [75, 25])))
+    escalar = min(dp, iqr / 1.349) if iqr > 0 else dp
+    if not escalar or np.isnan(escalar):
+        escalar = max((v.max() - v.min()) / 6, 1e-9)
+    h = 0.9 * escalar * len(v) ** (-1 / 5) or 1e-9
+
+    grade = np.linspace(escala["min"], escala["max"], n)
+    z = (grade[:, None] - v[None, :]) / h
+    dens = np.exp(-0.5 * z ** 2).sum(axis=1)
+    topo = dens.max()
+    return [round(float(d / topo), 4) for d in dens] if topo else []
+
+
 def regua_do_procedimento(linha_par, p25: float | None, taxa: float,
-                          criterio_pedido: str) -> dict | None:
+                          criterio_pedido: str, taxas_pares=None) -> dict | None:
     """A posição do cooperado na distribuição DESTE procedimento, em uma régua.
 
     Por que régua e não o gráfico de pontos: no painel a pergunta é "onde ELE
@@ -2395,17 +2432,26 @@ def regua_do_procedimento(linha_par, p25: float | None, taxa: float,
 
     razao = (taxa / referencia) if referencia else None
     return {
+        # curva de densidade + caixa: a curva mostra ONDE o grupo se acumula, a
+        # caixa dá os quartis, e a marca dá a posição dele. A régua de linhas
+        # finas que havia aqui era exata e ilegível — três traços de 1px num
+        # eixo de 18px, indistinguíveis sem legenda.
+        "densidade": _densidade(list(taxas_pares) if taxas_pares is not None else [], escala),
+        "n_pares": int(len(taxas_pares)) if taxas_pares is not None else 0,
         "iqr": {"pos_pct": _pos(p25, escala),
                 "largura_pct": (round(_pos(p75, escala) - _pos(p25, escala), 2)
                                 if p75 is not None else 0.0),
                 "rotulo": "metade central dos pares"},
+        # Léxico: alvo -> "referência de adequação"; gatilho -> "critério de
+        # revisão". O nível ativo vem junto porque é ele que muda de lugar
+        # quando o parâmetro muda.
         "referencia": {"valor_fmt": fmt_frequencia(referencia),
                        "pos_pct": _pos(referencia, escala),
-                       "rotulo": f"referência {_ROTULO_NIVEL.get(alvo, alvo)}"},
+                       "rotulo": f"referência de adequação ({_ROTULO_NIVEL.get(alvo, alvo)})"},
         "criterio": (None if valor_crit is None else
                      {"valor_fmt": fmt_frequencia(valor_crit),
                       "pos_pct": _pos(valor_crit, escala),
-                      "rotulo": f"critério {gatilho.upper()}",
+                      "rotulo": f"critério de revisão ({gatilho.upper()})",
                       "ajustado": gatilho != criterio_pedido}),
         "marca": {"valor_fmt": fmt_frequencia(taxa),
                   "pos_pct": _pos(taxa, escala),
@@ -2413,14 +2459,16 @@ def regua_do_procedimento(linha_par, p25: float | None, taxa: float,
                       _classe_ponto(taxa, p75, valor_crit)]},
         "razao_fmt": None if razao is None else f"{fmt(razao, 1)}×",
         "sem_criterio_motivo": (None if valor_crit is not None else
-                                "grupo pequeno demais para sustentar percentil — "
-                                "posição descritiva, sem critério"),
+                                "grupo de pares insuficiente para sustentar "
+                                "percentil: posição descritiva, sem critério"),
     }
 
 
 def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | None,
                            autorref_row, regua: dict | None,
-                           serie: list[dict] | None, confianca: dict | None) -> dict:
+                           serie: list[dict] | None, confianca: dict | None,
+                           linha_par=None, conc_bruta=None, preco=None,
+                           total_coop=None) -> dict:
     """O painel lateral do procedimento (espec §3): a evidência de segundo nível.
 
     Nada nasce aqui — é a saída dos motores vestida para a tela. Três regras que
@@ -2441,47 +2489,99 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
         return fmt(float(row[campo]), casas)
 
     # ── repetição ───────────────────────────────────────────────────────────
+    #
+    # Só a FRAÇÃO QUE REPETE e o INTERVALO. Havia uma terceira medida — mediana
+    # de solicitações por beneficiário — que saiu: ela vale 1,0 em 99,4% dos
+    # 4.347 pares medidos, ou seja, não distingue ninguém de ninguém e ocupava a
+    # primeira posição do bloco dizendo sempre a mesma coisa.
+    #
+    # As duas que ficaram andam com a referência do grupo de pares ao lado, como
+    # manda o léxico: repetir é rotina em pré-natal e é achado em rastreio, e o
+    # mesmo percentual lê ao contrário nos dois.
     n_pac = None if conc_row is None else int(conc_row["n_pacientes_proc"])
     pouco = n_pac is not None and n_pac < config.MIN_PACIENTES_PAINEL
     sem_ref = conc_row is None or not bool(conc_row.get("referencia_solida", False))
+
+    def _val(campo, casas=1, pct=False):
+        if conc_row is None or campo not in conc_row or pd.isna(conc_row[campo]):
+            return None
+        v = float(conc_row[campo])
+        return fmt_pct(v, casas) if pct else fmt(v, casas)
+
     repeticao = {
         "n_pacientes": n_pac,
-        "ocasioes_mediana_fmt": num(conc_row, "ocasioes_por_paciente_mediana"),
-        "pares_fmt": num(conc_row, "repeticao_mediana_pares"),
-        "pct_repetem_fmt": (None if conc_row is None
-                            or pd.isna(conc_row.get("pct_pacientes_repetem"))
-                            else fmt_pct(float(conc_row["pct_pacientes_repetem"]))),
-        "pct_repetem_pares_fmt": (None if conc_row is None
-                                  or pd.isna(conc_row.get("pct_repetem_mediana_pares"))
-                                  else fmt_pct(float(conc_row["pct_repetem_mediana_pares"]))),
-        "intervalo_dias_fmt": num(conc_row, "intervalo_mediano_dias", 0),
-        "motivo": ("pouco volume" if pouco
-                   else "referência insuficiente" if sem_ref else None),
+        "pct_repetem_fmt": _val("pct_pacientes_repetem", 0, pct=True),
+        "pct_repetem_pares_fmt": _val("pct_repetem_mediana_pares", 0, pct=True),
+        "intervalo_fmt": _val("intervalo_mediano_dias", 0),
+        "intervalo_pares_fmt": _val("intervalo_mediano_pares", 0),
+        "motivo": (f"pouco volume: menos de {config.MIN_PACIENTES_PAINEL} "
+                   "beneficiários com este procedimento"
+                   if pouco else
+                   "grupo de pares insuficiente para análise comparativa"
+                   if sem_ref else None),
     }
 
+
     # ── concentração ────────────────────────────────────────────────────────
+    # ── concentração ────────────────────────────────────────────────────────
+    #
+    # O card RESPONDE, não despeja números. A pergunta é "de onde vem esse
+    # volume", e ela tem duas respostas possíveis — "de ninguém em particular"
+    # e "destas pessoas" —, cada uma com a sua forma:
+    #
+    #   sem ninguém acima do limiar -> uma frase e acabou. Sem lista, porque
+    #     lista de cinco linhas de 1% sugere achado onde não há;
+    #   com alguém acima -> a frase afirma o quanto, e a lista é a evidência.
+    #
+    # A comparação com os pares entra em PALAVRAS ("mais espalhado que o normal
+    # da área"), com os percentuais como apoio: "top 10% concentram 20,9% contra
+    # 25,0%" exige que o leitor saiba o que é um share do decil superior.
     concentracao = None
     if pacientes and not pouco:
+        destacados = pacientes["linhas"]
+        share = None if conc_row is None or pd.isna(conc_row.get("share_top")) \
+            else float(conc_row["share_top"])
+        share_pares = (None if conc_row is None
+                       or pd.isna(conc_row.get("share_top_mediana_pares"))
+                       else float(conc_row["share_top_mediana_pares"]))
+        if share is not None and share_pares is not None:
+            # A comparação com NÚMERO na tela, não só o adjetivo: "mais
+            # espalhado que o grupo de pares" é conclusão sem prova, e o leitor
+            # não tem como saber se a diferença é de 1 ponto ou de 20.
+            n_top = (math.ceil(config.FRAC_TOP_CONCENTRACAO * pacientes["n_pacientes"])
+                     if pacientes["n_pacientes"] else 0)
+            comparacao = (f"Os {n_top} que mais receberam concentram "
+                          f"{fmt_pct(share, 1)} das solicitações. "
+                          f"No grupo de pares, {fmt_pct(share_pares, 1)}.")
+            apoio = None
+        else:
+            comparacao = apoio = None
+
+        if destacados:
+            titulo = (f"{len(destacados)} "
+                      f"{'beneficiário concentra' if len(destacados) == 1 else 'beneficiários concentram'} "
+                      f"{fmt_pct(pacientes['pct_destacados'], 1)} das solicitações "
+                      f"deste procedimento")
+        else:
+            titulo = (f"Nenhum beneficiário concentra mais de "
+                      f"{fmt_pct(pacientes['limiar'])} das solicitações. O maior "
+                      f"recebeu {fmt_pct(pacientes['maior_pct'], 1)}.")
         concentracao = {
+            "titulo": titulo,
             "n_pacientes": pacientes["n_pacientes"],
+            "comparacao": comparacao,
+            "apoio": apoio,
             "linhas": [{
                 "id": l["ID_BENEFICIARIO"],
                 "ocasioes": int(l["ocasioes"]),
                 "itens_fmt": fmt(float(l["itens"]), 0),
-                "pct_fmt": fmt_pct(float(l["pct_do_procedimento"])),
+                "pct_fmt": fmt_pct(float(l["pct_do_procedimento"]), 1),
                 "pct": round(float(l["pct_do_procedimento"]), 4),
                 # "0 dias" lê como ausência de intervalo; o caso é repetição no
                 # MESMO dia, que desde a regra de sessão significa dois
-                # atendimentos separados por mais de uma hora — e é o caso mais
-                # apertado que existe, não o mais frouxo
+                # atendimentos separados por mais de uma hora
                 "intervalo_fmt": _intervalo_fmt(l["intervalo_dias"]),
-            } for l in pacientes["linhas"]],
-            "resto": {
-                "n_pacientes": pacientes["resto"]["n_pacientes"],
-                "pct_fmt": fmt_pct(pacientes["resto"]["pct_do_procedimento"]),
-            },
-            "share_top_fmt": (None if conc_row is None or pd.isna(conc_row.get("share_top"))
-                              else fmt_pct(float(conc_row["share_top"]))),
+            } for l in destacados],
         }
 
     # ── autorreferência (com portão) ────────────────────────────────────────
@@ -2489,6 +2589,10 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
         autorreferencia = {"apresentavel": False, "motivo": "sem itens na janela",
                            "taxa_fmt": None, "cobertura_fmt": None}
     else:
+        # "conta localizada" é vocabulário de quem fez o cruzamento das bases,
+        # não de quem lê a tela. O que o auditor precisa saber é se dá para
+        # apurar e sobre quanto: quem executou o pedido só é conhecido quando a
+        # solicitação encontra a conta correspondente.
         ok = bool(autorref_row["apresentavel"])
         autorreferencia = {
             "apresentavel": ok,
@@ -2497,19 +2601,152 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
             "cobertura_fmt": fmt_pct(float(autorref_row["cobertura"])),
             "itens_com_conta": int(autorref_row["itens_com_conta"]),
             "itens": int(autorref_row["itens"]),
-            "motivo": None if ok else "cobertura insuficiente",
+            "motivo": None if ok else "não é possível apurar",
+        }
+
+    # ── alcance na carteira ─────────────────────────────────────────────────
+    #
+    # A margem EXTENSIVA: que fatia dos beneficiários do cooperado recebe este
+    # procedimento. É a leitura que a frequência por consulta não dá — 45% da
+    # carteira contra 2,3% dos pares diz "isto virou rotina aqui", e nenhum
+    # número de intensidade diz isso.
+    alcance = None
+    if conc_row is not None and pd.notna(conc_row.get("pct_carteira")):
+        alcance = {
+            "pct_fmt": fmt_pct(float(conc_row["pct_carteira"])),
+            "pares_fmt": (None if pd.isna(conc_row.get("pct_carteira_mediana_pares"))
+                          else fmt_pct(float(conc_row["pct_carteira_mediana_pares"]))),
+            "n_beneficiarios": int(conc_row["n_pacientes_proc"]),
+            "n_carteira": int(conc_row["n_pacientes_carteira"]),
+        }
+
+    # ── peso na prática ─────────────────────────────────────────────────────
+    peso = None
+    if linha_par is not None and total_coop:
+        n_sol = float(linha_par["n_solicitacoes"])
+        exc = linha_par.get("excedente_itens")
+        # O excedente vai como FRAÇÃO do custo, não como um segundo R$ ao lado:
+        # com razão de 23,8x, 96% do que foi pedido fica acima da referência, e
+        # "R$ 41 mil no período · R$ 40 mil acima" lê como erro de cópia mesmo
+        # estando certo. A fração diz a mesma coisa e não parece defeito.
+        pct_exc = (float(exc) * preco / (n_sol * preco)
+                   if preco and exc is not None and pd.notna(exc) and float(exc) > 0
+                   and n_sol else None)
+        peso = {
+            "excedente_pct_fmt": None if pct_exc is None else fmt_pct(pct_exc),
+            "solicitacoes_fmt": fmt(n_sol, 0),
+            "proporcao_fmt": fmt_pct(n_sol / total_coop, 1),
+            "custo_total_fmt": None if preco is None else fmt_reais(n_sol * preco),
+            "custo_excedente_fmt": (None if preco is None or exc is None or pd.isna(exc)
+                                    or float(exc) <= 0 else fmt_reais(float(exc) * preco)),
+            "custo_unitario_fmt": None if preco is None else fmt_reais(preco),
         }
 
     return {
         "codigo": cd,
         "descricao": descricao,
         "regua": regua,
+        "alcance": alcance,
+        "peso": peso,
         "repeticao": repeticao,
         "concentracao": concentracao,
         "autorreferencia": autorreferencia,
         "trimestres": serie,
         "confianca": confianca,
         "sem_medida": config.SEM_MEDIDA,
+    }
+
+
+def pareto_custo_do_cooperado(rs_coop: pd.DataFrame) -> dict | None:
+    """Onde está o dinheiro deste cooperado, por procedimento — nos dois eixos.
+
+    Devolve DOIS Paretos completos, um por eixo, e a tela alterna entre eles:
+
+      custo       tudo que ele solicitou, valorado — "onde está o dinheiro";
+      excedente   só a parcela acima da referência do grupo de pares — "onde
+                  está a oportunidade".
+
+    Alternar o BLOCO INTEIRO, e não só a ordenação: num Pareto a barra, a ordem
+    e o acumulado são a mesma grandeza. Ordenar por um eixo desenhando o outro
+    deixaria a coluna de acumulado somando uma coisa numa ordem ditada por
+    outra — número certo, leitura falsa.
+
+    Sem realce de núcleo: os dois eixos já respondem "onde está o dinheiro" pela
+    ordem e pelo acumulado, e a divisão em duas tintas dizia uma terceira coisa
+    que ninguém tinha perguntado.
+
+    `rs_coop` = posicao_proc_rs do cooperado. Sem preço não há barra: linha sem
+    valor apurado não entra, e o total do bloco declara o que cobre.
+    """
+    if rs_coop is None or not len(rs_coop):
+        return None
+    d = rs_coop[rs_coop["preco_mediano"].notna()].copy()
+    if not len(d):
+        return None
+    d["custo"] = d["n_solicitacoes"] * d["preco_mediano"]
+    # só o excedente SINALIZADO é oportunidade: excedente medido em par que não
+    # passou os portões não se apresenta como dinheiro a recuperar
+    exc = d["excedente_itens"].fillna(0).clip(lower=0)
+    d["excedente"] = np.where(d["sinalizado"].astype(bool),
+                              exc * d["preco_mediano"], 0.0)
+
+    def _eixo(coluna: str, titulo: str, grandeza: str, sub: str) -> dict | None:
+        sub_d = d[d[coluna] > 0]
+        if not len(sub_d):
+            return None
+        base = _pareto_montar(list(zip(sub_d["CD_PROCEDIMENTO"], sub_d[coluna])),
+                              "procedimentos")
+        if base is None:
+            return None
+        linhas, total, leitura, n_nucleo, leitura_hover = base
+        por_cd = sub_d.set_index("CD_PROCEDIMENTO")
+        for linha in linhas:
+            cd = linha["id"]
+            r = por_cd.loc[cd]
+            if isinstance(r, pd.DataFrame):
+                r = r.iloc[0]
+            desc = str(r.get("DS_PROCEDIMENTO", config.SEM_MEDIDA)).strip()
+            linha["rotulo_linha"] = desc
+            linha["rotulo_tooltip"] = desc
+            linha["detalhes"] = [
+                f"Código TUSS: {cd}",
+                f"{fmt(r['n_solicitacoes'], 0)} solicitações · "
+                f"{fmt_reais(r['preco_mediano'])} cada",
+                f"Custo total no período: {fmt_reais(r['custo'])}",
+                (f"Acima da referência: {fmt_reais(r['excedente'])}"
+                 if r["excedente"] > 0 else "Dentro da referência do grupo de pares"),
+            ]
+        return {
+            "titulo": f"{titulo} · {fmt_reais(total)}",
+            "subtitulo": sub,
+            "colunas": {"rotulo": "Procedimento", "valor": "R$",
+                        "acumulado_reais": "Acumulado (R$)", "acumulado": "% acum."},
+            "total": round(total, 2), "total_fmt": fmt_reais(total),
+            "linhas": linhas,
+            "leitura": leitura,
+            "leitura_hover": leitura_hover,
+            "n_nucleo": n_nucleo,
+            "limiar_concentracao": config.LIMIAR_CONCENTRACAO_PARETO,
+            "grandeza": grandeza,
+            # barra em tinta única: ver a docstring
+            "destacar_nucleo": False,
+        }
+
+    quarentena = ("Preços internos provisórios, ainda não homologados contra a "
+                  "tabela contratual.")
+    eixos = {
+        "custo": _eixo("custo", "Custo das solicitações", "do custo", quarentena),
+        "excedente": _eixo("excedente", "Custo acima da referência",
+                           "do valor acima da referência", quarentena),
+    }
+    if eixos["custo"] is None:
+        return None
+    return {
+        "default": "custo",
+        "eixos": [e for e in ({"chave": "custo", "rotulo": "Custo total"},
+                              {"chave": "excedente", "rotulo": "Acima da referência"})
+                  if eixos[e["chave"]] is not None],
+        "dados": {k: v for k, v in eixos.items() if v is not None},
     }
 
 
