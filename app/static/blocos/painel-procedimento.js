@@ -119,13 +119,13 @@ function montarRegua(destino, d) {
     + 'parâmetros ativos da análise.');
   if (!g) {
     corpo.appendChild(el('span', 'sub',
-      'grupo de pares insuficiente para análise comparativa'));
+      'Grupo de pares insuficiente para análise comparativa.'));
     destino.appendChild(cartao);
     return;
   }
 
   if (g.razao_fmt) {
-    corpo.appendChild(el('span', 'v', `${g.razao_fmt} a referência do grupo de pares`));
+    corpo.appendChild(el('span', 'v', `${g.razao_fmt} a referência do grupo de pares.`));
   }
   const fig = grafico(g);
   fig.setAttribute('role', 'img');
@@ -144,7 +144,7 @@ function montarRegua(destino, d) {
     c.appendChild(el('span', `v ${classe ?? ''}`, valor));
     return c;
   };
-  vals.appendChild(par('este cooperado', g.marca.valor_fmt, 'v-mk'));
+  vals.appendChild(par('Este cooperado', g.marca.valor_fmt, 'v-mk'));
   vals.appendChild(par(g.referencia.rotulo, g.referencia.valor_fmt));
   if (g.criterio) {
     vals.appendChild(par(g.criterio.rotulo
@@ -153,7 +153,7 @@ function montarRegua(destino, d) {
   }
   corpo.appendChild(vals);
   corpo.appendChild(el('span', 'sub',
-    `${g.n_pares} cooperados da área solicitam este procedimento`));
+    `Grupo de pares: ${g.n_pares} cooperados com solicitações deste procedimento no período`));
   if (g.sem_criterio_motivo) corpo.appendChild(el('span', 'sub', g.sem_criterio_motivo));
   destino.appendChild(cartao);
 }
@@ -174,16 +174,16 @@ function montarRepeticao(destino, d) {
   }
 
   const frase = el('span', 'v');
-  frase.textContent = `${r.pct_repetem_fmt} dos beneficiários receberam mais de uma vez`;
+  frase.textContent = `${r.pct_repetem_fmt} dos beneficiários com mais de uma solicitação.`;
   corpo.appendChild(frase);
 
   const linhas = el('div', 'stack g4');
   linhas.appendChild(el('span', 'sub',
-    `referência do grupo de pares: ${r.pct_repetem_pares_fmt}`));
+    `Referência do grupo de pares: ${r.pct_repetem_pares_fmt}`));
   if (r.intervalo_fmt) {
     const i = el('span', 'sub',
-      `intervalo entre solicitações: ${r.intervalo_fmt} dias`
-      + (r.intervalo_pares_fmt ? ` · pares da área: ${r.intervalo_pares_fmt} dias` : ''));
+      `Intervalo entre solicitações: ${r.intervalo_fmt} dias`
+      + (r.intervalo_pares_fmt ? ` · grupo de pares: ${r.intervalo_pares_fmt} dias` : ''));
     i.title = 'Dias entre solicitações consecutivas do mesmo procedimento para o '
       + 'mesmo beneficiário, apurado apenas sobre quem repetiu.';
     linhas.appendChild(i);
@@ -250,14 +250,14 @@ function montarAlcance(destino, d) {
     + 'período. Responde se o procedimento é rotina na carteira ou exceção, '
     + 'leitura que a frequência por consulta não dá.');
   corpo.appendChild(el('span', 'v',
-    `${a.pct_fmt} da carteira recebeu este procedimento`));
+    `${a.pct_fmt} da carteira com solicitação deste procedimento.`));
   const det = el('div', 'stack g4');
   if (a.pares_fmt) {
     det.appendChild(el('span', 'sub',
-      `referência do grupo de pares: ${a.pares_fmt}`));
+      `Referência do grupo de pares: ${a.pares_fmt}`));
   }
   det.appendChild(el('span', 'sub',
-    `${a.n_beneficiarios} de ${a.n_carteira} beneficiários atendidos no período`));
+    `Base: ${a.n_beneficiarios} de ${a.n_carteira} beneficiários atendidos no período`));
   corpo.appendChild(det);
   destino.appendChild(cartao);
 }
@@ -267,7 +267,7 @@ function montarEvolucao(destino, d) {
   const t = d.trimestres;
   if (!t?.length) return;
   const acima = t.filter((x) => x.sinalizado).length;
-  const { cartao, corpo } = secao('Evolução no período',
+  const { cartao, corpo } = secao('Consistência no período',
     'Trimestres em que a frequência ficou acima do critério de revisão. '
     + 'Padrão que se repete em trimestres distintos separa variação sustentada '
     + 'de oscilação de uma janela só.');
@@ -278,7 +278,7 @@ function montarEvolucao(destino, d) {
      usa na tabela. Eu havia escrito `.crit`, que não existe em `.spark` e deixava
      os quatro quadrados cinza mesmo com quatro trimestres acima do critério. */
   corpo.appendChild(el('span', 'v',
-    `${acima} de ${t.length} trimestres acima do critério de revisão`));
+    `${acima} de ${t.length} trimestres acima do critério de revisão.`));
   const barras = el('div', 'spark');
   for (const q of t) {
     const i = document.createElement('i');
@@ -297,20 +297,20 @@ function montarEvolucao(destino, d) {
 function montarPeso(destino, d) {
   const p = d.peso;
   if (!p) return;
-  const { cartao, corpo } = secao('Peso na prática',
+  const { cartao, corpo } = secao('Participação no período',
     'Participação deste procedimento no total solicitado pelo cooperado no '
     + 'período e valor correspondente. Preços internos provisórios, ainda não '
     + 'homologados contra a tabela contratual.');
   corpo.appendChild(el('span', 'v',
-    `${p.proporcao_fmt} de tudo que o cooperado solicitou`));
+    `${p.proporcao_fmt} do total solicitado pelo cooperado.`));
   const det = el('div', 'stack g4');
   det.appendChild(el('span', 'sub',
-    `${p.solicitacoes_fmt} solicitações`
-    + (p.custo_unitario_fmt ? ` · ${p.custo_unitario_fmt} cada` : '')));
+    `Volume: ${p.solicitacoes_fmt} solicitações`
+    + (p.custo_unitario_fmt ? ` · ${p.custo_unitario_fmt} por solicitação` : '')));
   if (p.custo_total_fmt) {
     const c = el('span', 'sub',
-      `${p.custo_total_fmt} no período`
-      + (p.excedente_pct_fmt ? `, ${p.excedente_pct_fmt} acima da referência` : ''));
+      `Custo: ${p.custo_total_fmt} no período`
+      + (p.excedente_pct_fmt ? ` · ${p.excedente_pct_fmt} acima da referência` : ''));
     c.title = 'Valor apurado com preço mediano das contas do período. '
       + 'Preço interno provisório, em quarentena até a homologação.';
     det.appendChild(c);
@@ -330,8 +330,8 @@ function montarAutorreferencia(destino, d) {
     /* A cobertura viaja SEMPRE junto da taxa — é premissa declarada no motor,
        não nota de rodapé: a taxa vale sobre os itens com conta localizada. */
     const cob = el('span', 'sub',
-      `Apurado sobre os ${a.cobertura_fmt} dos pedidos em que se sabe quem `
-      + `executou (${a.itens_com_conta} de ${a.itens}).`);
+      `Base: ${a.itens_com_conta} de ${a.itens} solicitações com executante `
+      + `identificado (${a.cobertura_fmt})`);
     cob.title = 'Quem executou um pedido só é conhecido quando a solicitação '
       + 'encontra a conta correspondente. O método presume que os demais se '
       + 'comportam como os observados.';
@@ -340,8 +340,8 @@ function montarAutorreferencia(destino, d) {
     corpo.appendChild(el('span', 'sub', a.motivo ?? d.sem_medida));
     if (a.cobertura_fmt) {
       corpo.appendChild(el('span', 'sub',
-        `Em apenas ${a.cobertura_fmt} dos pedidos se sabe quem executou `
-        + `(${a.itens_com_conta} de ${a.itens}), pouco para apurar a taxa.`));
+        `Executante identificado em ${a.itens_com_conta} de ${a.itens} solicitações `
+        + `(${a.cobertura_fmt}), abaixo do mínimo para apurar a taxa.`));
     }
   }
   destino.appendChild(cartao);
@@ -378,14 +378,14 @@ export async function abrirPainel(destino, cooperadoId, linha, aoFechar) {
   destino.appendChild(corpo);
   /* Estado de carga na PRÓPRIA superfície que vai receber o dado: painel que
      abre vazio e enche depois faz o leitor duvidar se clicou. */
-  const carregando = el('span', 'sub', 'carregando…');
+  const carregando = el('span', 'sub', 'Carregando…');
   corpo.appendChild(carregando);
 
   let d;
   try {
     d = await buscar(`/api/cooperado/${cooperadoId}/procedimento/${linha.codigo}`);
   } catch {
-    carregando.textContent = 'não foi possível carregar o detalhe deste procedimento';
+    carregando.textContent = 'Não foi possível carregar o detalhe deste procedimento.';
     return;
   }
   corpo.replaceChildren();

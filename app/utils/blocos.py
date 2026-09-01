@@ -8,7 +8,8 @@ daqui corresponde a um componente do guia visual (Claude Design, projeto
     composicao_referencia  -> §08 "Barra de composição segmentada" (+ excluídos)
     contexto_da_area       -> linha de texto sob o título; ocupou o lugar da
                               §08 "Faixa de estatísticas" em 2026-08-19
-    distribuicao           -> §05 "Distribuição do índice de solicitação"
+    distribuicao           -> §05 "Distribuição do índice de solicitação",
+                              em três medidas alternáveis na tela
     linhas_cooperados      -> §04 "Cooperados da área" (tabela + régua de posição)
     linhas_procedimentos   -> aba "Procedimentos"
 
@@ -29,7 +30,7 @@ import config
 from utils import apresentacao as apr
 from utils import cascata
 from utils import dados
-from utils.pipeline import filtrar_sinalizados
+from utils.pipeline import filtrar_sinalizados, norma_por_area
 
 # Estados de uma área — governam o que a tela pode mostrar (espec funcional, regra 5).
 # Cada um tem tratamento visual próprio no guia; nenhum é silencioso.
@@ -274,6 +275,22 @@ def fmt_reais(valor) -> str:
     if abs(v) >= 1_000:
         return f"R$ {fmt(v / 1_000, 0)} mil"
     return f"R$ {fmt(v, 0)}"
+
+
+def fmt_reais_unitario(valor) -> str:
+    """Valor monetário POR CONSULTA: R$ com centavos, sem abreviar.
+
+    `fmt_reais` abrevia e arredonda ao real porque foi escrito para TOTAIS, onde
+    sete dígitos numa linha de apoio de 11px não se leem e o que importa é a
+    ordem de grandeza. Preço unitário é o caso oposto: vive entre zero e algumas
+    centenas, e arredondar ao real inteiro apaga a parte BAIXA da distribuição,
+    onde R$ 0,40 vira "R$ 0" e passa a ler como ausência de custo. É a mesma
+    armadilha que `fmt_taxa` resolve para taxas raras, e a mesma distinção que o
+    ajuste 4 do CLAUDE.md existe para proteger: ausência não é zero.
+    """
+    if valor is None or (isinstance(valor, float) and np.isnan(valor)):
+        return config.SEM_MEDIDA
+    return f"R$ {fmt(valor, 2)}"
 
 
 def slug(area: str) -> str:
@@ -990,18 +1007,239 @@ def _classe_ponto(taxa: float, p75: float | None, valor_crit: float | None) -> s
 # §05 — Gráfico de distribuição
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ── as TRÊS leituras da mesma caixa (2026-08-31) ─────────────────────────────
+#
+# O gráfico respondia uma pergunta só: quem pede mais exames por consulta. Quem
+# pede POUCO e CARO ficava no meio da nuvem, indistinguível de quem pede pouco e
+# barato. As três medidas são o MESMO desenho, sobre o MESMO grupo, trocando só
+# a grandeza do eixo:
+#
+#   exames    quantidade   solicitações por consulta       (o índice de sempre)
+#   custo     dinheiro     R$ solicitados por consulta     (a coluna da tabela)
+#   excesso   dinheiro     variação excedente em R$ por consulta
+#
+# Trocar de medida NÃO troca quem está em cena: é leitura, não recorte (lei 0).
+# O recorte e o perfil continuam governando quem aparece, nas três.
+#
+# Duas regras governam as duas medidas de dinheiro:
+#
+#   · AUSÊNCIA NÃO É ZERO (ajuste 4). Quem não tem preço nas contas, ou nenhum
+#     procedimento acima do critério, fica FORA do gráfico e é contado no
+#     rodapé. Um ponto sobre o zero leria como "não custa nada" quando o que há
+#     é "não medido". Mesma decisão que a dispersão já tomava.
+#   · A CAIXA continua sendo a do grupo que FORMA A REFERÊNCIA da área, medida
+#     pela mesma função do pipeline que constrói a norma (`norma_por_area`),
+#     com o mesmo piso, recebido por argumento. Nenhum quantil nasce aqui
+#     (Lei 1). Em "excesso" a caixa é necessariamente CONDICIONAL: resume quem
+#     tem excedente valorado, e o rodapé declara isso, com o n.
+#
+# (chave, rótulo do controle, título do cartão, grandeza do subtítulo, motivo de
+#  quem fica de fora)
+# O RÓTULO do controle é telegráfico ("Custo", não "Custo médio por consulta"):
+# o segmentado é o interruptor, e quem diz a grandeza por extenso é o título do
+# cartão, que troca junto e fica a dois centímetros dele. Rótulo longo aqui
+# quebrava em duas linhas e engolia a metade direita do cabeçalho.
+_MEDIDAS = (
+    ("exames", "Exames",
+     "Distribuição do índice de solicitação",
+     "solicitações por consulta na janela",
+     "sem índice medido"),
+    ("custo", "Custo",
+     "Distribuição do custo por consulta",
+     "R$ solicitados por consulta na janela, a preço interno provisório",
+     "sem preço nas contas"),
+    ("excesso", "Excesso",
+     "Distribuição do excesso por consulta",
+     "variação excedente em R$ por consulta na janela",
+     "sem variação excedente valorada"),
+)
+
+# formatador de cada medida: quantidade em número, dinheiro em R$ com
+# centavos (é preço unitário, não total: ver `fmt_reais_unitario`)
+_FORMATO_MEDIDA = {"exames": fmt, "custo": fmt_reais_unitario,
+                   "excesso": fmt_reais_unitario}
+
+
+def _valores_da_medida(av: pd.DataFrame, chave: str,
+                       custo_por_coop: dict[str, dict] | None,
+                       excedente_por_coop: dict[str, float] | None) -> pd.Series:
+    """A coluna de valores de uma medida, com AUSÊNCIA em NaN, nunca em zero.
+
+    `custo` sai do MESMO `custo_coop` do motor de execução que alimenta a coluna
+    "Custo por consulta" da tabela: derivar aqui um segundo custo por consulta
+    faria o gráfico e a lista logo abaixo discordarem sobre o mesmo cooperado.
+
+    `excesso` é razão de dois TOTAIS do motor (excedente em R$ da janela ÷
+    consultas da janela), nunca média de razões por consulta (rigor §10).
+    """
+    if chave == "exames":
+        return av["taxa_exames_por_consulta"].astype(float)
+    if chave == "custo":
+        bruto = av["ID_COOPERADO"].map(
+            lambda c: (custo_por_coop or {}).get(c, {}).get("custo_por_consulta"))
+    else:
+        bruto = (av["ID_COOPERADO"].map(excedente_por_coop or {})
+                 / av["consultas_totais"].astype(float))
+    valores = pd.to_numeric(bruto, errors="coerce")
+    # zero aqui é ausência de preço ou de par acima do critério, não dinheiro
+    # medido: sai da medida em vez de virar um ponto empilhado no eixo
+    return valores.where(valores > 0)
+
+
+def _norma_da_medida(av: pd.DataFrame, valores: pd.Series, piso: int):
+    """Mediana, P25 e P75 da medida pela MESMA função que constrói a norma da área.
+
+    Roda sobre `av` com a coluna da medida no lugar da taxa: piso e
+    elegibilidade (`elegivel_norma`) continuam sendo os do pipeline, passados
+    por argumento (Lei 3), e quem não tem a medida (NaN) não entra na conta em
+    vez de entrar como zero. Devolve None quando ninguém que forma a referência
+    tem a medida, e aí a medida vai para a tela SEM caixa, o que é honesto:
+    sem grupo não há quartil.
+    """
+    quadro = av.assign(_medida=valores)
+    n = norma_por_area(quadro, piso, col_taxa="_medida")
+    if n.empty or int(n.iloc[0]["n_na_norma"]) == 0:
+        return None
+    return n.iloc[0]
+
+
+def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
+                     motivo_fora: str, av: pd.DataFrame, valores: pd.Series,
+                     norma, rotulos_posicao: pd.Series, intensidade,
+                     exc: dict[str, float]) -> dict | None:
+    """Uma medida pronta para desenhar: escala, haste, caixa, eixo e pontos.
+
+    Geometria em `pos_pct`, como o resto do bloco: o JavaScript posiciona, não
+    calcula. Cada ponto carrega o próprio DENOMINADOR (`consultas_fmt`), que é o
+    mesmo nas três medidas e é o que sustenta qualquer uma delas (rigor §1).
+    """
+    presentes = valores.dropna().sort_values()
+    if presentes.empty:
+        return None
+    formatar = _FORMATO_MEDIDA[chave]
+
+    def _num(campo):
+        if norma is None or pd.isna(norma[campo]):
+            return None
+        return float(norma[campo])
+
+    p25, p75, mediana = _num("p25"), _num("p75"), _num("mediana")
+    n_caixa = 0 if norma is None else int(norma["n_na_norma"])
+
+    # Estatística de grupo minúsculo é ANEDOTA (rigor §2). Abaixo do n que
+    # sustenta percentil, a medida vai para a tela SEM caixa e SEM referência do
+    # grupo, com o motivo no rodapé: uma caixa desenhada sobre três observações
+    # afirma um espalhamento que não existe. Acontece só nas medidas de dinheiro,
+    # e só quando quase ninguém da área tem preço nas contas ou par acima do
+    # critério; os PONTOS ficam todos, porque o outlier é o produto (rigor §7).
+    if n_caixa < config.N_MINIMO_P75:
+        p25 = p75 = mediana = None
+
+    observados = [float(v) for v in presentes]
+    escala = _escala(observados + [v for v in (p25, p75) if v is not None])
+
+    # todo número de indivíduo anda com a referência do grupo ao lado
+    # (LEXICO_PRODUTO, princípio 6). No índice essa referência é o percentil
+    # traduzido, que o motor já produz; nas duas de dinheiro, a mediana do grupo.
+    if chave == "exames":
+        leitura_padrao = "dentro da referência da área"
+    elif mediana is None:
+        leitura_padrao = "sem referência do grupo para esta medida"
+    else:
+        leitura_padrao = f"referência do grupo: {formatar(mediana)} por consulta"
+
+    pontos = []
+    for indice, valor in presentes.items():
+        linha = av.loc[indice]
+        coop = linha["ID_COOPERADO"]
+        rotulo_pos = (rotulos_posicao.get(indice, config.SEM_MEDIDA)
+                      if chave == "exames" else None)
+        # ajuste 2 do CLAUDE.md: percentil nunca viaja sem tradução
+        traducao = apr.traduzir_percentil(rotulo_pos) if rotulo_pos else None
+        pontos.append({
+            "id": coop,
+            "valor": round(float(valor), 4), "valor_fmt": formatar(valor),
+            "pos_pct": _pos(valor, escala),
+            # `intensidade` é DADO (0–1); a tinta sai dele no CSS
+            "intensidade": intensidade(coop),
+            "excedente_reais": round(exc.get(coop, 0.0), 2),
+            "excedente_reais_fmt": fmt_reais(exc[coop]) if coop in exc else None,
+            "consultas": int(linha["consultas_totais"]),
+            "consultas_fmt": fmt(linha["consultas_totais"], 0),
+            "percentil": rotulo_pos,
+            "leitura": traducao or leitura_padrao,
+        })
+
+    menor, maior = observados[0], observados[-1]
+    n_fora = int(len(av) - len(presentes))
+
+    # o rodapé do cartão: sobre quantos a caixa se apoia, quem ficou de fora e
+    # por quê, e a ressalva de preço quando a medida é dinheiro. Estatística de
+    # grupo sem n visível é anedota (rigor §2), e ausência sem motivo declarado
+    # vira zero na cabeça de quem lê.
+    nota = []
+    if p25 is not None:
+        nota.append(f"caixa P25–P75 de {n_caixa} que formam a referência")
+    elif n_caixa:
+        nota.append(f"sem caixa: só {n_caixa} de quem forma a referência tem esta "
+                    f"medida, abaixo dos {config.N_MINIMO_P75} que sustentam quartis")
+    else:
+        nota.append("sem caixa: nenhum formador da referência tem esta medida")
+    if n_fora:
+        nota.append(f"{n_fora} {motivo_fora}, fora do gráfico")
+    if chave != "exames":
+        nota.append(_PARETO_METODO)
+
+    return {
+        "chave": chave, "rotulo": rotulo, "titulo": titulo,
+        "subtitulo": f"Cada ponto é um cooperado avaliável · {grandeza}",
+        "escala": {"min": round(escala["min"], 4), "max": round(escala["max"], 4)},
+        # HASTE do menor ao maior valor observado: é o alcance total da
+        # distribuição, que a caixa sozinha não mostra
+        "haste": {"de": round(menor, 4), "ate": round(maior, 4),
+                  "de_fmt": formatar(menor), "ate_fmt": formatar(maior),
+                  "pos_pct": _pos(menor, escala),
+                  "largura_pct": round(_pos(maior, escala) - _pos(menor, escala), 2)},
+        "faixa_iqr": None if p25 is None or p75 is None else {
+            "rotulo": "IQR", "de": round(p25, 4), "ate": round(p75, 4),
+            "pos_pct": _pos(p25, escala),
+            "largura_pct": round(_pos(p75, escala) - _pos(p25, escala), 2)},
+        # SEM linhas de referência e de critério (2026-08-20): o critério
+        # agregado não governa nada e a referência que conta é a de cada exame.
+        "referencias": [],
+        # extremos observados e as bordas da caixa: a única marca de grupo que
+        # sobrou, e ela é descritiva
+        "eixo": [{"valor": round(v, 4), "valor_fmt": formatar(v),
+                  "pos_pct": _pos(v, escala)}
+                 for v in dict.fromkeys(
+                     [menor] + [x for x in (p25, p75) if x is not None] + [maior])],
+        "pontos": pontos,
+        "n_pontos": len(pontos),
+        "n_fora": n_fora,
+        "n_na_caixa": n_caixa,
+        "nota": " · ".join(nota),
+    }
+
+
 def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | None,
                  rotulos_posicao: pd.Series, referencia: str = "mediana",
-                 excedente_por_coop: dict[str, float] | None = None) -> dict | None:
-    """Um ponto por cooperado avaliável, com as linhas de referência rotuladas.
+                 excedente_por_coop: dict[str, float] | None = None, *,
+                 piso: int, custo_por_coop: dict[str, dict] | None = None) -> dict | None:
+    """Um ponto por cooperado avaliável, em TRÊS medidas alternáveis na tela.
 
     Devolve None quando a área não sustenta distribuição (grupo insuficiente,
     sem referência, sem peer group): o guia proíbe gráfico sem critério visível.
 
-    ── a COR passou a ser o DINHEIRO (2026-08-20) ───────────────────────────
+    ── as três medidas (2026-08-31) ────────────────────────────────────────
+    Ver o comentário de `_MEDIDAS`, logo acima: mesmo desenho, mesmo grupo, três
+    grandezas no eixo. Todas viajam prontas no MESMO payload, porque trocar de
+    medida é leitura e não recorte, e uma ida ao servidor para mudar de eixo
+    faria parecer que o conjunto medido mudou junto.
+
+    ── a COR é o DINHEIRO, e é a MESMA nas três (2026-08-20) ────────────────
     Cada ponto é tingido pelo EXCEDENTE EM R$ do cooperado, do neutro ao
-    vermelho. Antes a cor era severidade — cinza / acima do P75 / acima do
-    critério —, e havia dois problemas nisso.
+    vermelho. Antes a cor era severidade (cinza / acima do P75 / acima do
+    critério), e havia dois problemas nisso.
 
     O primeiro: o critério agregado não governa nada. Não filtra a cascata, não
     entra em nenhum R$, não decide quem vai a comitê. Produzia uma contagem na
@@ -1013,18 +1251,29 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
     excedente estava fora deles.
 
     Com a cor no dinheiro, o gráfico responde uma pergunta por canal: POSIÇÃO
-    diz quanto o cooperado pede, COR diz quanto isso custa, e a caixa IQR diz
-    como o grupo se espalha. Nenhuma régua fingida.
+    diz quanto (a grandeza escolhida no controle), COR diz quanto isso custa no
+    total, e a caixa IQR diz como o grupo se espalha. Na medida "excesso" os
+    dois canais são o mesmo dinheiro em lentes diferentes, e de propósito:
+    posição é a INTENSIDADE (por consulta), cor é a MAGNITUDE (o total da
+    janela), as duas lentes que o rigor §3 exige juntas.
 
-    A escala é por QUANTIL, não por valor: o excedente vai de dezenas de milhares
-    a centenas de milhares, e uma rampa linear pintaria dois pontos vermelhos e
-    sessenta e um quase brancos. Quantil dá gradação em toda a nuvem — e a
-    escolha viaja declarada na legenda, porque escala de cor sem método anunciado
-    faz o leitor supor proporcionalidade que não existe.
+    A escala da cor é por QUANTIL, não por valor: o excedente vai de dezenas de
+    milhares a centenas de milhares, e uma rampa linear pintaria dois pontos
+    vermelhos e sessenta e um quase brancos. Quantil dá gradação em toda a nuvem,
+    e a escolha viaja declarada na legenda, porque escala de cor sem método
+    anunciado faz o leitor supor proporcionalidade que não existe.
 
     As LINHAS de referência e critério saíram junto: sem paleta de severidade,
     elas eram as últimas réguas decorativas do bloco. Quem quiser ver régua de
     verdade vê no gráfico por exame, onde ela de fato rege.
+
+    Parâmetros além dos evidentes:
+        piso: volume mínimo de consultas, por argumento (Lei 3), o mesmo do
+            pipeline. Governa quem forma a caixa de cada medida.
+        custo_por_coop: `custo_coop` do motor de execução, indexado por
+            cooperado. É a fonte da coluna "Custo por consulta" da tabela.
+        excedente_por_coop: excedente em R$ por cooperado, a mesma fonte que
+            tinge os pontos, alimenta o Pareto e os cards.
     """
     if norma_linha is None or gatilho_usado is None:
         return None
@@ -1032,16 +1281,12 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
     if av.empty:
         return None
 
-    p25, p75 = float(norma_linha["p25"]), float(norma_linha["p75"])
-    mediana = float(norma_linha["mediana"])
-    taxas = av["taxa_exames_por_consulta"].astype(float).tolist()
-    escala = _escala(taxas + [p25, p75])
-
     # ── a rampa de cor: posição do cooperado na ORDEM dos excedentes ─────────
-    # Quem não tem excedente valorado fica em 0 (o extremo neutro da rampa) —
+    # Quem não tem excedente valorado fica em 0 (o extremo neutro da rampa):
     # é ausência de dinheiro, e a rampa começa exatamente aí.
     exc = {c: float(v) for c, v in (excedente_por_coop or {}).items() if v > 0}
     ordem = sorted(exc.values())
+
     def _intensidade(coop: str) -> float:
         v = exc.get(coop)
         if v is None or len(ordem) < 2:
@@ -1049,54 +1294,29 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
         # fração de quem ele supera: 0 no menor, 1 no maior
         return round(ordem.index(v) / (len(ordem) - 1), 4)
 
-    pontos = []
-    for _, linha in av.sort_values("taxa_exames_por_consulta").iterrows():
-        taxa = float(linha["taxa_exames_por_consulta"])
-        rotulo_pos = rotulos_posicao.get(linha.name, config.SEM_MEDIDA)
-        traducao = apr.traduzir_percentil(rotulo_pos)
-        pontos.append({
-            "id": linha["ID_COOPERADO"],
-            "valor": round(taxa, 4), "valor_fmt": fmt(taxa),
-            "pos_pct": _pos(taxa, escala),
-            # `intensidade` é DADO (0–1); a tinta sai dele no CSS
-            "intensidade": _intensidade(linha["ID_COOPERADO"]),
-            "excedente_reais": round(exc.get(linha["ID_COOPERADO"], 0.0), 2),
-            "excedente_reais_fmt": (fmt_reais(exc[linha["ID_COOPERADO"]])
-                                    if linha["ID_COOPERADO"] in exc else None),
-            "consultas": int(linha["consultas_totais"]),
-            "consultas_fmt": fmt(linha["consultas_totais"], 0),
-            "percentil": rotulo_pos,
-            "leitura": traducao or "dentro da referência da área",
-        })
-
-    # A HASTE do box: do menor ao maior valor observado. Vem do motor e não da
-    # leitura dos pontos no front, para a tela não precisar varrer a lista para
-    # saber onde a distribuição começa e termina.
-    menor, maior = min(taxas), max(taxas)
+    medidas = []
+    for chave, rotulo, titulo, grandeza, motivo_fora in _MEDIDAS:
+        valores = _valores_da_medida(av, chave, custo_por_coop, excedente_por_coop)
+        # o índice usa a norma JÁ PUBLICADA da área, a mesma que o rodapé da
+        # tabela imprime; as duas de dinheiro não têm norma publicada e a
+        # constroem com a mesma função, sobre o mesmo grupo
+        norma = (norma_linha if chave == "exames"
+                 else _norma_da_medida(av, valores, piso))
+        bloco = _bloco_da_medida(chave, rotulo, titulo, grandeza, motivo_fora,
+                                 av, valores, norma, rotulos_posicao,
+                                 _intensidade, exc)
+        if bloco is not None:
+            medidas.append(bloco)
+    if not medidas:
+        return None
 
     return {
-        "escala": {"min": round(escala["min"], 4), "max": round(escala["max"], 4)},
-        "haste": {"de": round(menor, 4), "ate": round(maior, 4),
-                  "de_fmt": fmt(menor), "ate_fmt": fmt(maior),
-                  "pos_pct": _pos(menor, escala),
-                  "largura_pct": round(_pos(maior, escala) - _pos(menor, escala), 2)},
-        "faixa_iqr": {"rotulo": "IQR", "de": round(p25, 4), "ate": round(p75, 4),
-                      "pos_pct": _pos(p25, escala),
-                      "largura_pct": round(_pos(p75, escala) - _pos(p25, escala), 2)},
-        # SEM linhas de referência e de critério (2026-08-20): o critério
-        # agregado não governa nada e a referência que conta é a de cada exame,
-        # não a do índice. Régua desenhada que não mede é o defeito que este
-        # bloco carregava — ver a docstring.
-        "referencias": [],
-        # o eixo carrega os extremos observados e o meio da faixa interquartil,
-        # que é a única marca de grupo que sobrou e é descritiva
-        "eixo": [{"valor": round(v, 4), "valor_fmt": fmt(v), "pos_pct": _pos(v, escala)}
-                 for v in dict.fromkeys([min(taxas), p25, p75, max(taxas)])],
-        "pontos": pontos,
+        "medida_padrao": medidas[0]["chave"],
+        "medidas": medidas,
         # ── a legenda da RAMPA, com valores ─────────────────────────────────
         # "menor → maior" faria a cor virar sensação. As pontas e o meio em R$,
         # e o método da escala declarado: sem isso o leitor supõe que o dobro de
-        # tinta é o dobro de dinheiro, e não é — é o dobro de posição na fila.
+        # tinta é o dobro de dinheiro, e não é: é o dobro de posição na fila.
         "rampa": None if len(ordem) < 2 else {
             "rotulo": "excedente em R$",
             "metodo": "tinta por ordem de excedente, não por valor",
@@ -1107,8 +1327,6 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
             ],
         },
         "legenda": [{"classe": "band", "rotulo": "faixa P25–P75"}],
-        "subtitulo": ("Cada ponto é um cooperado avaliável · solicitações por "
-                      "consulta na janela"),
     }
 
 
@@ -2447,11 +2665,11 @@ def regua_do_procedimento(linha_par, p25: float | None, taxa: float,
         # quando o parâmetro muda.
         "referencia": {"valor_fmt": fmt_frequencia(referencia),
                        "pos_pct": _pos(referencia, escala),
-                       "rotulo": f"referência de adequação ({_ROTULO_NIVEL.get(alvo, alvo)})"},
+                       "rotulo": f"Referência de adequação ({_ROTULO_NIVEL.get(alvo, alvo)})"},
         "criterio": (None if valor_crit is None else
                      {"valor_fmt": fmt_frequencia(valor_crit),
                       "pos_pct": _pos(valor_crit, escala),
-                      "rotulo": f"critério de revisão ({gatilho.upper()})",
+                      "rotulo": f"Critério de revisão ({gatilho.upper()})",
                       "ajustado": gatilho != criterio_pedido}),
         "marca": {"valor_fmt": fmt_frequencia(taxa),
                   "pos_pct": _pos(taxa, escala),
@@ -2459,8 +2677,8 @@ def regua_do_procedimento(linha_par, p25: float | None, taxa: float,
                       _classe_ponto(taxa, p75, valor_crit)]},
         "razao_fmt": None if razao is None else f"{fmt(razao, 1)}×",
         "sem_criterio_motivo": (None if valor_crit is not None else
-                                "grupo de pares insuficiente para sustentar "
-                                "percentil: posição descritiva, sem critério"),
+                                "Grupo de pares insuficiente para sustentar "
+                                "percentil. Posição descritiva, sem critério."),
     }
 
 
@@ -2514,10 +2732,10 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
         "pct_repetem_pares_fmt": _val("pct_repetem_mediana_pares", 0, pct=True),
         "intervalo_fmt": _val("intervalo_mediano_dias", 0),
         "intervalo_pares_fmt": _val("intervalo_mediano_pares", 0),
-        "motivo": (f"pouco volume: menos de {config.MIN_PACIENTES_PAINEL} "
-                   "beneficiários com este procedimento"
+        "motivo": (f"Pouco volume. Menos de {config.MIN_PACIENTES_PAINEL} "
+                   "beneficiários com este procedimento no período."
                    if pouco else
-                   "grupo de pares insuficiente para análise comparativa"
+                   "Grupo de pares insuficiente para análise comparativa."
                    if sem_ref else None),
     }
 
@@ -2550,9 +2768,9 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
             # não tem como saber se a diferença é de 1 ponto ou de 20.
             n_top = (math.ceil(config.FRAC_TOP_CONCENTRACAO * pacientes["n_pacientes"])
                      if pacientes["n_pacientes"] else 0)
-            comparacao = (f"Os {n_top} que mais receberam concentram "
-                          f"{fmt_pct(share, 1)} das solicitações. "
-                          f"No grupo de pares, {fmt_pct(share_pares, 1)}.")
+            comparacao = (f"Os {n_top} beneficiários de maior volume concentram "
+                          f"{fmt_pct(share, 1)} das solicitações; no grupo de "
+                          f"pares, {fmt_pct(share_pares, 1)}.")
             apoio = None
         else:
             comparacao = apoio = None
@@ -2561,11 +2779,11 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
             titulo = (f"{len(destacados)} "
                       f"{'beneficiário concentra' if len(destacados) == 1 else 'beneficiários concentram'} "
                       f"{fmt_pct(pacientes['pct_destacados'], 1)} das solicitações "
-                      f"deste procedimento")
+                      f"deste procedimento.")
         else:
             titulo = (f"Nenhum beneficiário concentra mais de "
-                      f"{fmt_pct(pacientes['limiar'])} das solicitações. O maior "
-                      f"recebeu {fmt_pct(pacientes['maior_pct'], 1)}.")
+                      f"{fmt_pct(pacientes['limiar'])} das solicitações. "
+                      f"O maior concentra {fmt_pct(pacientes['maior_pct'], 1)}.")
         concentracao = {
             "titulo": titulo,
             "n_pacientes": pacientes["n_pacientes"],
@@ -2586,7 +2804,7 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
 
     # ── autorreferência (com portão) ────────────────────────────────────────
     if autorref_row is None:
-        autorreferencia = {"apresentavel": False, "motivo": "sem itens na janela",
+        autorreferencia = {"apresentavel": False, "motivo": "Sem solicitações no período",
                            "taxa_fmt": None, "cobertura_fmt": None}
     else:
         # "conta localizada" é vocabulário de quem fez o cruzamento das bases,
@@ -2601,7 +2819,7 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
             "cobertura_fmt": fmt_pct(float(autorref_row["cobertura"])),
             "itens_com_conta": int(autorref_row["itens_com_conta"]),
             "itens": int(autorref_row["itens"]),
-            "motivo": None if ok else "não é possível apurar",
+            "motivo": None if ok else "Não apurável",
         }
 
     # ── alcance na carteira ─────────────────────────────────────────────────

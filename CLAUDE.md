@@ -108,6 +108,7 @@ Vivem no fim do `components.css`, sob o cabeçalho `COMPONENTES NOVOS`. Hoje:
 | `.deflist` · `.def-row` · `.def-k` · `.def-v` · `.def-act` | linha de atributo: rótulo, valor, apoio e ação opcional | tela de conta |
 | `.leitura` | coluna estreita (720px) para tela sem tabela nem gráfico | tela de conta |
 | `[hidden]` | garante `display:none` contra especificidade acidental | corrigiu o rodapé da lateral e o painel do dossiê |
+| `.hd-ctl` | controle na direita de um `.tbl-hd` (só posicionamento; a aparência é do `.seg`) | seletor de medida do gráfico de distribuição |
 
 
 ### Fronteira de responsabilidade do JavaScript

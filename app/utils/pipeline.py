@@ -106,10 +106,15 @@ def norma_por_area(
     # baixa, alerta masculino, ultrassonografista NÃO formam — mas seguem medidos)
     # p25 acompanha para o IQR (P75−P25) da leitura robusta — não é régua de sinalização
     elegiveis = taxa_agregada[(taxa_agregada[col_vol] >= piso) & taxa_agregada["elegivel_norma"]]
-    return (elegiveis.groupby(col_area)[col_taxa]
-            .agg(n_na_norma="count", p25=lambda s: s.quantile(.25), mediana="median",
-                 p75=lambda s: s.quantile(.75), p90=lambda s: s.quantile(.90))
-            .reset_index())
+    # `.quantile()` do groupby, não `.agg(lambda s: s.quantile(...))`: a lambda
+    # constrói um Series por grupo em Python, o método nativo roda em C. Mesmo
+    # resultado (ambos skipna, mesma interpolação linear).
+    g = elegiveis.groupby(col_area)[col_taxa]
+    return pd.concat([g.count().rename("n_na_norma"),
+                      g.quantile(.25).rename("p25"),
+                      g.median().rename("mediana"),
+                      g.quantile(.75).rename("p75"),
+                      g.quantile(.90).rename("p90")], axis=1).reset_index()
 
 
 def posicao_vs_norma(taxa_agregada, norma, piso, gatilho=config.GATILHO_DEFAULT,
@@ -243,11 +248,12 @@ def norma_por_procedimento(
         _k = zip(elegiveis["ID_COOPERADO"], elegiveis[col_area], elegiveis[col_proc])
         elegiveis = elegiveis[[t not in exclusoes for t in _k]]
 
-    stats = (
-        elegiveis.groupby([col_area, col_proc])[col_taxa]
-        .agg(mediana="median", p75=lambda s: s.quantile(.75), p90=lambda s: s.quantile(.90))
-        .reset_index()
-    )
+    # idem: aqui são milhares de grupos (área x procedimento), e a lambda por
+    # grupo era o segundo maior custo da requisição.
+    g = elegiveis.groupby([col_area, col_proc])[col_taxa]
+    stats = pd.concat([g.median().rename("mediana"),
+                       g.quantile(.75).rename("p75"),
+                       g.quantile(.90).rename("p90")], axis=1).reset_index()
 
     norma = prev.merge(stats, on=[col_area, col_proc], how="left")
     norma["apresentavel"] = norma["n_solicitantes_elegiveis"] >= n_minimo
@@ -573,9 +579,12 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
     # autorreferência POR ITEM (lado da solicitação): só itens com match em contas.
     # PREMISSA (não verificada): itens sem conta se autorreferem como os observados.
     # Indicador investigativo, não flag — nunca apresentar sem a cobertura ao lado.
+    # `.any()` NATIVO do groupby, não `.agg(lambda s: (s == "S").any())`: são
+    # ~884 mil grupos (requisição x código), e a lambda paga um Series novo por
+    # grupo — 23 s contra 0,3 s, saída idêntica (verificado 31/ago/2026).
     cont_item = (
-        c.groupby(["NR_SEQ_REQUISICAO", "CODIGO"])["SOLIC_IGUAL_EXEC"]
-        .agg(lambda s: (s == "S").any()).rename("autoexec").reset_index()
+        c.assign(autoexec=(c["SOLIC_IGUAL_EXEC"] == "S"))
+        .groupby(["NR_SEQ_REQUISICAO", "CODIGO"])["autoexec"].any().reset_index()
         .rename(columns={"CODIGO": "CD_PROCEDIMENTO"})
     )
     rc = f.merge(cont_item, on=["NR_SEQ_REQUISICAO", "CD_PROCEDIMENTO"], how="left")
@@ -848,22 +857,23 @@ def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,
 
     # referência dos pares: solicitantes elegíveis do procedimento na área
     eleg = conc[conc["elegivel"]]
-    ref = (
-        eleg.groupby(["AREA_ATUACAO", "CD_PROCEDIMENTO"])
-        .agg(n_solicitantes_ref=("ID_COOPERADO", "nunique"),
-             pct_carteira_mediana_pares=("pct_carteira", "median"),
-             pct_carteira_alto_pares=("pct_carteira", lambda s: s.quantile(q_alto)),
-             intensidade_mediana_pares=("itens_por_paciente_mediana", "median"),
-             intensidade_alto_pares=("itens_por_paciente_mediana",
-                                     lambda s: s.quantile(q_alto)),
-             share_top_mediana_pares=("share_top", "median"),
-             intervalo_mediano_pares=("intervalo_mediano_dias", "median"),
-             repeticao_mediana_pares=("ocasioes_por_paciente_mediana", "median"),
-             repeticao_alta_pares=("ocasioes_por_paciente_mediana",
-                                   lambda s: s.quantile(q_alto)),
-             pct_repetem_mediana_pares=("pct_pacientes_repetem", "median"))
-        .reset_index()
-    )
+    # medianas numa passada nativa; os três quantis de q_alto noutra. A versão
+    # anterior chamava uma lambda por grupo para cada quantil.
+    gref = eleg.groupby(["AREA_ATUACAO", "CD_PROCEDIMENTO"])
+    _med = gref.agg(
+        n_solicitantes_ref=("ID_COOPERADO", "nunique"),
+        pct_carteira_mediana_pares=("pct_carteira", "median"),
+        intensidade_mediana_pares=("itens_por_paciente_mediana", "median"),
+        share_top_mediana_pares=("share_top", "median"),
+        intervalo_mediano_pares=("intervalo_mediano_dias", "median"),
+        repeticao_mediana_pares=("ocasioes_por_paciente_mediana", "median"),
+        pct_repetem_mediana_pares=("pct_pacientes_repetem", "median"))
+    _alt = (gref[["pct_carteira", "itens_por_paciente_mediana",
+                  "ocasioes_por_paciente_mediana"]].quantile(q_alto)
+            .rename(columns={"pct_carteira": "pct_carteira_alto_pares",
+                             "itens_por_paciente_mediana": "intensidade_alto_pares",
+                             "ocasioes_por_paciente_mediana": "repeticao_alta_pares"}))
+    ref = _med.join(_alt).reset_index()
     conc = conc.merge(ref, on=["AREA_ATUACAO", "CD_PROCEDIMENTO"], how="left")
     conc["referencia_solida"] = conc["n_solicitantes_ref"] >= n_minimo
 

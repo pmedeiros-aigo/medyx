@@ -86,9 +86,21 @@ Pergunta: "o que é normal aqui, e quem está fora?"
 (formam · abaixo do volume · fora da construção, com nome e motivo ao expandir) →
 **faixa de estatísticas sem moldura** (acima do critério · consistência · variação
 excedente · impacto estimado · peso na especialidade). [v0]
-- **Distribuição do índice** (contexto permanente, fora das abas): 1 ponto por
-cooperado elegível, mediana sólida, critério tracejado, faixa IQR. Clicar num ponto
-destaca a linha na tabela. Não renderiza nos estados sem referência plena. [v0]
+- **Distribuição** (dentro do container de gráficos, aba "Distribuição"): 1 ponto
+por cooperado avaliável, haste do menor ao maior, faixa IQR do grupo que forma a
+referência, cor pelo excedente em R$. Clicar num ponto destaca a linha na tabela.
+Não renderiza nos estados sem referência plena. [v0]
+  - **Três medidas no eixo**, num segmentado no cabeçalho do cartão (2026-08-31):
+    *Exames* (solicitações por consulta) · *Custo* (R$ solicitados por consulta,
+    a mesma fonte da coluna "Custo por consulta" da tabela) · *Excesso* (variação
+    excedente em R$ por consulta). Trocar de medida é LEITURA, não recorte: o
+    conjunto em cena, a escolha de um ponto e o filtro de perfil atravessam a
+    troca, e a medida não viaja na URL. Nas medidas de dinheiro, quem não tem
+    preço nas contas ou par acima do critério fica FORA do gráfico e é contado
+    no rodapé (ausência não é zero); a caixa some quando menos de
+    `N_MINIMO_P75` formadores da referência têm a medida.
+  - Antes o eixo era só o índice, e quem pedia POUCO e CARO ficava no meio da
+    nuvem: era a pergunta que o bloco não sabia responder.
 - **Aba Cooperados** (default): identidade · magnitude · evidência · desfecho.
 Colunas de evidência: procedimento que puxa (com razão), consistência por trimestre
 com direção, leitura de concentração, fatores de contexto. [v0]

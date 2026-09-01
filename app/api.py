@@ -1034,11 +1034,19 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
         # o Panorama. Fica no payload porque o cálculo já está feito e a tela do
         # Panorama vai pedi-lo inteiro.
         "peso_na_especialidade": _peso_na_especialidade(r, nome),
-        # a COR dos pontos é o excedente em R$ (2026-08-20), da mesma fonte que
-        # alimenta o Pareto e os KPIs — um dinheiro só, três blocos
+        # TRÊS medidas num payload só (2026-08-31): exames, custo e excesso por
+        # consulta. Trocar de medida é LEITURA, não recorte, e por isso viajam
+        # juntas: uma ida ao servidor para mudar de eixo faria parecer que o
+        # conjunto medido mudou junto.
+        # A COR dos pontos é o excedente em R$ nas três (2026-08-20), da mesma
+        # fonte que alimenta o Pareto e os KPIs: um dinheiro só, três blocos.
+        # `custo_coop` é a MESMA fonte da coluna "Custo por consulta" da tabela,
+        # já buscada acima: gráfico e lista não podem discordar do mesmo número.
         "distribuicao": blocos.distribuicao(posicao, norma_linha, gatilho,
                                             rotulos_posicao, p.referencia,
-                                            casc["excedente_reais_coop"]),
+                                            casc["excedente_reais_coop"],
+                                            piso=r["piso_aplicado"],
+                                            custo_por_coop=custo_coop),
         # bloco experimental: quantidade no X, custo no Y, porte no tamanho
         "dispersao": blocos.dispersao(posicao, casc["valor_total_coop"],
                                       rotulos_posicao,

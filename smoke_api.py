@@ -69,8 +69,14 @@ _, gin = get("/api/area/ginecologia")
 # e morria com StopIteration antes de checar qualquer outra coisa — checagem
 # obsoleta, removida em ago/2026. A mediana continua provada pelo rodapé da
 # tabela, logo abaixo, que é onde ela aparece para o usuário.
-checar("area · distribuição não desenha régua de referência",
-       gin["distribuicao"]["referencias"], [])
+# TRÊS MEDIDAS desde 2026-08-31 (exames, custo, excesso por consulta): o bloco
+# deixou de ter uma geometria só e passou a ter uma por medida, todas no mesmo
+# payload. As checagens abaixo valem para as três.
+_medidas_gin = {m["chave"]: m for m in gin["distribuicao"]["medidas"]}
+checar("area · distribuição serve as três medidas",
+       sorted(_medidas_gin), ["custo", "exames", "excesso"])
+checar("area · nenhuma medida desenha régua de referência",
+       [m["referencias"] for m in _medidas_gin.values()], [[], [], []])
 checar("area · mediana também no rodapé da tabela",
        f"mediana {config.SMOKE_MEDIANA_GINECOLOGIA:.2f}".replace(".", ",")
        in gin["cooperados"]["rodape"]["direita"], True)
@@ -121,8 +127,20 @@ n_tabela = sum(1 for linha in gin["cooperados"]["linhas"] if linha["acima_do_cri
 # de critério no ponto para cruzar — e inventar uma aqui seria a prova medindo
 # a si mesma. Estatística e tabela continuam se cruzando.
 checar("acima do critério · estatística == tabela", (n_stat, n_tabela), (n_stat, n_stat))
-checar("gráfico · pontos == avaliáveis",
-       len(gin["distribuicao"]["pontos"]), gin["area"]["n_avaliaveis"])
+checar("gráfico · pontos do índice == avaliáveis",
+       len(_medidas_gin["exames"]["pontos"]), gin["area"]["n_avaliaveis"])
+# AUSÊNCIA NÃO É ZERO (ajuste 4): quem não tem preço nas contas, ou nenhum par
+# acima do critério, sai do gráfico da medida de dinheiro em vez de virar ponto
+# sobre o zero. Quem sai é CONTADO, e a conta tem de fechar contra os avaliáveis:
+# ponto que some sem aparecer no rodapé é gente apagada da tela.
+checar("gráfico · em cena + fora == avaliáveis, nas três medidas",
+       [m["n_pontos"] + m["n_fora"] for m in _medidas_gin.values()],
+       [gin["area"]["n_avaliaveis"]] * 3)
+checar("gráfico · nenhum ponto de dinheiro em zero",
+       all(p["valor"] > 0 for chave in ("custo", "excesso")
+           for p in _medidas_gin[chave]["pontos"]), True)
+checar("gráfico · toda medida declara o n da caixa no rodapé",
+       all("caixa" in m["nota"] for m in _medidas_gin.values()), True)
 checar("tabela · linhas == total da área",
        len(gin["cooperados"]["linhas"]), gin["area"]["n_total"])
 checar("gatilho_usado presente em toda linha avaliável",

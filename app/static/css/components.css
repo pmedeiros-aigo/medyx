@@ -774,7 +774,11 @@ th{vertical-align:bottom}
 /* separador entre as marcas: sem ele os três R$ se leem como um número só */
 .legend .rampa b + b::before{content:'·';margin-right:6px;color:var(--g-300)}
 .axisline{position:absolute;left:0;right:0;bottom:16px;height:var(--ch-axis-w);background:var(--line)}
-.axislbl{position:absolute;bottom:0;transform:translateX(-50%);font-family:var(--font-num);font-size:var(--ch-axis-fs);color:var(--g-400)}
+/* `white-space:nowrap` desde 2026-08-31: com o eixo em R$ (medidas de custo e
+   de excesso da distribuição) a marca da ponta direita quebrava em duas linhas
+   ('R$' em cima, '414,85' embaixo) e passava a ler como duas marcas. A folga
+   para o transbordo é a do `--ch-pad-x` mais o respiro da `.tbl-band`. */
+.axislbl{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap;font-family:var(--font-num);font-size:var(--ch-axis-fs);color:var(--g-400)}
 .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--g-500)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
@@ -2335,3 +2339,24 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
   position:relative;overflow:hidden;display:block}
 .pareto-legenda i b{position:absolute;left:0;top:0;bottom:0;width:60%;background:var(--crit);
   border-radius:2px 0 0 2px}
+
+/* Controle no cabeçalho de um cartão `.tbl` (2026-08-31): o segmentado que
+   troca a medida do eixo da distribuição. Fica na DIREITA do `.tbl-hd`, entre o
+   título e o botão de recolher, e é só posicionamento — a aparência inteira vem
+   do `.seg` do contrato, sem uma segunda versão dele (DIRETRIZES §5).
+
+   `align-self:center` porque `.tbl-hd` alinha por baseline, e a baseline de uma
+   pastilha com moldura própria cai abaixo da do título.
+
+   Some com o cartão FECHADO, pelo mesmo motivo que o `.sub`: fechado, o
+   cabeçalho é índice, serve para achar o bloco, não para operá-lo. E há uma
+   razão mecânica junto — com o corpo em `display:none` a plotagem tem largura
+   zero, e o enxame redesenhado ali empilharia todos os pontos no mesmo lugar. */
+.hd-ctl{margin-left:auto;align-self:center;flex:none}
+.hd-ctl.seg > label{white-space:nowrap;padding-left:var(--s-3);padding-right:var(--s-3)}
+/* o botão de recolher também empurra com `margin-left:auto`, e duas margens
+   automáticas na mesma linha RACHAM a folga entre si: o controle parava no meio
+   do cabeçalho em vez de encostar à direita. Com um `.hd-ctl` na frente, quem
+   empurra é ele. */
+.tbl-hd .hd-ctl ~ .tbl-toggle{margin-left:0}
+.tbl.fechado > .tbl-hd .hd-ctl{display:none}
