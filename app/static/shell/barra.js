@@ -44,11 +44,20 @@ export function montarBarraSuperior(meta, area) {
       partes.push({ txt: TELAS.area.rotulo });
       partes.push({ txt: escolhida?.titulo ?? '' });
     } else if (tela === 'cooperado') {
-      /* No dossiê, a ÁREA é destino de verdade: é o grupo inteiro contra o
-         qual o caso é medido, e é para onde se volta depois de olhar um. */
-      partes.push({ txt: TELAS.cooperado.rotulo });
-      partes.push({ txt: escolhida?.titulo ?? '',
-                    href: area ? comRegua(TELAS.area.caminho(area)) : null });
+      /* COLEÇÃO › ITEM, e nada mais (set/2026). Antes o rastro era
+         "Dossiê do Cooperado › Ginecologia › cooperado_85", e tinha dois
+         defeitos. "Dossiê do Cooperado" é um TIPO, não um lugar: não navegava
+         e não correspondia a URL nenhuma. E a área era um pai que a URL não
+         tem, já que o caminho é `/cooperado/{id}`, sem área nenhuma dentro.
+         Migalha é hierarquia de CONTENÇÃO, e `/cooperados` -> `/cooperado/85`
+         é a única que existe aqui.
+
+         A área não se perde: ela continua na página, na linha de contexto do
+         cabeçalho, e é lá que ganhou o link (ver `paginas/cooperado.js`). Ela
+         é fato ANALÍTICO, contra quem o caso é medido, e não degrau de
+         navegação. */
+      partes.push({ txt: TELAS.cooperados.rotulo,
+                    href: comRegua(TELAS.cooperados.caminho()) });
       partes.push({ txt: cooperado ?? '' });
     }
 
@@ -111,10 +120,15 @@ export function ligarTema() {
  * dossiê de UM continua sendo destino, alcançado pela lista, pelo Panorama ou
  * pela tabela da Área.
  *
- * E o item que acende num dossiê continua sendo Área de Atuação, não
- * Cooperados: a lateral mostra onde o caso MORA (o peer group contra o qual ele
- * é medido), não por qual porta se entrou. Duas portas, um dossiê, uma
- * identidade.
+ * O item que acende num dossiê é COOPERADOS (set/2026). Era Área de Atuação,
+ * pela ideia de que a lateral mostra onde o caso mora, no peer group contra o
+ * qual ele é medido. O raciocínio é bom e responde à pergunta errada: lateral e
+ * migalha dizem ONDE VOCÊ ESTÁ, não contra quem o número é medido — essa é a
+ * pergunta central do produto, e tem lugar próprio, na linha de contexto do
+ * cabeçalho do dossiê.
+ *
+ * Na prática o realce pulava: quem clicava em Cooperados e abria um da lista
+ * via o destaque saltar para uma tela onde não estava.
  *
  * @param {string} area  a área em cena, para o link da Área de atuação
  */
@@ -123,8 +137,8 @@ export function montarNavegacao(area) {
   for (const a of document.querySelectorAll('.navitem[data-tela]')) {
     const alvo = a.dataset.tela;
     a.classList.toggle('on', alvo === tela
-      // o dossiê é filho da Área: a lateral destaca de onde ele veio
-      || (tela === 'cooperado' && alvo === 'area'));
+      // o dossiê é o ITEM da coleção Cooperados, e é ela que fica acesa
+      || (tela === 'cooperado' && alvo === 'cooperados'));
     const caminho = alvo === 'area' && area
       ? TELAS.area.caminho(area)
       : TELAS[alvo]?.caminho();

@@ -57,17 +57,35 @@ function montarIdentidade(destino, d) {
   }
   topo.appendChild(linha);
 
-  /* Sem "voltar à área" aqui: a migalha da barra superior navega (a área é
-     link a partir do dossiê), e dois caminhos para o mesmo lugar a 40px um do
-     outro é ruído, não afordância. */
   /* UMA linha de contexto, não duas. A área tinha linha própria e reaparecia
      em seguida dentro de "Comparado com: Ginecologia · n=63 comparáveis";
      agora ela abre a linha da justificativa, que já diz contra quem e sobre que
      base o caso é medido. O método por extenso fica no hover. */
-  const contexto = el('span', 'sub',
-                      d.justificativa?.resumo ?? d.cooperado.area.titulo);
+  const resumo = d.justificativa?.resumo ?? d.cooperado.area?.titulo ?? '';
+  const contexto = el('span', 'sub');
   if (d.justificativa?.resumo_detalhe) {
     contexto.title = d.justificativa.resumo_detalhe;
+  }
+
+  /* A ÁREA VIRA LINK, e é o único caminho de volta ao grupo (set/2026). Ela
+     esteve na migalha, e por isso o cabeçalho não precisava de um "voltar à
+     área": dois caminhos para o mesmo lugar a 40px um do outro seria ruído.
+     A migalha agora é `Cooperados › cooperado_85`, coleção e item, e a área
+     saiu de lá — ela é fato ANALÍTICO, não degrau de navegação. Sem este link,
+     o dossiê ficaria sem nenhuma porta para o grupo contra o qual ele é medido.
+
+     A linha é PROSA montada em `apresentacao.py` ("Ginecologia · 63 cooperados
+     comparáveis · …"), e o front não decompõe frase do motor. Por isso só o
+     PREFIXO vira link, e só quando ele é exatamente o título da área; se a
+     frase mudar de forma lá, isto cai em texto puro e nada quebra. */
+  const area = d.cooperado.area;
+  if (area?.id && resumo.startsWith(area.titulo)) {
+    const link = el('a', null, area.titulo);
+    link.href = comRegua(TELAS.area.caminho(area.id));
+    link.title = `Abrir ${area.titulo}, o grupo contra o qual este caso é medido.`;
+    contexto.append(link, resumo.slice(area.titulo.length));
+  } else {
+    contexto.textContent = resumo;
   }
   topo.appendChild(contexto);
   destino.appendChild(topo);
@@ -136,8 +154,8 @@ const COLUNAS = [
      por `excedente_itens`: a coluna dizia "Custo excedente" e ordenava por
      solicitações, então o topo da ordem decrescente não era o de maior custo. */
   { nome: 'Custo excedente', direita: true, classe: 'col-num',
-    def: 'Valor das solicitações acima da referência da área, apurado exame a '
-       + 'exame contra a referência de cada um.',
+    def: 'Valor das solicitações acima da referência da área, apurado procedimento a '
+       + 'procedimento contra a referência de cada um.',
     ordem: 'excedente_reais', valor: (l) => l.excedente_reais },
 ];
 
