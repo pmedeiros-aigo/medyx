@@ -40,7 +40,8 @@ DEGRAUS = (
     ("medidos", "Todos os medidos", "escopo",
      "Cooperados da área com atividade registrada no período."),
     ("acima_do_criterio", "Com algum exame acima do critério", "validade",
-     "Solicita acima do P90 dos pares em ao menos um exame."),
+     "Solicita acima do critério de revisão em ao menos um exame. O "
+     "percentil que define o critério é o declarado na régua da tela."),
     ("persistente", "Repetem em todos os trimestres", "validade",
      "O excesso se repete em todos os trimestres do período, e não em um "
      "pico isolado."),

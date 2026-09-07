@@ -708,13 +708,27 @@ def leitura_da_area(cards: list[dict], ids: list[str], n_comparaveis: int,
 
     notas = []
     if n_com_excedente is not None and excedente_reais_area:
-        parte = (reais_em_cena / excedente_reais_area) if reais_em_cena else 0.0
+        # DUAS frações, não uma: o recorte carrega uma fatia das SOLICITAÇÕES
+        # excedentes e outra do VALOR excedente, e elas não coincidem — quem
+        # está em cena não solicita ao preço médio da área. Uma porcentagem só,
+        # pendurada nos dois números, afirmava do volume o que só valia para o
+        # dinheiro. Quando as duas arredondam ao mesmo inteiro, uma frase basta.
+        p_reais = (reais_em_cena / excedente_reais_area) if reais_em_cena else 0.0
+        p_itens = ((itens_em_cena / excedente_itens_area)
+                   if excedente_itens_area else None)
+        if p_itens is not None and fmt_pct(p_itens) != fmt_pct(p_reais):
+            fatia_txt = (f"Este recorte responde por {fmt_pct(p_itens)} das "
+                         f"solicitações e {fmt_pct(p_reais)} do valor.")
+        else:
+            fatia_txt = f"Este recorte responde por {fmt_pct(p_reais)} do total."
+        # "O excedente da área soma", e não "no total da área são": a área tem
+        # 389 mil solicitações no período, e a frase anterior deixava o leitor
+        # tomar as 133 mil excedentes por esse total.
         notas.append(
             f"{fmt(n_com_excedente, 0)} dos {fmt(n_comparaveis, 0)} comparáveis "
-            f"da área têm excedente em algum procedimento. No total da área são "
-            f"{fmt(excedente_itens_area, 0)} solicitações e "
-            f"{fmt_reais(excedente_reais_area)}, dos quais este recorte mostra "
-            f"{fmt_pct(parte)}.")
+            f"da área têm excedente em algum procedimento. O excedente da área "
+            f"soma {fmt(excedente_itens_area, 0)} solicitações e "
+            f"{fmt_reais(excedente_reais_area)}. {fatia_txt}")
     if referencia is not None and criterio is not None and gatilho:
         notas.append(
             f"Referência de {fmt(referencia)} SADT por consulta e critério "
@@ -989,7 +1003,6 @@ def subtitulo_recorte(rotulo: str, n: int) -> str:
 
 
 def contexto_da_area(gatilho_usado: str | None, criterio_pedido: str,
-                     excedente_itens: float, excedente_reais: float | None,
                      n_sinalizados: int, n_comparaveis: int,
                      n_total: int, n_excluidos: int,
                      estado_codigo: str, n_formam: int | None = None,
@@ -997,8 +1010,8 @@ def contexto_da_area(gatilho_usado: str | None, criterio_pedido: str,
     """O CONTEXTO FIXO DA ÁREA, em uma linha de texto sob o título:
 
         64 na área · 63 comparáveis (ver os 6 fora da referência) ·
-        8 acima do critério · 96.048 solicitações excedentes ·
-        R$ 3,1 mi
+        63 com excedente em algum procedimento · 18 também atípicos no
+        índice agregado
 
     Foi a faixa de três números-herói do guia §08 até 2026-08-19. Perdeu o
     tamanho, não o conteúdo: é ENQUADRAMENTO, não achado. Números de 22px
@@ -1116,22 +1129,19 @@ def contexto_da_area(gatilho_usado: str | None, criterio_pedido: str,
          # contagem paralela; "no índice agregado" diz de que eixo ela fala
          "texto": f"{fmt(n_sinalizados, 0)} também atípicos no índice agregado",
          "acao": None, "titulo_longo": hover_revisao})
-    partes.append(
-        {"chave": "excedente", "valor": float(excedente_itens),
-         "texto": f"{fmt(excedente_itens, 0)} solicitações excedentes",
-         "acao": None,
-         "titulo_longo": ("Solicitações acima da referência de adequação, entre "
-                          "os casos acima do critério.")})
-    # o R$ é a MESMA grandeza em outra unidade, e por isso parte própria em vez
-    # de emenda na anterior: duas medições independentes é o que ele não é
-    if excedente_reais is not None:
-        partes.append(
-            {"chave": "excedente_reais", "valor": float(excedente_reais),
-             "texto": fmt_reais(excedente_reais),
-             "acao": None,
-             "titulo_longo": ("As mesmas solicitações excedentes valoradas a "
-                              "preços de referência internos, apurados na mediana "
-                              "das contas do período por procedimento.")})
+    # AS DUAS MEDIDAS DO EXCEDENTE saíram desta linha em 2026-09-07
+    # (`excedente` e `excedente_reais`). Elas viviam aqui desde antes da
+    # "Leitura da área", que hoje imprime as duas logo abaixo — as solicitações
+    # excedentes como linha do grupo "Solicitado no recorte", o R$ como o
+    # destaque do bloco, e as duas de novo na nota ("O excedente da área soma
+    # 132.526 solicitações e R$ 4,2 mi"). Eram os mesmos dois números três
+    # vezes na mesma dobra da tela, e a linha de contexto era a superfície onde
+    # eles diziam menos: sem o denominador ao lado e sem dizer que não se movem
+    # com o recorte.
+    #
+    # O que a linha continua carregando é o ESCOPO — quantos na área, quantos
+    # comparáveis, quantos com excedente, quantos atípicos no agregado —, que é
+    # a leitura que ela existe para dar e que nenhum outro bloco repete.
     return {"partes": partes, "separador": " · "}
 
 
@@ -3371,7 +3381,7 @@ def _tooltip_trimestre(meses: str | None, consultas: float,
 
 
 def evolucao_do_procedimento(n_por_janela: dict, por_janela: pd.DataFrame | None,
-                             cooperado: str, preco: float | None,
+                             cooperado: str | list[str], preco: float | None,
                              alvo_taxa: float | None, mede_excedente: bool,
                              rotulos: list[str] | None = None,
                              resto_dias: int | None = None) -> dict | None:
@@ -3393,11 +3403,16 @@ def evolucao_do_procedimento(n_por_janela: dict, por_janela: pd.DataFrame | None
     """
     if not n_por_janela or por_janela is None or not len(por_janela) or not preco:
         return None
-    pj = por_janela[por_janela["ID_COOPERADO"] == cooperado]
+    # UM cooperado ou um GRUPO deles. O painel do dossiê passa um id; o painel
+    # do procedimento na área passa os que estão em cena, e aí as consultas do
+    # trimestre são a soma delas — o denominador do excedente é o mesmo conjunto
+    # cujo volume está no numerador, senão a barra mede duas populações.
+    alvo = [cooperado] if isinstance(cooperado, str) else list(cooperado)
+    pj = por_janela[por_janela["ID_COOPERADO"].isin(alvo)]
     if not len(pj):
         return None
-    cons = {int(r["janela"]): float(r.get("consultas_totais") or 0)
-            for _, r in pj.iterrows()}
+    cons = {int(j): float(v) for j, v in
+            pj.groupby("janela")["consultas_totais"].sum().items()}
     if not cons:
         return None
 
@@ -4221,18 +4236,27 @@ def linhas_procedimentos(norma_proc_area: pd.DataFrame, posproc_area: pd.DataFra
                          reais_proc: dict[str, float] | None = None,
                          ids: list[str] | None = None) -> list[dict]:
     """Uma linha por procedimento da área: prevalência, solicitantes elegíveis,
-    referência (mediana/P75/P90), qualidade da referência, quantos estão acima
-    do critério, variação excedente e % acumulado.
+    referência (mediana/P75/P90), qualidade da referência, solicitações,
+    quantos estão acima do critério, variação excedente e % acumulado.
 
     Ordenado por variação excedente (magnitude = onde agir). A razão viaja junto
     como segunda lente: razão sozinha favorece o raro (rigor-estatistico §3).
     O % acumulado é do Pareto DESTA lista, declarado no campo, não implícito.
 
     ── o recorte entra por METADE da tabela ─────────────────────────────────
-    `ids` são os cooperados em cena. Ele filtra SÓ o achado — quantos estão
-    acima do critério, variação excedente, R$, razão e % acumulado. As colunas
-    de RÉGUA (prevalência, solicitantes elegíveis, referência, qualidade)
-    ficam imóveis, vindas de `norma_proc_area` intacto.
+    `ids` são os cooperados em cena. Ele filtra SÓ o achado — solicitações,
+    quantos estão acima do critério, variação excedente, R$, razão e %
+    acumulado. As colunas de RÉGUA (prevalência, solicitantes elegíveis,
+    referência, qualidade) ficam imóveis, vindas de `norma_proc_area` intacto.
+
+    SOLICITAÇÕES é o volume bruto do exame entre quem está em cena, e responde
+    a pergunta que nenhuma outra coluna respondia: o que a área mais pede.
+    Prevalência diz quantos cooperados pedem, não quanto se pede — um exame que
+    todos solicitam uma vez por ano e outro que todos solicitam toda semana
+    saíam com a mesma prevalência. Ele segue o recorte, e não a régua, porque
+    é magnitude do que está em cena: com o denominador da área ao lado de um
+    excedente recortado, a divisão que o olho faz entre as duas colunas
+    misturaria populações.
 
     Não é preciosismo: prevalência é `solicitantes / elegíveis da área`.
     Filtrar o numerador pelo recorte e deixar o denominador da área daria uma
@@ -4245,9 +4269,16 @@ def linhas_procedimentos(norma_proc_area: pd.DataFrame, posproc_area: pd.DataFra
     não ausência de cálculo — o travessão é reservado ao que não foi calculado.
     Ordenada por excedente, a linha afunda sozinha para o fim.
     """
-    sinal = filtrar_sinalizados(posproc_area)
-    if ids is not None:
-        sinal = sinal[sinal["ID_COOPERADO"].isin(list(ids))]
+    em_cena = (posproc_area if ids is None else
+               posproc_area[posproc_area["ID_COOPERADO"].isin(list(ids))])
+    # VOLUME sai de `em_cena`, não de `sinal`: são todas as solicitações do
+    # exame entre quem está em cena, e não só as de quem passou o critério
+    # nele. Contado sobre os sinalizados, o número viraria outra leitura do
+    # excedente em vez do total que ele existe para dar.
+    solicitacoes = (em_cena.groupby("CD_PROCEDIMENTO")["n_solicitacoes"].sum()
+                    if len(em_cena) else {})
+
+    sinal = filtrar_sinalizados(em_cena)
     agg = (sinal.groupby("CD_PROCEDIMENTO")
            .agg(excedente_itens=("excedente_itens", "sum"),
                 n_acima=("ID_COOPERADO", "nunique"),
@@ -4262,6 +4293,8 @@ def linhas_procedimentos(norma_proc_area: pd.DataFrame, posproc_area: pd.DataFra
         agg["n_acima"] if len(agg) else {}).fillna(0).astype(int)
     df["razao_mediana"] = df["CD_PROCEDIMENTO"].map(
         agg["razao_mediana"] if len(agg) else {})
+    df["n_solicitacoes"] = df["CD_PROCEDIMENTO"].map(
+        solicitacoes).fillna(0).astype(int)
 
     descricoes = (posproc_area.drop_duplicates("CD_PROCEDIMENTO")
                   .set_index("CD_PROCEDIMENTO")["DS_PROCEDIMENTO"])
@@ -4309,6 +4342,10 @@ def linhas_procedimentos(norma_proc_area: pd.DataFrame, posproc_area: pd.DataFra
                            f"{int(r['n_solicitantes_elegiveis'])} solicitantes, "
                            f"abaixo do mínimo"),
             },
+            # zero aqui é zero MEDIDO — ninguém em cena pediu este exame —,
+            # e por isso sai como "0" e não como travessão.
+            "n_solicitacoes": int(r["n_solicitacoes"]),
+            "n_solicitacoes_fmt": fmt(int(r["n_solicitacoes"]), 0),
             "n_acima_do_criterio": int(r["n_acima"]),
             "razao_mediana": (None if pd.isna(r["razao_mediana"])
                               else round(float(r["razao_mediana"]), 3)),
@@ -4327,3 +4364,374 @@ def linhas_procedimentos(norma_proc_area: pd.DataFrame, posproc_area: pd.DataFra
             "pct_acumulado_fmt": fmt_pct(pct_acum),
         })
     return linhas
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PAINEL DO PROCEDIMENTO NA ÁREA
+#
+# O irmão de `painel_do_procedimento` com a unidade de análise trocada. Lá a
+# pergunta é "de onde vem o volume DESTE médico"; aqui é **este exame é norma da
+# área ou hábito de alguns**, e a diferença não é de grau: a tabela de
+# procedimentos não distingue os dois casos, e eles pedem ações opostas.
+#
+# O caso que motivou o bloco, em Ginecologia (abr/25–abr/26, P75/mediana):
+#
+#   US Transvaginal            mediana 0,283 · P75 0,355   difuso, 15 acima
+#   US Estruturas Superficiais mediana 0,032 · P75 0,135   subgrupo, 13 acima
+#
+# Nas colunas as duas linhas se parecem (prevalência alta, excedente grande). Na
+# distribuição, não: no segundo o P75 é QUATRO vezes a mediana — "normal" é
+# quase zero e um subgrupo transformou o exame em rotina. O primeiro é discussão
+# de protocolo, o segundo é auditoria.
+#
+# Nada nasce aqui. Cada seção é a saída de um motor que a tela de área já roda,
+# lida por procedimento em vez de por cooperado.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def distribuicao_do_procedimento(taxas_por_coop: dict[str, float],
+                                 linha_norma, gatilho: str | None,
+                                 criterio_pedido: str, alvo: str,
+                                 consultas_por_coop: dict[str, float] | None = None,
+                                 n_area: int | None = None,
+                                 excedente_por_coop: dict[str, float] | None = None,
+                                 reais_por_coop: dict[str, float] | None = None,
+                                 ids_em_cena: set[str] | None = None
+                                 ) -> dict | None:
+    """A distribuição da ÁREA neste exame: box plot com um ponto por cooperado.
+
+    É o box plot do painel do cooperado (`regua_do_procedimento`) com o enxame
+    da tela de Área por cima — mesma geometria (`_escala`/`_pos`), mesmas
+    classes, mesma leitura. A diferença é que aqui não há um ponto para achar:
+    há a FORMA, e a forma é a resposta.
+
+    A LEITURA vem redigida daqui, e é o que o desenho sozinho não afirma: a
+    razão entre o P75 e a mediana separa o exame que a área inteira pede muito
+    do exame que quase ninguém pede e um punhado transformou em rotina. Dois
+    excedentes idênticos, duas conversas diferentes.
+
+    Cor pela mesma rampa `--i` da distribuição da área (o CSS já a converte em
+    tinta): quem está acima do critério satura, quem está dentro recua. Nenhuma
+    classe nova, nenhum segundo vocabulário visual para a mesma leitura.
+    """
+    taxas = {c: float(v) for c, v in (taxas_por_coop or {}).items()
+             if v is not None and not np.isnan(float(v))}
+    if not taxas or linha_norma is None:
+        return None
+    if pd.isna(linha_norma.get(alvo)):
+        return None
+
+    referencia = float(linha_norma[alvo])
+    p25 = float(np.quantile(list(taxas.values()), 0.25))
+    p75 = float(linha_norma["p75"]) if pd.notna(linha_norma.get("p75")) else None
+    valor_crit = (float(linha_norma[gatilho])
+                  if gatilho and pd.notna(linha_norma.get(gatilho)) else None)
+    minimo, maximo = min(taxas.values()), max(taxas.values())
+
+    escala = _escala([v for v in (minimo, maximo, p25, p75, referencia,
+                                  valor_crit, 0.0) if v is not None])
+
+    # ── a rampa de cor: posição do cooperado na ORDEM dos EXCEDENTES ─────────
+    #
+    # A MESMA regra da distribuição da tela de Área, e por um motivo que só
+    # apareceu com o painel na tela: a lista "Acima do critério" ordena por
+    # EXCEDENTE e o eixo do gráfico é a TAXA, que são grandezas diferentes
+    # (excedente ≈ (taxa − referência) × consultas). Em US Estruturas
+    # Superficiais o primeiro da lista é o 11º ponto mais à direita, e o ponto
+    # mais à direita de todos não entra na lista: taxa alta, volume pequeno.
+    #
+    # Pintando por distância à referência — como esta função fazia — o gráfico
+    # dizia "estes treze são iguais" enquanto a lista dizia que um vale 907 e
+    # outro vale 30. Pintando pelo excedente, o ponto mais escuro é o primeiro
+    # da lista, e as duas leituras param de se contradizer sem que nenhuma das
+    # duas ordens mude: a lista responde onde está o dinheiro, o eixo responde
+    # quem pede fora do padrão.
+    exc = {c: float(v) for c, v in (excedente_por_coop or {}).items()
+           if v and float(v) > 0}
+    ordem_exc = sorted(exc.values())
+
+    def _i(coop):
+        v = exc.get(coop)
+        if v is None or len(ordem_exc) < 2:
+            return 0.0
+        return round(ordem_exc.index(v) / (len(ordem_exc) - 1), 4)
+
+    pontos = []
+    for coop, taxa in sorted(taxas.items(), key=lambda kv: kv[1]):
+        acima = valor_crit is not None and taxa > valor_crit
+        cons = (consultas_por_coop or {}).get(coop)
+        e = exc.get(coop)
+        pontos.append({
+            "id": coop,
+            "pos_pct": _pos(taxa, escala),
+            "valor_fmt": fmt_frequencia(taxa),
+            "intensidade": _i(coop),
+            "acima": acima,
+            # POSIÇÃO é régua e não se move; TINTA e presença seguem o recorte.
+            # Quem está fora dele recua (a mesma `.pt-no-recorte` da
+            # distribuição da tela de Área), porque o excedente que pinta o
+            # ponto é o do conjunto em cena — deixá-lo aceso com tinta de outra
+            # população seria a contradição que o recorte veio corrigir.
+            "em_cena": ids_em_cena is None or coop in ids_em_cena,
+            "consultas_fmt": None if not cons else fmt(cons, 0),
+            "excedente_fmt": None if not e else fmt(e, 0),
+            "reais_fmt": (fmt_reais((reais_por_coop or {})[coop])
+                          if (reais_por_coop or {}).get(coop) else None),
+            "leitura": (f"{fmt(taxa / referencia, 1)}× a referência da área"
+                        if referencia else config.SEM_MEDIDA),
+        })
+
+    # ── a leitura, em uma frase ─────────────────────────────────────────────
+    # O que separa "a área inteira pede muito" de "um subgrupo pede sempre" é a
+    # ASSIMETRIA da distribuição, não o tamanho do excedente. A razão P75/mediana
+    # é a forma mais curta de dizê-la, e o corte é declarado no texto para o
+    # leitor poder discordar dele.
+    leitura = None
+    if p75 is not None and referencia:
+        razao = p75 / referencia
+        n_acima = sum(1 for p in pontos if p["acima"])
+        if razao >= 2:
+            leitura = (f"Distribuição assimétrica: o P75 da área é "
+                       f"{fmt(razao, 1)}× a referência. O exame é pouco "
+                       f"frequente para a maioria e rotina para um subgrupo.")
+        elif razao >= 1.4:
+            leitura = (f"Distribuição alongada à direita: o P75 da área é "
+                       f"{fmt(razao, 1)}× a referência. O excedente vem de uma "
+                       f"cauda, não do conjunto.")
+        else:
+            leitura = (f"Distribuição compacta: o P75 da área é "
+                       f"{fmt(razao, 1)}× a referência. O volume é próximo "
+                       f"entre os cooperados e o excedente é difuso.")
+        if n_acima:
+            leitura += (f" {fmt(n_acima, 0)} de {fmt(len(pontos), 0)} "
+                        f"{'está' if n_acima == 1 else 'estão'} acima do "
+                        f"critério.")
+
+    return {
+        "haste": {"pos_pct": _pos(minimo, escala),
+                  "largura_pct": round(_pos(maximo, escala) - _pos(minimo, escala), 2),
+                  "min_fmt": fmt_frequencia(minimo),
+                  "max_fmt": fmt_frequencia(maximo),
+                  "rotulo": "menor e maior da área"},
+        "iqr": {"pos_pct": _pos(p25, escala),
+                "largura_pct": (round(_pos(p75, escala) - _pos(p25, escala), 2)
+                                if p75 is not None else 0.0),
+                "rotulo": "metade central da área"},
+        "referencia": {"valor_fmt": fmt_frequencia(referencia),
+                       "pos_pct": _pos(referencia, escala),
+                       "rotulo": f"Referência de adequação ({_ROTULO_NIVEL.get(alvo, alvo)})"},
+        "criterio": (None if valor_crit is None else
+                     {"valor_fmt": fmt_frequencia(valor_crit),
+                      "pos_pct": _pos(valor_crit, escala),
+                      "rotulo": f"Critério de revisão ({gatilho.upper()})",
+                      "ajustado": gatilho != criterio_pedido}),
+        "pontos": pontos,
+        "n_fora_do_recorte": sum(1 for x in pontos if not x["em_cena"]),
+        "n_pares": len(pontos),
+        "n_area": n_area,
+        "leitura": leitura,
+        "sem_criterio_motivo": (None if valor_crit is not None else
+                                "Cooperados insuficientes na área para sustentar "
+                                "percentil. Distribuição descritiva, sem critério."),
+    }
+
+
+def concentracao_entre_cooperados(excedente_por_coop: dict[str, float],
+                                  reais_por_coop: dict[str, float] | None = None,
+                                  fracao: float = config.FRACAO_PARETO_MATERIAL
+                                  ) -> dict | None:
+    """Quantos cooperados concentram 80% do excedente DESTE exame.
+
+    A pergunta prática que fecha a distribuição: quantas conversas resolvem o
+    caso. Mesmo cálculo do Pareto da página (`FRACAO_PARETO_MATERIAL`), aplicado
+    a uma linha em vez de à área inteira.
+    """
+    itens = sorted(((c, float(v)) for c, v in (excedente_por_coop or {}).items()
+                    if v and float(v) > 0), key=lambda kv: -kv[1])
+    if not itens:
+        return None
+    total = sum(v for _, v in itens)
+    acumulado, n_nucleo = 0.0, 0
+    for _, v in itens:
+        acumulado += v
+        n_nucleo += 1
+        if acumulado / total >= fracao:
+            break
+    reais = sum(float((reais_por_coop or {}).get(c) or 0.0)
+                for c, _ in itens[:n_nucleo]) or None
+    return {
+        "n_nucleo": n_nucleo,
+        "n_com_excedente": len(itens),
+        "fracao_fmt": fmt_pct(fracao),
+        "reais_fmt": None if reais is None else fmt_reais(reais),
+        "frase": (f"{fmt(n_nucleo, 0)} de {fmt(len(itens), 0)} "
+                  f"{'cooperado concentra' if n_nucleo == 1 else 'cooperados concentram'} "
+                  f"{fmt_pct(fracao)} do excedente deste exame."),
+    }
+
+
+def cooperados_acima_do_criterio(linhas_par: list[dict], n_nucleo: int | None = None,
+                                 minimo: int = config.MIN_NOMES_PAINEL,
+                                 maximo: int = config.MAX_NOMES_PAINEL) -> dict:
+    """Quem está acima do critério neste exame, do maior excedente ao menor.
+
+    É a seção que fecha o painel em AÇÃO: o passo seguinte do auditor é sempre
+    uma pessoa, e sem esta lista a resposta exigia fechar o painel, trocar de
+    aba e procurar o exame na tabela de cada cooperado.
+
+    ── quantos nomes, e por quê ──────────────────────────────────────────────
+    O corte é a REGRA DE CONCENTRAÇÃO que a seção logo acima já anuncia: entram
+    os cooperados que somam `FRACAO_PARETO_MATERIAL` do excedente do exame.
+
+    Era um número fixo (oito), e ele acertava por acaso — nestes dados os oito
+    primeiros somam de 79% a 97% do excedente, porque a cauda é curta. Mas em
+    40316378 QUATRO pessoas fazem 97%, e listar oito ali enfileira quatro nomes
+    irrelevantes; em 41301099 são nove, e o corte em oito deixa um relevante de
+    fora. A regra se ajusta ao caso, e transforma a frase da seção anterior na
+    legenda desta: "8 de 13 concentram 80%" passa a nomear exatamente estes 8.
+
+    O piso existe porque lista de um nome não é lista; o teto, porque acima
+    dele a gaveta vira rolagem — e aí a resposta certa é abrir o resto sob
+    demanda, não empilhar. `linhas` traz TODOS, e `n_visiveis` diz onde cortar:
+    a tela mostra o núcleo e revela a cauda quando pedida (§10, disclosure
+    progressivo).
+    """
+    ordenadas = sorted(linhas_par, key=lambda l: -(l.get("excedente_itens") or 0))
+    corte = min(max(n_nucleo or minimo, minimo), maximo, len(ordenadas))
+    return {
+        "n": len(ordenadas),
+        "n_visiveis": corte,
+        "linhas": ordenadas,
+        "resto": max(0, len(ordenadas) - corte),
+        # a fração viaja formatada para a tela não escrever "80%" à mão: o
+        # número é do config, e um literal aqui é o dia em que ele muda lá e a
+        # frase da gaveta continua dizendo o valor antigo
+        "fracao_fmt": fmt_pct(config.FRACAO_PARETO_MATERIAL),
+        "criterio_do_corte": (f"Os que somam {fmt_pct(config.FRACAO_PARETO_MATERIAL)} "
+                              f"do excedente deste exame."),
+    }
+
+
+def painel_do_procedimento_na_area(cd: str, descricao: str, distribuicao: dict | None,
+                                   nucleo: dict | None, acima: dict,
+                                   peso: dict | None, repeticao: dict | None,
+                                   autorreferencia: dict, qualidade: dict | None
+                                   ) -> dict:
+    """O painel lateral de UM procedimento da ÁREA (espec §3, outra unidade).
+
+    Ordem de leitura, do fato mais forte ao contexto: quanto pesa na área ->
+    como se distribui entre os cooperados -> quantos concentram o excedente ->
+    quem são -> para quem se pede -> quantas vezes nos mesmos -> quem executou
+    -> como se comportou no tempo.
+
+    É a mesma sequência do painel do dossiê com o sujeito trocado, e de
+    propósito: quem aprendeu a ler um lê o outro. O que muda é o meio da
+    cadeia — lá "concentra em quais pacientes", aqui "concentra em quais
+    cooperados" —, porque é aí que a pergunta da tela é outra.
+    """
+    return {
+        "codigo": cd,
+        "descricao": descricao,
+        "qualidade": qualidade,
+        "distribuicao": distribuicao,
+        "nucleo": nucleo,
+        "acima": acima,
+        "peso": peso,
+        "repeticao": repeticao,
+        "autorreferencia": autorreferencia,
+        "sem_medida": config.SEM_MEDIDA,
+    }
+
+
+def peso_do_exame_na_area(n_solicitacoes: float, total_area: float,
+                          custo: float | None, custo_area: float | None,
+                          excedente_reais: float | None,
+                          preco: float | None) -> dict | None:
+    """Quanto este exame pesa no que a área solicitou no período.
+
+    O denominador é o RECORTE em cena, o mesmo das outras seções: a fração de um
+    exame sobre o total da área ao lado de um excedente recortado seria a
+    divisão de duas populações.
+    """
+    if not total_area:
+        return None
+    return {
+        "proporcao_fmt": fmt_pct(n_solicitacoes / total_area, 1),
+        "solicitacoes_fmt": fmt(n_solicitacoes, 0),
+        "custo_total_fmt": None if custo is None else fmt_reais(custo),
+        "custo_unitario_fmt": None if preco is None else fmt_reais(preco),
+        "proporcao_custo_fmt": (None if not custo or not custo_area else
+                                fmt_pct(custo / custo_area, 1)),
+        "excedente_fmt": None if not excedente_reais else fmt_reais(excedente_reais),
+        "excedente_pct_fmt": (None if not excedente_reais or not custo else
+                              fmt_pct(excedente_reais / custo)),
+    }
+
+
+def repeticao_do_exame_na_area(pacientes: dict | None,
+                               n_carteira: int | None = None) -> dict | None:
+    """Repetição por beneficiário, no conjunto em cena.
+
+    Distingue "muitos pacientes uma vez" de "poucos pacientes muitas vezes" —
+    dois excedentes idênticos no número e diferentes na conversa. É a leitura de
+    beneficiário que sobrevive à mudança de unidade: a lista de quem concentra,
+    que o painel do dossiê traz, aqui seria sempre vazia (um beneficiário
+    responder por mais de 10% das solicitações de um exame na ÁREA inteira não
+    acontece), e lista vazia num painel lê como dado faltando.
+    """
+    if not pacientes or not pacientes.get("n_pacientes"):
+        return None
+    n = int(pacientes["n_pacientes"])
+    return {
+        "n_beneficiarios": n,
+        "n_beneficiarios_fmt": fmt(n, 0),
+        "n_carteira_fmt": None if not n_carteira else fmt(n_carteira, 0),
+        "itens_por_beneficiario_fmt": (None if not pacientes.get("itens_por_paciente")
+                                       else fmt(pacientes["itens_por_paciente"], 1)),
+        "pct_repetem_fmt": (None if pacientes.get("pct_repetem") is None
+                            else fmt_pct(pacientes["pct_repetem"])),
+        "n_repetem_fmt": fmt(pacientes.get("n_repetem") or 0, 0),
+        "intervalo_fmt": (None if not pacientes.get("intervalo_mediano_dias")
+                          else fmt(pacientes["intervalo_mediano_dias"], 0)),
+    }
+
+
+def autorreferencia_da_area(linhas_autorref, ids: list[str] | None) -> dict:
+    """A parcela do exame executada por quem o pediu, somada no recorte.
+
+    Soma os NUMERADORES e os DENOMINADORES, nunca a média das taxas: cada
+    cooperado tem uma cobertura diferente, e a média simples daria a cada um o
+    mesmo peso independentemente de quantas solicitações ele tem.
+
+    O portão de cobertura é o mesmo do painel do dossiê, aplicado ao agregado —
+    e no agregado ele passa com folga, que é justamente por que a leitura vale
+    mais aqui do que por par.
+    """
+    vazio = {"apresentavel": False, "motivo": "Sem solicitações no período",
+             "taxa_fmt": None, "cobertura_fmt": None}
+    if linhas_autorref is None or not len(linhas_autorref):
+        return vazio
+    df = linhas_autorref
+    if ids is not None:
+        df = df[df["ID_COOPERADO"].isin(list(ids))]
+    if not len(df):
+        return vazio
+    itens = float(df["itens"].sum())
+    com_conta = float(df["itens_com_conta"].sum())
+    autos = float((df["taxa_autorref"].fillna(0.0) * df["itens_com_conta"]).sum())
+    if not itens:
+        return vazio
+    cobertura = com_conta / itens
+    ok = (com_conta >= config.MIN_ITENS_AUTORREF_PROC
+          and cobertura >= config.MIN_COBERTURA_AUTORREF_PROC)
+    return {
+        "apresentavel": bool(ok),
+        "taxa_fmt": fmt_pct(autos / com_conta) if ok and com_conta else None,
+        "cobertura_fmt": fmt_pct(cobertura),
+        "itens": int(round(itens)),
+        "itens_fmt": fmt(itens, 0),
+        "itens_com_conta": int(round(com_conta)),
+        "itens_com_conta_fmt": fmt(com_conta, 0),
+        "n_cooperados": int(df["ID_COOPERADO"].nunique()),
+        "motivo": None if ok else "Não apurável",
+    }

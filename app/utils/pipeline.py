@@ -953,7 +953,13 @@ def solicitacoes_por_faixa(fato, perfil, janela_ini, janela_fim, area, cd,
         return [float(qt[(idades >= lo) & (idades <= hi)].sum())
                 for lo, hi, _ in faixas]
 
-    dele = f[f["ID_COOPERADO"] == cooperado]
+    # `cooperado` aceita UM id ou uma COLEÇÃO. No painel do dossiê é o médico
+    # contra a área; no painel do exame na área é o RECORTE em cena contra a
+    # área inteira, que é a mesma leitura com o sujeito trocado — e quando o
+    # recorte é a área toda, as duas barras coincidem e a comparação some
+    # sozinha, sem caso especial.
+    dele = f[f["ID_COOPERADO"] == cooperado if isinstance(cooperado, str)
+             else f["ID_COOPERADO"].isin(list(cooperado))]
     if not len(dele):
         return None
     n_dele, n_area = _por_faixa(dele), _por_faixa(f)
@@ -1173,9 +1179,13 @@ def pacientes_do_procedimento(fato, cooperado, cd_procedimento, janela_ini, jane
     Retorna: dict com linhas (topo), resto, e os totais do par. None se o par
     não existe na janela.
     """
+    # `cooperado` aceita UM id ou uma COLEÇÃO deles: o painel do dossiê pergunta
+    # por um par (cooperado, exame) e o painel do exame na área pergunta pelo
+    # mesmo exame entre os cooperados em cena. Mesma conta, dois recortes.
+    quem = (fato["ID_COOPERADO"] == cooperado if isinstance(cooperado, str)
+            else fato["ID_COOPERADO"].isin(list(cooperado)))
     f = fato[(fato["DATA_REQUISICAO"] >= janela_ini) & (fato["DATA_REQUISICAO"] <= janela_fim)
-             & (fato["ID_COOPERADO"] == cooperado)
-             & (fato["CD_PROCEDIMENTO"] == cd_procedimento)]
+             & quem & (fato["CD_PROCEDIMENTO"] == cd_procedimento)]
     f = filtrar_ps(f, incluir_ps)
     if not len(f):
         return None
@@ -1201,8 +1211,18 @@ def pacientes_do_procedimento(fato, cooperado, cd_procedimento, janela_ini, jane
                                   ascending=[False, False, True])
 
     destacados = por_pac[por_pac["pct_do_procedimento"] > limiar]
+    # REPETIÇÃO, da mesma varredura: quantos voltaram e com que intervalo. Sai
+    # daqui, e não de uma segunda função, porque é a mesma tabela por paciente
+    # que já foi montada — e duas varreduras é como os dois números passam a
+    # divergir de filtro no dia em que alguém mexer numa só.
+    repetem = por_pac[por_pac["ocasioes"] > 1]
     return {
         "linhas": destacados.to_dict("records"),
+        "pct_repetem": (float(len(repetem)) / len(por_pac)) if len(por_pac) else None,
+        "n_repetem": int(len(repetem)),
+        "itens_por_paciente": (total_itens / len(por_pac)) if len(por_pac) else None,
+        "intervalo_mediano_dias": (float(repetem["intervalo_dias"].median())
+                                   if len(repetem) else None),
         "pct_destacados": float(destacados["pct_do_procedimento"].sum()),
         "maior_pct": float(por_pac["pct_do_procedimento"].max()) if len(por_pac) else 0.0,
         "limiar": float(limiar),

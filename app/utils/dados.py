@@ -87,7 +87,7 @@ def rodar_composicao_carteira(janela_ini: str, janela_fim: str, area: str,
 
 @lru_cache(maxsize=256)
 def rodar_solicitacoes_por_faixa(janela_ini: str, janela_fim: str, area: str,
-                                 cd: str, cooperado: str, incluir_ps: bool):
+                                 cd: str, cooperado, incluir_ps: bool):
     """Repartição etária das solicitações de UM exame, do motor, cacheada."""
     return pl.solicitacoes_por_faixa(
         carregar_fato(), carregar_perfil_beneficiarios(),
@@ -227,6 +227,35 @@ def rodar_precos(janela_ini: str, janela_fim: str):
 
 
 @lru_cache(maxsize=64)
+def volume_do_procedimento_por_trimestre(cd: str, ids: tuple, janelas: tuple,
+                                         incluir_ps: bool):
+    """Solicitações e pacientes distintos de UM exame entre os cooperados em
+    cena, trimestre a trimestre.
+
+    A irmã de `volume_do_par_por_trimestre` com o recorte trocado: lá o par
+    (cooperado, exame), aqui o exame entre um GRUPO de cooperados. Mesma
+    definição de `n_solicitacoes` e a mesma regra de PS, para as duas séries
+    somarem o mesmo dinheiro quando o grupo é a área inteira.
+
+    `ids` viaja como tupla porque é chave de cache; vazia significa "todos os
+    que solicitaram o exame no período".
+    """
+    f = carregar_fato()
+    f = f[f["CD_PROCEDIMENTO"] == cd]
+    if ids:
+        f = f[f["ID_COOPERADO"].isin(list(ids))]
+    f = pl.filtrar_ps(f, incluir_ps)
+    saida = {}
+    for k, (ini, fim) in enumerate(janelas, start=1):
+        j = f[(f["DATA_REQUISICAO"] >= ini) & (f["DATA_REQUISICAO"] <= fim)]
+        saida[k] = {
+            "solicitacoes": float(j["QT_EFETIVO"].sum()) if len(j) else 0.0,
+            "pacientes": int(j["ID_BENEFICIARIO"].nunique()) if len(j) else 0,
+        }
+    return saida
+
+
+@lru_cache(maxsize=64)
 def volume_do_par_por_trimestre(cooperado: str, cd: str, janelas: tuple,
                                 incluir_ps: bool):
     """Solicitações e pacientes distintos de UM par (cooperado, procedimento),
@@ -294,7 +323,7 @@ def rodar_autorref_proc(janela_ini: str, janela_fim: str, area: str | None,
         area=area, incluir_ps=incluir_ps)
 
 
-def pacientes_do_procedimento(cooperado: str, cd: str, janela_ini: str,
+def pacientes_do_procedimento(cooperado, cd: str, janela_ini: str,
                               janela_fim: str, incluir_ps: bool):
     """Os pacientes que concentram UM par (cooperado, procedimento).
 

@@ -101,13 +101,94 @@ Não renderiza nos estados sem referência plena. [v0]
     `N_MINIMO_P75` formadores da referência têm a medida.
   - Antes o eixo era só o índice, e quem pedia POUCO e CARO ficava no meio da
     nuvem: era a pergunta que o bloco não sabia responder.
+- **Linha de contexto** sob o título: escopo da área, fixo, acima dos chips —
+`64 na área · 63 comparáveis (ver os 6 fora da referência) · 63 com excedente em algum
+procedimento · 18 também atípicos no índice agregado`. As duas medidas do excedente
+(`132.526 solicitações · R$ 4,2 mi`) saíram dela em set/2026: a Leitura da área
+imprime as duas logo abaixo — a de solicitações como linha do grupo, o R$ como
+destaque, e as duas de novo na nota —, e a linha de contexto era a superfície em que
+elas diziam menos, sem denominador ao lado e sem declarar que não se movem com o
+recorte. O que a linha carrega é o ESCOPO, que nenhum outro bloco repete.
 - **Aba Cooperados** (default): identidade · magnitude · evidência · desfecho.
 Colunas de evidência: procedimento que puxa (com razão), consistência por trimestre
 com direção, leitura de concentração, fatores de contexto. [v0]
+  - **Pareto, distribuição e tabela apontam o MESMO cooperado.** As três mostram o
+    mesmo conjunto por eixos diferentes, e escolher num deles escolhe nos três. O fio
+    corria só num sentido até set/2026 (a barra levava à linha, a linha não levava à
+    barra): quem clicava na tabela procurava o cooperado à mão numa lista de 63 barras
+    dentro de uma janela de 300px. A barra apontada recebe realce e régua à esquerda, e
+    a lista rola até centrá-la — só quando ela está fora da vista, para que clicar numa
+    barra visível não puxe a lista debaixo do cursor. A barra apontada muda só o FUNDO,
+    no mesmo cinza da linha de tabela apontada: a régua vertical que ela teve por um dia
+    resolvia um problema que a rolagem automática já não deixa acontecer, e cobrava por
+    isso uma tinta forte dentro de um gráfico onde a cor é do dado.
 - **Aba Procedimentos**: procedimento · prevalência entre os pares · solicitantes
-elegíveis · referência · qualidade da referência · acima do critério · excedente ·
-% acumulado. Ordenável — por excedente é o Pareto; por prevalência é "o que é
-rotina aqui". [v0]
+elegíveis · referência · qualidade da referência · solicitações · acima do critério ·
+excedente · % acumulado. Ordenável — por excedente é o Pareto; por prevalência é "o
+que é rotina aqui"; por solicitações é "o que mais se pede". [v0]
+  - **Solicitações** entrou em set/2026: prevalência diz quantos cooperados pedem, e
+    nada dizia QUANTO se pede. Um exame que todos solicitam uma vez ao ano e outro que
+    todos solicitam toda semana saíam com a mesma prevalência de 100%. Segue o recorte,
+    como as demais colunas de achado.
+  - **Filtro "Todos | Com excedente"** (segmentado no cabeçalho, com a contagem em
+    cada opção): dois em cada três procedimentos da área não têm ninguém acima do
+    critério — 232 de 671 em Ginecologia —, e eles ocupam a lista inteira abaixo da
+    linha em que o excedente acaba. É LOCALIZAÇÃO, não recorte: esconde linhas e não
+    toca em soma nenhuma (o % acumulado não muda, porque quem sai contribuía com
+    zero). Viaja na URL (`pexc`) e é declarado no rodapé da tabela.
+- **Painel do procedimento na área** — abre ao clicar numa linha da tabela ou numa
+barra do Pareto de procedimentos, na mesma gaveta do painel do dossiê. Responde a
+pergunta que nenhuma coluna separa: **este exame é norma da área ou hábito de alguns**.
+Em Ginecologia, US Transvaginal (mediana 0,283 · P75 0,355) e US Estruturas
+Superficiais (mediana 0,032 · P75 0,135) têm prevalência alta e excedente grande nas
+duas linhas da tabela; o primeiro é discussão de protocolo e o segundo é auditoria.
+Oito seções, na ordem de leitura: [v1]
+  1. **Peso na área** — fatia das solicitações e do custo do recorte. Decide se vale
+     ler o resto: um exame com 0,3% do custo não muda a conversa.
+  2. **Distribuição na área** — o box plot do painel do dossiê com o enxame da tela de
+     Área por cima, um ponto por cooperado. A POSIÇÃO é régua e não se move com o
+     recorte; quem está fora do recorte recua. A leitura vem redigida do motor: a
+     razão P75/referência separa a distribuição compacta da assimétrica.
+     - **Escala de cor: variante E** do artboard "Medyx Escala de Cor" ("sem escala e
+       sem brilho"), adotada em set/2026. Dois estados e só: dentro do padrão da área
+       em cinza (`--g-500`, opacidade .6 no claro e .75 no escuro), acima do critério
+       em verde chapado (`--acc`), 7px contra 8px, sem rampa e sem halo. Nenhum matiz
+       novo entra — as duas tintas já são token nos dois temas.
+     - O que a variante cobra, e onde o painel recupera: a tinta deixa de dizer
+       QUANTO, e o realce passa a depender só de matiz. A lista logo abaixo ordena por
+       excedente e acende o ponto no hover, que é o canal onde essa pergunta passou a
+       viver. Sem esse fio a leitura ficaria incompleta: a lista ordena por excedente e
+       o eixo é a taxa, e `excedente ≈ (taxa − referência) × consultas` — em US
+       Estruturas Superficiais o primeiro da lista é o 11º ponto mais à direita, e o
+       ponto mais à direita de todos não entra na lista.
+  3. **Concentração entre cooperados** — quantos somam 80% do excedente deste exame,
+     pelo mesmo `FRACAO_PARETO_MATERIAL` do degrau "material" da cascata.
+  4. **Acima do critério** (recolhível, com a seta do resto do app) — o NÚCLEO dos 80% (o mesmo da seção anterior, entre
+     `MIN_NOMES_PAINEL` e `MAX_NOMES_PAINEL`), com taxa, razão, excedente e R$, cada
+     um com o chevron do dossiê. A cauda viaja no payload e é revelada sob demanda,
+     nunca escondida. É a seção que fecha o painel em ação.
+     - O corte era um número fixo, e acertava por acaso: nestes dados os oito
+       primeiros somam de 79% a 97% do excedente. Mas em 40316378 quatro pessoas
+       fazem 97% e listar oito enfileira quatro nomes irrelevantes; em 41301099 são
+       nove e o corte em oito deixa um relevante de fora.
+     - **Rodapé: "Ver os N na tabela de Cooperados"** — leva os nomes para a aba
+       Cooperados como LOCALIZAÇÃO (`exame`/`exame_ids` na URL), irmã da busca e não
+       do recorte: encontra dentro do que está em cena e não move card, Pareto nem
+       régua. Declarada numa pílula desligável ao lado da busca e no rodapé da tabela.
+       Existe porque a gaveta responde "quem pede este exame fora do padrão" e a
+       pergunta seguinte — "e como esses estão no resto da prática deles?" — é a
+       tabela, com ordenação e colunas agregadas que a lista não tem e não deve ter.
+  5. **Solicitações por faixa etária** — a repartição do recorte contra a da área.
+  6. **Repetição por beneficiário** — distingue "muitos pacientes uma vez" de "poucos
+     pacientes muitas vezes". Sem a lista de quem concentra, que existe no painel do
+     dossiê: no agregado da ÁREA ela seria sempre vazia.
+  7. **Autorreferenciamento** — mesmo portão de cobertura do painel do dossiê, sobre o
+     agregado. É onde a leitura vale mais: por par a cobertura mediana é de 11%.
+  8. **Custo por trimestre** — sobre os cooperados ACIMA DO CRITÉRIO, para os quatro
+     trimestres somarem o excedente que a seção 1 anuncia.
+  Metade régua, metade achado, como a tabela de onde ele abre: a distribuição não se
+  move com o recorte; peso, concentração, lista, faixas, repetição, autorreferência e
+  trimestres seguem.
 - Drill do procedimento para os cooperados · auditoria da referência por procedimento
 (quem forma, quem foi excluído por sub-perfil). [v1 — F1/F2]
 

@@ -7,7 +7,7 @@
  * Blocos na tela, na ordem em que a pergunta se faz:
  *   · cabeçalho da página — título e a linha de contexto fixa da área
  *   · chips de recorte + perfis — o eixo aninhado da cascata
- *   · três cards — o tamanho do que está em cena, seguindo o recorte
+ *   · Leitura da área — o que a tela produziu, seguindo o recorte
  *   · abas Cooperados | Procedimentos — o conteúdo de trabalho, e dentro de
  *     cada uma: o Pareto do eixo, a tabela e (na de Cooperados) os gráficos
  *   · painel de excluídos, aberto pelo link da linha de contexto
@@ -27,7 +27,7 @@
 import { el } from '../lib/dom.js';
 import { buscar } from '../lib/api.js';
 import { abrirPagina } from '../lib/pagina.js';
-import { TELAS } from '../lib/rotas.js';
+import { TELAS, comRegua } from '../lib/rotas.js';
 import { criarVista } from '../lib/vista.js';
 import { ordenar, ordemDaURL, proximaOrdem, casa } from '../lib/tabelas.js';
 import { montarCabecalho } from '../blocos/cabecalho.js';
@@ -39,8 +39,8 @@ import { montarTabela, COLUNAS } from '../blocos/tabela.js';
 import { montarProcedimentos } from '../blocos/procedimentos.js';
 import { montarDistribuicao } from '../blocos/distribuicao.js';
 import { montarPareto } from '../blocos/pareto.js';
-import { montarCards } from '../blocos/cards.js';
 import { montarLeituraDaArea } from '../blocos/leitura-area.js';
+import { abrirPainelDoExame } from '../blocos/painel-procedimento-area.js';
 import { montarDispersao } from '../blocos/dispersao.js';
 
 await abrirPagina({
@@ -60,6 +60,8 @@ await abrirPagina({
 
   function recorteInicial() {
     const q = new URLSearchParams(location.search);
+    /* Só o que o SERVIDOR reagrega. `q` e a localização por exame ficam de
+       fora de propósito: elas encontram dentro do que já veio. */
     return { recorte: q.get('recorte') || RECORTE_PADRAO,
              perfil: q.get('perfil') || null,
              q: q.get('q') || null };
@@ -91,13 +93,14 @@ await abrirPagina({
     definir({ perfil: [...atuais].join(',') || null });
   });
 
-  /* Os três cards ficam ABAIXO dos chips e seguem o recorte: são o tamanho do
+  /* A LEITURA DA ÁREA fica ABAIXO dos chips e segue o recorte: é o tamanho do
      que está em cena. O contexto fixo da área é a linha sob o título, acima
-     dos chips (CLAUDE.md, lei 0). */
-  const cards = montarCards(conteudo, dados.cards);
-  /* A LEITURA DA ÁREA, logo abaixo dos cards e seguindo o mesmo recorte: os
-     mesmos números agrupados pela pergunta que respondem, com o excedente em
-     destaque e a régua declarada. Os cards continuam no lugar por ora. */
+     dos chips (CLAUDE.md, lei 0).
+     A faixa de cinco KPIs que ficava aqui saiu em 2026-09-07: ela dava o mesmo
+     peso a "cooperados no recorte" e a "custo excedente", e a Leitura já traz
+     os mesmos números agrupados pela pergunta que respondem, com o excedente
+     em destaque e a régua declarada. Dois blocos para os mesmos cinco números
+     é redundância, e a de cima era a que não hierarquizava. */
   const leitura = montarLeituraDaArea(conteudo, dados);
 
   /* ── as duas unidades de análise, LOGO ABAIXO DOS CARDS ──────────────────
@@ -106,7 +109,7 @@ await abrirPagina({
      ela vinha depois de dois gráficos altos: quem abria a tela para trabalhar
      rolava por eles toda vez.
      A régua continua a mesma nas duas abas (janela, critério, recorte, perfil),
-     e por isso a faixa de filtros e os cards ficam ACIMA delas. */
+     e por isso a faixa de filtros e a Leitura ficam ACIMA delas. */
   const abas = montarAbas(conteudo, [
     { chave: 'cooperados', rotulo: 'Cooperados', n: dados.cooperados.total },
     { chave: 'procedimentos', rotulo: 'Procedimentos', n: dados.area?.n_procedimentos },
@@ -170,9 +173,19 @@ await abrirPagina({
      o Pareto de pé. */
   for (const painel of Object.values(graficos.paineis)) painel.classList.add('on');
 
+  /* ── AS TRÊS SUPERFÍCIES DO MESMO COOPERADO ───────────────────────────────
+   * Pareto, distribuição e tabela mostram o MESMO conjunto por eixos
+   * diferentes, e escolher num deles é escolher nos três. Antes o fio só
+   * corria num sentido — a barra levava à linha, a linha não levava à barra —,
+   * e quem clicava na tabela tinha de procurar o cooperado à mão numa lista de
+   * 63 barras dentro de uma janela de 300px.
+   * A distribuição continua sendo a que fecha o circuito (é ela que sabe
+   * trocar o recorte quando o escolhido está fora de cena); o que mudou é que
+   * o Pareto passou a ouvir também. */
   const pareto = montarPareto(graficos.paineis.pareto, dados.pareto_cooperados,
     (id) => grafico?.marcar(id), 'pareto-cooperados');
   const grafico = montarDistribuicao(graficos.paineis.distribuicao, dados, (id) => {
+    pareto?.destacar(id);
     if (!id) { tabela.destacar(null); return; }
     if (!tabela.destacar(id)) {
       definir({ recorte: 'todos' });
@@ -188,6 +201,9 @@ await abrirPagina({
   encaixar('pareto');
 
   const tabela = montarTabela(abas.paineis.cooperados, dados, {
+    /* `grafico.marcar` devolve o eco à distribuição E ao Pareto, porque o
+       callback dela é quem os liga; `tabela.destacar` fecha na própria tabela.
+       Um clique, três superfícies apontando o mesmo cooperado. */
     aoEscolherLinha: (id) => { grafico?.marcar(id); tabela.destacar(id); },
     aoOrdenar: (chave) => definir(proximaOrdemDaVista(chave)),
     /* Da URL e não de `estado`: a tabela é montada ANTES de `criarVista`, e
@@ -195,17 +211,103 @@ await abrirPagina({
        só rodam depois. */
     busca: new URLSearchParams(location.search).get('q') || '',
     aoBuscar: (q) => definir({ q: q || null }),
+    localizacao: rotuloDaLocalizacao(
+      new URLSearchParams(location.search).get('exame'),
+      (new URLSearchParams(location.search).get('exame_ids') || '')
+        .split(',').filter(Boolean).length),
+    aoLimparLocalizacao: () => definir({ exame: null, exame_ids: null }),
   });
 
+  /** A pílula que declara a localização por exame, redigida num lugar só. */
+  function rotuloDaLocalizacao(cd, n) {
+    if (!cd || !n) return null;
+    return `${n} acima do critério em ${cd}`;
+  }
+
+  /* ── A GAVETA DO EXAME ────────────────────────────────────────────────────
+   * Mesma superfície do painel de procedimento do dossiê: gaveta sobre a
+   * página, com cortina, ancorada na viewport e morando no <body>. Painel no
+   * fluxo tem altura de conteúdo e a tabela tem altura de linhas, e as duas
+   * nunca coincidem.
+   *
+   * A pergunta que ela responde não é a da tabela: a tabela diz QUANTO este
+   * exame excede, a gaveta diz se o excedente é da área inteira ou de um
+   * subgrupo — leituras que nenhuma coluna separa e que pedem ações opostas.
+   *
+   * Montada ANTES dos blocos que a abrem, porque os dois (o Pareto e a tabela)
+   * precisam do mesmo `abrir`. */
+  const scrimExame = el('span', 'scrim scrim-dim');
+  document.body.appendChild(scrimExame);
+  const gavetaExame = el('aside', 'painel-lateral pnl-modal');
+  gavetaExame.hidden = true;
+  gavetaExame.setAttribute('role', 'dialog');
+  gavetaExame.setAttribute('aria-modal', 'true');
+  gavetaExame.setAttribute('aria-label', 'Detalhe do procedimento');
+  document.body.appendChild(gavetaExame);
+
+  let exameAberto = null;
+  /* A LINHA clicada, guardada: quando o recorte muda a gaveta se refaz, e a
+     tabela de procedimentos só recarrega depois — pedir a linha a ela naquele
+     instante devolveria a versão antiga ou nada, e o cabeçalho da gaveta
+     piscaria sem descrição. */
+  let linhaAberta = null;
+  let procedimentos = null;
+  function fecharExame() {
+    exameAberto = null;
+    linhaAberta = null;
+    gavetaExame.hidden = true;
+    gavetaExame.replaceChildren();
+    scrimExame.classList.remove('on');
+    procedimentos?.marcar(null);
+  }
+  function abrirExame(linha, tr) {
+    /* Clicar de novo na linha aberta fecha: o mesmo gesto desfaz o que fez. */
+    if (exameAberto === linha.codigo) { fecharExame(); return; }
+    exameAberto = linha.codigo;
+    linhaAberta = linha;
+    procedimentos?.marcar(linha.codigo);
+    if (tr) tr.classList.add('selecionada');
+    scrimExame.classList.add('on');
+    /* O achado do painel obedece ao MESMO recorte da tabela de onde ele foi
+       aberto: gaveta que soma outra população que a linha atrás dela é a
+       contradição que o recorte veio corrigir. */
+    abrirPainelDoExame(gavetaExame, dados.area?.id ?? '', linha, recorteAtivo(),
+                       fecharExame,
+                       (id) => comRegua(TELAS.cooperado.caminho(id)),
+                       verNaTabela);
+  }
+  /* A PORTA PARA A TABELA. Fecha a gaveta, troca de aba e localiza a tabela de
+     Cooperados nos nomes que estavam na lista. É localização, não recorte: os
+     cards, os Paretos e a régua não se movem — só a lista visível encolhe, com
+     o rodapé declarando por quê. */
+  function verNaTabela(cd, ids) {
+    fecharExame();
+    definir({ aba: 'cooperados', exame: cd, exame_ids: ids.join(',') });
+  }
+
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && exameAberto) fecharExame();
+  });
+  scrimExame.addEventListener('click', fecharExame);
+
   const paretoProc = montarPareto(abas.paineis.procedimentos,
-                                  dados.pareto_procedimentos, null,
+                                  dados.pareto_procedimentos,
+                                  /* a barra abre a MESMA gaveta que a linha:
+                                     é o mesmo exame, e duas portas com
+                                     destinos diferentes seriam duas telas */
+                                  (cd) => procedimentos?.abrirPorCodigo(cd),
                                   'pareto-procedimentos');
-  const procedimentos = montarProcedimentos(
+  procedimentos = montarProcedimentos(
     abas.paineis.procedimentos, dados.area?.id ?? '',
     /* Da URL pelo mesmo motivo da tabela de Cooperados: este bloco é montado
        ANTES de `criarVista`, e ler o estado aqui estoura a tela. */
     { busca: new URLSearchParams(location.search).get('qp') || '',
-      aoBuscar: (t) => definir({ qp: t || null }) });
+      aoBuscar: (t) => definir({ qp: t || null }),
+      /* `pexc` = a aba Procedimentos mostrando só quem tem excedente. Estado de
+         VISTA, como a busca: esconde linhas e não move soma nenhuma. */
+      soExcedente: new URLSearchParams(location.search).get('pexc') === '1',
+      aoFiltrar: (so) => definir({ pexc: so ? '1' : null }),
+      aoAbrirLinha: (linha, tr) => abrirExame(linha, tr) });
 
   /* ── o estado da vista, e o que ele governa ──────────────────────────────
    * "Todos" inclui quem está abaixo do volume mínimo, que entra sem posição,
@@ -215,6 +317,7 @@ await abrirPagina({
    * vistas de propósito. */
   const { estado, definir } = criarVista(
     { recorte: RECORTE_PADRAO, perfil: null, aba: 'cooperados', q: null, qp: null,
+      pexc: null, exame: null, exame_ids: null,
       ...ordemInicial() },
     aplicar);
 
@@ -256,6 +359,16 @@ await abrirPagina({
        recorte e o perfil deixaram em cena, e não muda nenhum agregado. Por
        isso não entra em `recorteAtivo()`, que é o que o servidor reagrega. */
     if (estado.q) linhas = linhas.filter((l) => casa(l.id, estado.q));
+    /* A LOCALIZAÇÃO POR EXAME, irmã de `q` e não do recorte: os cooperados
+       acima do critério num procedimento, vindos da gaveta dele. LOCALIZA
+       dentro do que o recorte deixou em cena e não toca em soma nenhuma (lei 0:
+       o recorte muda quem está em cena, a busca só encontra), e por isso
+       também não entra em `recorteAtivo()`. */
+    const idsDoExame = (estado.exame_ids || '').split(',').filter(Boolean);
+    if (idsDoExame.length) {
+      const alvo = new Set(idsDoExame);
+      linhas = linhas.filter((l) => alvo.has(l.id));
+    }
     if (escolhidos.length) {
       const flags = new Set(escolhidos.map((p) => p.flag));
       linhas = linhas.filter(
@@ -269,6 +382,8 @@ await abrirPagina({
     const { recorte, perfis: escolhidos, linhas } = emCena();
     chips.marcar(recorte.chave);
     perfis?.marcar(escolhidos.map((p) => p.chave));
+    tabela.mostrarLocalizacao(rotuloDaLocalizacao(
+      estado.exame, (estado.exame_ids || '').split(',').filter(Boolean).length));
 
     /* O contador da aba conta QUEM ESTÁ EM CENA, não o total da área: ele fica
        encostado no rótulo que nomeia a lista logo abaixo, e um número parado
@@ -345,8 +460,14 @@ await abrirPagina({
     const a = await buscar(`/api/area/${encodeURIComponent(escolhida)}/achados`,
                            { extra: alvo });
     if (meu !== sequencia) return;
-    cards.atualizar(a.cards);
     leitura?.atualizar(a.leitura);
+    /* A gaveta aberta REFAZ a busca quando o recorte muda: metade do que ela
+       mostra é achado, e deixá-la com os números do recorte anterior põe duas
+       populações na mesma tela. */
+    if (exameAberto && linhaAberta) {
+      abrirPainelDoExame(gavetaExame, escolhida, linhaAberta, alvo, fecharExame,
+                         (id) => comRegua(TELAS.cooperado.caminho(id)));
+    }
     pareto?.atualizar(a.pareto_cooperados);
     paretoProc?.atualizar(a.pareto_procedimentos);
     /* O Pareto redesenha com `cartao.replaceChildren`, e isso leva junto a
@@ -369,6 +490,7 @@ await abrirPagina({
        frase só, e um filtro que não aparece nela é um filtro que o leitor
        esquece que ligou. */
     if (estado.q) diz += ` · busca: "${estado.q}"`;
+    if (estado.exame) diz += ` · acima do critério no exame ${estado.exame}`;
     const ordem = coluna
       ? `${coluna.nome.toLowerCase()}, ${estado.dir === 'asc' ? 'crescente' : 'decrescente'}`
       : `${dados.cooperados.ordenado_por} (padrão)`;

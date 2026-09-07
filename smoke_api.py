@@ -152,8 +152,23 @@ checar("percentil sempre com tradução (ajuste 2)",
            if linha["posicao"]["tipo"] == "percentil"), True)
 
 _, procs = get("/api/area/ginecologia/procedimentos")
-exc_stat = parte(gin, "excedente")["valor"]
-checar("excedente · linha de contexto == soma da aba Procedimentos",
+
+
+def linha_leitura(payload, chave):
+    """Uma linha da Leitura da área, pela chave."""
+    return next(l for g in payload["leitura"]["grupos"] for l in g["linhas"]
+                if l["chave"] == chave)
+
+
+def num_ptbr(texto):
+    """'132.526' -> 132526.0. O smoke lê a TELA, e a tela é pt-BR."""
+    return float(re.sub(r"[^\d,.-]", "", texto).replace(".", "").replace(",", "."))
+
+
+# o excedente saiu da linha de contexto e vive na Leitura da área: a checagem
+# segue o número para onde ele foi
+exc_stat = num_ptbr(linha_leitura(gin, "_itens")["valor_fmt"])
+checar("excedente · Leitura da área == soma da aba Procedimentos",
        round(exc_stat), round(procs["resumo"]["excedente_total"]))
 checar("procedimentos · % acumulado termina em 100%",
        procs["linhas"][-1]["pct_acumulado_fmt"], "100%")
@@ -164,9 +179,13 @@ checar("contexto · não duplica o gráfico (sem mediana/IQR/P90)",
        [k for k in ("mediana", "iqr", "criterio") if k in chaves_stats], [])
 # a ordem nomeia os DOIS níveis: o achado (par cooperado×procedimento) antes da
 # leitura sobre o índice agregado, que é adicional
+# `excedente` e `excedente_reais` saíram da linha em 2026-09-07: a Leitura da
+# área imprime os dois logo abaixo (linha do grupo, destaque e nota), e a linha
+# de contexto era onde eles diziam menos. O que ela carrega é o ESCOPO.
 checar("contexto · as partes, nesta ordem", chaves_stats,
-       ["na_area", "comparaveis", "com_excedente", "em_revisao", "excedente",
-        "excedente_reais"])
+       ["na_area", "comparaveis", "com_excedente", "em_revisao"])
+checar("contexto · não repete o excedente da Leitura da área",
+       [k for k in ("excedente", "excedente_reais") if k in chaves_stats], [])
 checar("os dois níveis não se confundem: 63 gera o excedente, 8 é o agregado",
        parte(gin, "com_excedente")["valor"] >= parte(gin, "em_revisao")["valor"],
        True)
@@ -202,19 +221,22 @@ checar("o total da área abre a linha", parte(gin, "na_area")["valor"],
 revisao = parte(gin, "em_revisao")
 checar("acima do critério · sem a palavra 'sinalizados' (léxico)",
        "sinalizad" in (revisao["texto"] + revisao["titulo_longo"]).lower(), False)
-exc = parte(gin, "excedente_reais")
 # LÉXICO DO R$: o valor vai à tela como número, sem adjetivo. O rótulo
 # "(em quarentena)" e a nota "Estimativa de teto…" saíram do app inteiro em
 # set/2026, por decisão do produto: descreviam o estado do projeto (a tabela
 # contratual não chegou), não a natureza do número. O que a base de preço é
 # continua na definição das colunas de R$ e no hover do valor no dossiê.
-checar("o R$ tem parte própria na linha", "R$ " in exc["texto"], True)
-checar("sem vocabulário de quarentena", "quarentena" in exc["texto"], False)
-checar("sem o rótulo 'estimativa'", "estimad" in exc["texto"], False)
-# guia, tabela de formatos: "R$ abreviado, 1 casa · R$ 1,2 mi". Sete dígitos numa
-# linha de contexto não se leem; o valor exato pertence ao dossiê.
-checar("R$ abreviado na linha de contexto",
-       bool(re.search(r"R\$ [\d.,]+ (mi|mil)\b", exc["texto"])), True)
+# O R$ agora é o DESTAQUE da Leitura da área, não mais uma parte da linha de
+# contexto — as checagens seguem o número.
+exc_txt = (gin["leitura"]["destaque"]["valor_fmt"] + " "
+           + gin["leitura"]["destaque"]["apoio"])
+checar("o R$ é o destaque da Leitura da área", "R$ " in exc_txt, True)
+checar("sem vocabulário de quarentena", "quarentena" in exc_txt, False)
+checar("sem o rótulo 'estimativa'", "estimad" in exc_txt, False)
+# guia, tabela de formatos: "R$ abreviado, 1 casa · R$ 1,2 mi". Sete dígitos num
+# número-herói não se leem; o valor exato pertence ao dossiê.
+checar("R$ abreviado no destaque",
+       bool(re.search(r"R\$ [\d.,]+ (mi|mil)\b", exc_txt)), True)
 
 # Pareto do custo evitável potencial: ordem e acumulado nascem no motor e têm
 # de concordar com a faixa (mesma fonte, casc["excedente_reais*"]).
@@ -462,10 +484,15 @@ print("\n5b. JANELA LIVRE (intervalo AAAA-MM) DEFINE O UNIVERSO")
 # intervalo equivalente ao atalho tem de devolver exatamente os mesmos números.
 _, gin_12m = get("/api/area/ginecologia", janela="12m")
 _, gin_int = get("/api/area/ginecologia", ini="2025-05", fim="2026-04")
-for chave in ("comparaveis", "em_revisao", "excedente"):
+for chave in ("comparaveis", "em_revisao"):
     a = parte(gin_12m, chave)["valor"]
     b = parte(gin_int, chave)["valor"]
     checar(f"intervalo equivalente ao atalho reproduz {chave}", b, a)
+# o excedente mudou de superfície (linha de contexto -> Leitura da área), não de
+# valor: a checagem segue o número
+checar("intervalo equivalente ao atalho reproduz excedente",
+       linha_leitura(gin_int, "_itens")["valor_fmt"],
+       linha_leitura(gin_12m, "_itens")["valor_fmt"])
 checar("e o rótulo passa a nomear o intervalo",
        gin_int["proveniencia"]["janela"]["rotulo"], "mai/2025 a abr/2026")
 
@@ -544,6 +571,50 @@ checar("dossiê · em revisão só quem passa os três portões",
 checar("dossiê · proveniência presente", "proveniencia" in dossie, True)
 codigo, corpo_404 = get("/api/cooperado/cooperado_inexistente")
 checar("dossiê · cooperado desconhecido -> 404", codigo, 404)
+
+print("\n7a. PAINEL DO PROCEDIMENTO NA ÁREA · RÉGUA IMÓVEL, ACHADO RECORTADO")
+# O painel é metade régua e metade achado, como a tabela de onde ele abre. As
+# checagens abaixo cobram exatamente essa divisão — é o único jeito de o bloco
+# poder ser lido ao lado da linha sem que os dois somem populações diferentes.
+_cd = procs["linhas"][0]["codigo"]
+_, pnl = get(f"/api/area/ginecologia/procedimento/{_cd}")
+_, pnl_q = get(f"/api/area/ginecologia/procedimento/{_cd}", recorte="qualificados")
+checar("painel do exame · a distribuição é RÉGUA e não se move com o recorte",
+       (pnl["distribuicao"]["referencia"]["valor_fmt"],
+        pnl["distribuicao"]["n_pares"]),
+       (pnl_q["distribuicao"]["referencia"]["valor_fmt"],
+        pnl_q["distribuicao"]["n_pares"]))
+checar("painel do exame · o achado SEGUE o recorte",
+       pnl["acima"]["n"] >= pnl_q["acima"]["n"], True)
+checar("painel do exame · declara o recorte em cena",
+       pnl_q["recorte"]["n"] < pnl["recorte"]["n"], True)
+# a mesma soma que a tabela: o painel não pode discordar da linha atrás dele
+checar("painel do exame · volume == coluna Solicitações da tabela",
+       pnl["peso"]["solicitacoes_fmt"], procs["linhas"][0]["n_solicitacoes_fmt"])
+checar("painel do exame · quem está acima == coluna Acima do critério",
+       pnl["acima"]["n"], procs["linhas"][0]["n_acima_do_criterio"])
+# o núcleo é subconjunto de quem tem excedente, nunca maior
+if pnl["nucleo"]:
+    checar("painel do exame · núcleo <= quem tem excedente",
+           pnl["nucleo"]["n_nucleo"] <= pnl["nucleo"]["n_com_excedente"], True)
+checar("painel do exame · procedimento inexistente -> 404",
+       get("/api/area/ginecologia/procedimento/99999999")[0], 404)
+# o fio entre a LISTA (ordenada por excedente) e o GRÁFICO (eixo da taxa): são
+# grandezas diferentes, e a cor é o que faz as duas concordarem sobre quem
+# importa. Se o ponto mais escuro não for o primeiro da lista, elas voltaram a
+# se contradizer.
+_esc = max(pnl["distribuicao"]["pontos"], key=lambda x: x["intensidade"] or 0)
+checar("painel do exame · o ponto mais escuro é o primeiro da lista",
+       _esc["id"], pnl["acima"]["linhas"][0]["id"])
+# o corte da lista é o NÚCLEO dos 80%, e não um número fixo
+checar("painel do exame · a lista corta no núcleo dos 80%",
+       pnl["acima"]["n_visiveis"],
+       min(max(pnl["nucleo"]["n_nucleo"], config.MIN_NOMES_PAINEL),
+           config.MAX_NOMES_PAINEL, pnl["acima"]["n"]))
+# a cauda é ADIADA, não escondida: o payload traz todos
+checar("painel do exame · a cauda viaja no payload (revelada sob demanda)",
+       len(pnl["acima"]["linhas"]), pnl["acima"]["n"])
+
 
 print("\n8. TEXTO DE TELA  (LEXICO_PRODUTO.md, PADRÃO DE REDAÇÃO)")
 # As regras MECÂNICAS do padrão, cobradas onde elas se repetiram: rodapés de

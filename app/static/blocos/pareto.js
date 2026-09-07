@@ -55,6 +55,12 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
      mudaria a coluna de acumulado, que é número. */
   let pacote = d;
   let ordem = d.ordem_default ?? null;
+  /* QUEM ESTÁ APONTADO sobrevive ao redesenho: trocar de recorte ou de ordem
+     reconstrói a lista inteira (`replaceChildren`), e sem guardar o id o realce
+     que veio da tabela sumia a cada filtro — justamente quando o leitor está
+     comparando as duas superfícies. */
+  let apontado = null;
+  let lista = null;
   desenhar();
 
   return {
@@ -76,7 +82,60 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
       if (!pacote?.dados?.[ordem]) ordem = pacote?.ordem_default ?? null;
       desenhar();
     },
+    /**
+     * Aponta a barra de `id` e a traz para o meio da lista.
+     *
+     * O caminho de volta que faltava: a barra já levava à linha da tabela, e a
+     * linha não levava à barra. As duas somam o MESMO dinheiro por eixos
+     * diferentes — a tabela ordena por excedente e mostra as colunas do caso, o
+     * Pareto mostra a fatia dele no total —, e escolher num lado sem que o
+     * outro responda faz o leitor procurar à mão numa lista de 63 nomes.
+     *
+     * A lista rola sozinha porque ela tem 300px e a barra pode estar na linha
+     * 47: realçar sem trazer para a vista é realçar onde ninguém vê. Centrada,
+     * e não "o mais perto possível", porque a leitura do Pareto é a barra
+     * CONTRA as vizinhas — encostada no topo ou no fundo ela perde metade do
+     * contexto que a explica.
+     */
+    destacar: (id) => {
+      apontado = id ?? null;
+      aplicarApontado(true);
+    },
   };
+
+  /** Repinta o realce e, se pedido, rola a lista até ele. */
+  function aplicarApontado(rolar = false) {
+    if (!lista) return;
+    let alvo = null;
+    for (const linha of lista.querySelectorAll('.pareto-l')) {
+      const desta = apontado != null && linha.dataset.id === apontado;
+      linha.classList.toggle('escolhida', desta);
+      if (desta) alvo = linha;
+    }
+    if (!rolar || !alvo) return;
+    /* Posição pela CAIXA, não por `offsetTop`: a linha é `position:relative` e
+       o trilho não é, então o `offsetParent` dela é um ancestral lá em cima e
+       `offsetTop` mede contra o cartão inteiro, não contra a lista. Media 1751
+       numa lista de 1466 de altura, e a conta do meio saía fora do fim. */
+    const cx = lista.getBoundingClientRect();
+    const ca = alvo.getBoundingClientRect();
+    /* JÁ À VISTA, não mexe. É o que separa os dois sentidos do fio sem precisar
+       saber de onde veio o clique: quem clicou NA BARRA está olhando para ela,
+       e puxar a lista debaixo do cursor seria movimento que ninguém pediu; quem
+       clicou na tabela quase sempre aponta uma barra fora da janela de 300px, e
+       aí a rolagem é a resposta. */
+    if (ca.top >= cx.top && ca.bottom <= cx.bottom) return;
+    /* Rolagem só do TRILHO do Pareto, nunca da página: `scrollIntoView` levaria
+       a tela junto e tiraria de cena a tabela de onde veio o clique. */
+    const meio = lista.scrollTop + (ca.top - cx.top)
+      - (lista.clientHeight - ca.height) / 2;
+    /* SALTO, não deslize. `behavior:'smooth'` foi tentado e descartado: ele não
+       rola em todo ambiente (não roda aqui, e falha em silêncio — a barra fica
+       realçada fora da vista, que é pior do que não rolar), e o app não tem
+       nenhuma outra rolagem animada com que ele combinasse. O realce diz onde o
+       leitor caiu, e num trilho de 300px o salto não desorienta. */
+    lista.scrollTop = Math.max(0, meio);
+  }
 
   /** O bloco em cena: o próprio payload, ou a ordem escolhida dentro dele. */
   function emCena() {
@@ -156,11 +215,12 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
              el('span', 'cum', col.acumulado ?? ''));
   partes.push(cab);
 
-  const lista = el('div', 'pareto');
+  lista = el('div', 'pareto');
   const limiar = d.limiar_concentracao ?? 0.8;
 
   d.linhas.forEach((l, i) => {
     const linha = el('div', 'pareto-l');
+    linha.dataset.id = l.id;
     /* O REALCE DO NÚCLEO é opcional (`destacar_nucleo`): ele responde "quais
        poucos concentram a maior parte", pergunta da tela de Área. No Pareto de
        custo do dossiê a ordem e o acumulado já dizem isso, e a segunda tinta
@@ -271,5 +331,8 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
      helper é idempotente e relê o estado salvo, então o bloco não reabre
      sozinho a cada troca de recorte. */
   colapsavel(cartao, chave);
+  /* Sem rolar: o redesenho não é um gesto do leitor, e puxar a lista a cada
+     troca de recorte seria movimento que ninguém pediu. */
+  aplicarApontado(false);
   }
 }

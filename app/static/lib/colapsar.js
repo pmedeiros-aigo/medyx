@@ -43,14 +43,21 @@ function gravar(conjunto) {
 }
 
 /**
- * Torna um cartão `.tbl` recolhível. Idempotente — chamar de novo depois de um
+ * Torna um bloco recolhível. Idempotente — chamar de novo depois de um
  * `replaceChildren` reinstala o botão e reaplica o estado salvo.
  *
- * @param {HTMLElement} cartao  o `.tbl`
+ * `seletorTopo` existe porque o mesmo gesto serve duas molduras: o cartão
+ * `.tbl` da página (cabeçalho `.tbl-hd`) e a seção `.pnl-sec` da gaveta
+ * (cabeçalho `.pnl-sec-hd`). Um comportamento, um estado salvo, um desenho de
+ * seta — a alternativa era um segundo recolhedor com as mesmas 30 linhas e o
+ * mesmo `localStorage`, que é como os dois passam a discordar.
+ *
+ * @param {HTMLElement} cartao  o bloco
  * @param {string} chave        identificador do bloco no armazenamento
+ * @param {{seletorTopo?: string}} [opcoes]
  */
-export function colapsavel(cartao, chave) {
-  const topo = cartao.querySelector(':scope > .tbl-hd');
+export function colapsavel(cartao, chave, { seletorTopo = '.tbl-hd' } = {}) {
+  const topo = cartao.querySelector(`:scope > ${seletorTopo}`);
   if (!topo || topo.querySelector(':scope > .tbl-toggle')) return;
 
   const botao = el('button', 'tbl-toggle');

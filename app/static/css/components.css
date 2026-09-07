@@ -574,7 +574,13 @@ tbody tr:hover td{background:var(--row-hover)}
    lado no mesmo lugar disputam a mesma leitura, e o que o olho procura ali é o
    dado, não o que ele mesmo acabou de clicar. Seleção o usuário já sabe que fez;
    posição no grupo é o que ele veio ler. */
-tr.selected td{background:var(--row-selected)}
+/* MESMO CINZA da linha apontada (2026-09-07). Eram dois degraus — --g-150 para
+   a selecionada, --g-100 para o hover —, e no tema claro a diferença aparecia
+   como duas superfícies de cinza diferentes na mesma tabela, enquanto no escuro
+   os dois tokens já resolvem para a mesma tinta. Um estado, uma tinta, nos dois
+   temas. O que a seleção perde em permanência de cor ela tem de ganhar em outro
+   canal se voltar a ser necessário: `--row-selected-edge` continua sem uso. */
+tr.selected td{background:var(--row-hover)}
 /* A CANALETA COLORIDA da linha (`tr.acima` / `tr.acima-ref`, faixa de 3px na
    primeira célula) SAIU em 2026-08-20. Marcava "acima do critério agregado" — a
    régua que saiu do gráfico de distribuição por não governar nada. Deixá-la na
@@ -1739,6 +1745,15 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .pareto-l{position:relative;display:flex;align-items:center;gap:12px;padding:3px 0;border-bottom:1px solid transparent}
 .pareto-l.clicavel{cursor:pointer}
 .pareto-l:hover{background:var(--hover)}
+/* A BARRA APONTADA pela tabela. Mesma tinta do hover das linhas, porque é o
+   mesmo estado visto de outra superfície: a tabela e o Pareto somam o mesmo
+   dinheiro por eixos diferentes, e escolher num deles é escolher nos dois.
+   SÓ O FUNDO: a régua de 2px à esquerda saiu em 2026-09-07. Ela existia para o
+   realce sobreviver à rolagem, mas quem rola até a barra é a própria lista, que
+   a entrega centrada — o traço preto vertical resolvia um problema que a
+   rolagem automática já não deixa acontecer, e cobrava por isso uma tinta forte
+   dentro de um gráfico onde a cor é do dado. */
+.pareto-l.escolhida{background:var(--row-hover)}
 .pareto-l .rot{width:132px;flex:none;text-align:right;font-size:var(--fs-xs);color:var(--g-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pareto-l .trilho{flex:1;min-width:0;height:14px;display:flex;align-items:center}
 .pareto-l .trilho i{display:block;height:12px;border-radius:2px;background:var(--g-300)}
@@ -2416,6 +2431,15 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .pnl-sec{display:flex;flex-direction:column;gap:6px;padding:18px 0;
   border-top:1px solid var(--line-soft)}
 .pnl-cnt{display:flex;flex-direction:column;gap:6px;min-width:0}
+/* SEÇÃO RECOLHÍVEL da gaveta: o rótulo divide a linha com a seta do resto do
+   app (`.tbl-toggle`, o mesmo botão dos cartões de gráfico). O recuo negativo à
+   direita alinha o eixo da seta com a borda da seção, e não com o texto — é
+   assim que ela cai na mesma vertical do ✕ do cabeçalho da gaveta. */
+.pnl-sec-hd{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-right:-4px}
+.pnl-sec-hd .tbl-toggle{width:22px;height:22px}
+.pnl-sec.fechado > .pnl-cnt{display:none}
+.pnl-sec.fechado > .pnl-sec-hd .tbl-toggle svg{transform:rotate(-90deg)}
 /* Seção com DESENHO respira mais: gráfico encostado no rótulo lê como parte
    dele, e a legenda embaixo precisa se descolar das barras. */
 .pnl-sec-fig,.pnl-sec-fig>.pnl-cnt{gap:10px}
@@ -2461,11 +2485,37 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    espaço em vez de ser coberto. Este aqui é uma lista para ler e fechar, e a
    cortina diz exatamente isso. Mais largo porque cada entrada é uma frase, não
    um par rótulo/valor. */
-.painel-lateral.pnl-modal{width:min(520px,94vw);z-index:60}
+/* 600px desde set/2026, nas DUAS gavetas: o painel do exame na área desenha um
+   enxame de 60 pontos, e em 520px sobravam 8,8px por ponto (14 batiam no teto
+   do jitter, 26 colidiam). Uma largura só no app — duas gavetas de tamanhos
+   diferentes é o que a DIRETRIZES §5/§8 proíbe, e o leitor aprende a superfície
+   uma vez. Nada mais estava apertado em 520: medido, zero elementos quebravam
+   linha. */
+.painel-lateral.pnl-modal{width:min(600px,94vw);z-index:60}
+/* A BARRA HORIZONTAL que aparecia na gaveta NÃO era conteúdo: era o balão de
+   dica do ponto mais à direita do enxame (`.plot .pt .tip`, nowrap, ancorado no
+   ponto), que nasce 19px além da borda e some com opacidade zero sem sair do
+   layout. Na tela de Área a mesma classe tem folga; numa gaveta, não. `clip`
+   corta só o eixo X e não interfere na rolagem vertical, e o balão continua
+   legível porque o JS o ancora pela borda quando o ponto está perto do fim. */
+.pnl-corpo{overflow-x:clip}
+/* A ENTRADA APONTADA pelo ponto do gráfico. O fio nos dois sentidos: passar o
+   cursor na lista acende o ponto (`.pt-escolhido`, já do contrato), passar no
+   ponto acende a entrada. Sangra para as bordas da gaveta, como linha de tabela
+   selecionada, porque é isso que ela é. */
+.pnl-ent-alvo{background:var(--row-selected);
+  box-shadow:-20px 0 0 var(--row-selected),20px 0 0 var(--row-selected)}
+/* balão ancorado pela BORDA em vez do centro, nos extremos do eixo */
+.plot .pt .tip.tip-ini{left:0;transform:none}
+.plot .pt .tip.tip-fim{left:auto;right:0;transform:none}
 /* uma ENTRADA da lista: identificação e volume em cima, motivo por extenso
    embaixo, separadas pela mesma régua fina das seções do painel */
 .pnl-ent{display:flex;flex-direction:column;gap:5px;padding:13px 0;
   border-top:1px solid var(--line-soft)}
+/* `display:flex` no autor VENCE o `[hidden]{display:none}` do navegador, e a
+   cauda da lista "Acima do critério" ficava visível mesmo marcada como oculta.
+   Mesma correção que `.painel-lateral[hidden]` já carrega logo acima. */
+.pnl-ent[hidden]{display:none}
 .pnl-corpo>.pnl-ent:first-child{border-top:0}
 .pnl-ent .mono{font-size:var(--fs-md);font-weight:500;color:var(--g-900)}
 .pnl-ent .dlg-h{font-size:var(--fs-md);color:var(--g-700);line-height:1.45}
@@ -2502,7 +2552,7 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    teclado com contorno visível — linha clicável sem foco só existe pro mouse. */
 tr.clicavel{cursor:pointer}
 tr.clicavel:hover{background:var(--hover)}
-tr.clicavel.selecionada{background:var(--row-selected)}
+tr.clicavel.selecionada{background:var(--row-hover)}
 tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 
 /* Sem largura para as duas coisas, o painel passa a cobrir — em tela estreita
@@ -2645,6 +2695,46 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    Sem eixo numerado e sem rótulo sobre as linhas: os três valores estão escritos
    logo abaixo, com a marca de cada um ao lado. */
 .plot-sm{--ch-h:56px;margin:0}
+/* ── O ENXAME NA GAVETA ──────────────────────────────────────────────────────
+   O `.plot-sm` do painel do dossiê carrega UM ponto e 56px bastam. O painel do
+   exame na área carrega a área inteira, e o enxame precisa de altura para não
+   empilhar: 84px dão ao empacotador o mesmo jitter do gráfico cheio.
+   A caixa e a haste sobem junto, para o desenho continuar centrado. */
+.plot-enxame{--ch-h:84px}
+.plot-enxame .haste{top:42px}
+.plot-enxame .tampa{top:35px;height:15px}
+.plot-enxame .iqrband{top:28px;height:28px}
+.plot-enxame .refline{top:22px;height:40px}
+/* ── ESCALA DE COR: variante E do artboard "Medyx Escala de Cor" ─────────────
+   "Sem escala e sem brilho": dois estados, e só. Quem está DENTRO do padrão da
+   área é massa cinza; quem cruzou o critério é verde chapado. Sem rampa, sem
+   halo, sem terceiro matiz.
+
+   O que o artboard argumenta a favor: é o desenho mais quieto e o mais próximo
+   do resto do app — um ponto é um ponto, e o contraste entre cinza e verde já
+   basta para o olho achar os poucos que importam.
+   O que ele cobra, e vale saber: a tinta deixa de dizer QUANTO. Quem tem R$ 158
+   mil de excedente fica igual a quem tem R$ 12 mil, e o realce passa a depender
+   só de matiz — some no daltonismo verde-vermelho e na impressão em cinza. O
+   painel compensa em outro canal: a lista logo abaixo ordena por excedente e
+   acende o ponto no hover.
+
+   Cores: as duas são token (`--acc` e `--g-500`), nos dois temas, exatamente os
+   valores do artboard (#17624A/#4CAE8A e #71717A/#A1A1AA). As opacidades .6 e
+   .75 vêm de lá e não têm token com par de tema (`--ch-dot-op-muted` é .55 e não
+   se traduz no escuro); se a variante virar padrão dos outros gráficos, é ali
+   que ela precisa nascer. */
+.plot-enxame .pt{width:7px;height:7px;margin-left:-3.5px;
+  background:var(--g-500);opacity:.6;z-index:1;box-shadow:none}
+.plot-enxame .pt.pt-acima{width:8px;height:8px;margin-left:-4px;
+  background:var(--acc);opacity:1;z-index:3}
+/* `:not(.pt-acima)` porque a regra do escuro vem DEPOIS e empataria em
+   especificidade com a do ponto verde, apagando-o para .75 */
+[data-tema="dark"] .plot-enxame .pt:not(.pt-acima){opacity:.75}
+/* as marcas da legenda são os PRÓPRIOS pontos, no mesmo tamanho e na mesma
+   tinta: legenda que desenha outra coisa obriga a traduzir duas vezes */
+.legend i.pt-mk-fundo{background:var(--g-500);opacity:.6}
+.legend i.pt-mk-acima{width:8px;height:8px;background:var(--acc)}
 .plot-sm .haste{top:28px}
 .plot-sm .tampa{top:21px;height:15px}
 .plot-sm .iqrband{top:14px;height:28px}

@@ -506,6 +506,25 @@ MIN_BENEFICIARIOS_CARTEIRA = 30    # PROVISÓRIO
 # de concentracao_por_beneficiario).
 MIN_PACIENTES_PAINEL = 5           # PROVISÓRIO
 
+# QUANTOS NOMES a lista "Acima do critério" do painel do exame na área mostra
+# antes de pedir para revelar o resto. Não é um número: é o núcleo que soma
+# FRACAO_PARETO_MATERIAL do excedente daquele exame, a mesma regra do degrau
+# "material" da cascata. Estes dois só o CONTÊM.
+#
+# O piso existe porque lista de um nome não é lista — sem ele, um exame cujo
+# excedente vem quase todo de uma pessoa mostraria essa pessoa sozinha, e o
+# leitor não teria com que compará-la.
+# O teto existe porque acima dele a gaveta vira rolagem, e aí a resposta certa
+# é revelar sob demanda em vez de empilhar.
+#
+# Medido em Ginecologia (671 procedimentos, 232 com alguém acima do critério):
+#   acima do critério por exame: mediana 8 · p90 16 · máximo 19
+#   núcleo dos 80%: varia de 4 a 9 nos exames de maior excedente
+# ou seja, o teto raramente morde, e quando morde é exatamente o caso em que
+# uma lista completa seria ilegível.
+MIN_NOMES_PAINEL = 3               # PROVISÓRIO
+MAX_NOMES_PAINEL = 10              # PROVISÓRIO
+
 # LIMIAR_CONCENTRACAO_PACIENTE — participação de UM paciente nas solicitações de
 # um exame a partir da qual ele é listado nominalmente no painel.
 #

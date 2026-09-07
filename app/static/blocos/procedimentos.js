@@ -31,7 +31,7 @@ import { buscar } from '../lib/api.js';
 import { el, ordenar, cabecalho, ordemDaURL, gravarOrdem, proximaOrdem, moldura,
          campoDeBusca, casa } from '../lib/tabelas.js';
 
-/* As oito colunas. `ordem` é a chave na URL; `valor` extrai o número que ordena
+/* As nove colunas. `ordem` é a chave na URL; `valor` extrai o número que ordena
  * — nada aqui calcula, só lê campo que o motor já entregou.
  *
  * Rótulos curtos com a definição no `title`, o mesmo tratamento da aba
@@ -59,6 +59,15 @@ const COLUNAS = [
   { nome: 'Qualidade da referência', classe: 'col-txt',
     def: 'Sólida quando há solicitantes elegíveis suficientes; não conclusiva '
        + 'abaixo do mínimo.' },
+  /* O VOLUME abre o lado do achado. Prevalência diz quantos cooperados pedem
+     o exame; esta diz QUANTO se pede — um exame que todos solicitam uma vez ao
+     ano e outro que todos solicitam toda semana têm a mesma prevalência. É a
+     coluna que responde "o que a área mais pede", e ordenar por ela troca a
+     lista do Pareto pela rotina da área. */
+  { nome: 'Solicitações', direita: true, classe: 'col-num-md',
+    def: 'Solicitações deste exame somadas entre os cooperados em cena no '
+       + 'recorte, sinalizados ou não.',
+    ordem: 'solicitacoes', valor: (l) => l.n_solicitacoes },
   { nome: 'Acima do critério', direita: true, classe: 'col-num-md',
     def: 'Cooperados que passaram o critério de revisão neste exame, entre os '
        + 'que estão em cena no recorte.',
@@ -121,17 +130,36 @@ function numero(texto, ressalva) {
   return td;
 }
 
-function linhaDaTabela(l) {
+function linhaDaTabela(l, aoAbrir) {
   const q = l.qualidade;
   const fraca = !q.apresentavel;
   const tr = document.createElement('tr');
   tr.dataset.codigo = l.codigo;
+  /* A LINHA INTEIRA é o gatilho do painel — alvo grande, sem um botão a mais
+     na grade —, exatamente como na tabela de procedimentos do dossiê. Teclado
+     junto: a tabela é navegável, e uma porta que só abre com o mouse não é
+     porta para metade dos usuários. */
+  if (aoAbrir) {
+    tr.classList.add('clicavel');
+    tr.tabIndex = 0;
+    const acionar = () => aoAbrir(l, tr);
+    tr.addEventListener('click', acionar);
+    tr.addEventListener('keydown', (ev) => {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      acionar();
+    });
+  }
   tr.append(
     celulaProcedimento(l),
     numero(l.prevalencia_fmt),
     numero(String(l.n_solicitantes_elegiveis), fraca),
     numero(l.referencia?.mediana_fmt ?? '', fraca),
     celulaQualidade(q),
+    /* O VOLUME não leva a ressalva de referência fraca: ele é contagem de
+       solicitação, não comparação contra a norma, e continua exato quando a
+       referência do exame não é conclusiva. */
+    numero(l.n_solicitacoes_fmt),
     /* Sem referência conclusiva ninguém pode estar acima do critério: não é
        zero medido, é zero estrutural. O número vem 0 do motor e fica esmaecido
        junto com a linha, para não ser lido como "medimos e não achamos". */
@@ -160,17 +188,64 @@ export function montarProcedimentos(destino, area, opcoes = {}) {
   const titulo = el('div', 'stack g4');
   titulo.appendChild(el('span', 't', 'Procedimentos da área'));
   titulo.appendChild(el('span', 'sub',
-    'em que a área varia: prevalência, referência e o excedente de cada '
-    + 'procedimento'));
+    'em que a área varia: prevalência, referência, volume e o excedente de '
+    + 'cada procedimento'));
   /* A DECLARAÇÃO DE POPULAÇÃO. Esta tabela é metade régua e metade achado:
      prevalência, solicitantes, referência e qualidade são da área e não se
-     movem; acima do critério, excedente, R$ e % acumulado seguem o recorte.
+     movem; solicitações, acima do critério, excedente, R$ e % acumulado
+     seguem o recorte.
      Sem dizer isso em voz alta, as duas metades ficam lado a lado somando
      conjuntos diferentes — que é exatamente o defeito que o recorte veio
      corrigir. A frase vem redigida do motor. */
   const subRecorte = el('span', 'sub', '');
   titulo.appendChild(subRecorte);
   topo.appendChild(titulo);
+
+  /* ── O FILTRO DE EXCEDENTE ────────────────────────────────────────────────
+     Dois em cada três procedimentos da área não têm ninguém acima do critério
+     (439 de 671 em Ginecologia sequer têm referência conclusiva), e eles
+     ocupam a lista inteira abaixo da linha em que o excedente acaba. Quem
+     ordena por excedente vê os relevantes no topo e rola por 439 linhas de
+     travessão para conferir que não há mais nada.
+
+     É LOCALIZAÇÃO, não recorte: esconde linhas e não toca em soma nenhuma — o
+     % acumulado continua o mesmo, porque quem sai contribuía com zero. Por
+     isso é segmentado (escolha entre duas leituras da mesma lista) e não chip
+     de recorte, e por isso o rodapé o declara junto dos outros filtros.
+     Mesmo `.segfilt` do "Ordenar por" do Pareto, no mesmo `.hd-ctl`. */
+  let soExcedente = opcoes.soExcedente === true;
+  const ctlFiltro = el('div', 'hd-ctl row g8');
+  const seg = el('div', 'segfilt');
+  const botoes = new Map();
+  for (const o of [{ chave: 'todos', rotulo: 'Todos' },
+                   { chave: 'excedente', rotulo: 'Com excedente' }]) {
+    const b = el('button', 'segfilt-o', o.rotulo);
+    b.type = 'button';
+    const cnt = el('span', 'cnt', '');
+    b.appendChild(cnt);
+    b.addEventListener('click', () => {
+      const novo = o.chave === 'excedente';
+      if (novo === soExcedente) return;
+      soExcedente = novo;
+      opcoes.aoFiltrar?.(novo);
+      marcarFiltro();
+      if (dados) desenhar();
+    });
+    botoes.set(o.chave, { b, cnt });
+    seg.appendChild(b);
+  }
+  ctlFiltro.appendChild(seg);
+  topo.appendChild(ctlFiltro);
+
+  function marcarFiltro() {
+    for (const [chave, { b }] of botoes) {
+      b.classList.toggle('on', (chave === 'excedente') === soExcedente);
+    }
+  }
+  marcarFiltro();
+
+  /** Quem tem excedente medido: solicitações acima da referência neste exame. */
+  const temExcedente = (l) => (l.excedente_itens || 0) > 0;
 
   /* BUSCA: localiza dentro do que já está em cena, sem tocar em soma nenhuma.
      Casa código e descrição — quem tem o código na mão cola, quem não tem
@@ -202,13 +277,22 @@ export function montarProcedimentos(destino, area, opcoes = {}) {
 
   function desenhar() {
     const coluna = COLUNAS.find((c) => c.ordem === ordemAtiva);
-    const achadas = termo
-      ? dados.linhas.filter((l) => casa(l.descricao, termo) || casa(l.codigo, termo))
-      : dados.linhas;
+    /* O CONTADOR de cada opção conta sobre a lista INTEIRA, não sobre o que a
+       busca deixou: ele é a promessa do botão ("clicando aqui, sobram 232"), e
+       um número que muda com a busca deixa de ser promessa. */
+    botoes.get('todos').cnt.textContent = String(dados.linhas.length);
+    botoes.get('excedente').cnt.textContent =
+      String(dados.linhas.filter(temExcedente).length);
+
+    let achadas = soExcedente ? dados.linhas.filter(temExcedente) : dados.linhas;
+    if (termo) {
+      achadas = achadas.filter(
+        (l) => casa(l.descricao, termo) || casa(l.codigo, termo));
+    }
     const visiveis = ordenar(achadas, coluna, direcao);
 
     const corpo = document.createElement('tbody');
-    for (const l of visiveis) corpo.appendChild(linhaDaTabela(l));
+    for (const l of visiveis) corpo.appendChild(linhaDaTabela(l, opcoes.aoAbrirLinha));
     tabela.replaceChildren(
       cabecalho(COLUNAS, ordemAtiva, direcao, alternarOrdem), corpo);
 
@@ -221,10 +305,18 @@ export function montarProcedimentos(destino, area, opcoes = {}) {
       ? `${coluna.nome.toLowerCase()}, ${direcao === 'asc' ? 'crescente' : 'decrescente'}`
       : 'variação excedente (padrão)';
     const dizBusca = termo ? ` · busca: "${termo}"` : '';
-    const quantos = termo ? `${visiveis.length} de ${r.total}` : `${r.total}`;
+    const dizFiltro = soExcedente ? ' · só os que têm excedente' : '';
+    const parcial = termo || soExcedente;
+    const quantos = parcial ? `${visiveis.length} de ${r.total}` : `${r.total}`;
+    /* A contagem de referência não conclusiva só faz sentido sobre a lista
+       INTEIRA: no filtro de excedente ela sairia falando de linhas que não
+       estão na tela. O filtro entra no lugar dela. */
+    const dizQualidade = soExcedente ? ''
+      : ` · ${r.sem_referencia_apresentavel} com referência não conclusiva `
+        + `(${r.nota_n_minimo})`;
     rodape.textContent =
-      `${quantos} procedimentos · ${r.sem_referencia_apresentavel} com referência `
-      + `não conclusiva (${r.nota_n_minimo})${dizBusca} · ordenado por ${dizOrdem}`;
+      `${quantos} procedimentos${dizQualidade}${dizFiltro}${dizBusca}`
+      + ` · ordenado por ${dizOrdem}`;
   }
 
   /* O recorte que os números em cena representam. A aba continua sem pagar o
@@ -250,5 +342,25 @@ export function montarProcedimentos(destino, area, opcoes = {}) {
     desenhar();
   }
 
-  return { render };
+  /* A MESMA porta pelo outro lado: uma barra do Pareto conhece o CÓDIGO do
+     procedimento, não a linha da tabela. Aqui o código vira linha — e ela pode
+     não estar em cena, porque a busca da tabela filtra o que está visível e o
+     Pareto não. */
+  function abrirPorCodigo(codigo) {
+    const l = (dados?.linhas ?? []).find((x) => String(x.codigo) === String(codigo));
+    if (!l) return;
+    const tr = tabela.querySelector(
+      `tr[data-codigo="${CSS.escape(String(codigo))}"]`);
+    opcoes.aoAbrirLinha?.(l, tr);
+  }
+
+  return { render, abrirPorCodigo,
+    marcar: (codigo) => {
+    for (const tr of tabela.querySelectorAll('tr.selecionada')) {
+      tr.classList.remove('selecionada');
+    }
+    if (!codigo) return;
+    tabela.querySelector(`tr[data-codigo="${CSS.escape(String(codigo))}"]`)
+      ?.classList.add('selecionada');
+  } };
 }

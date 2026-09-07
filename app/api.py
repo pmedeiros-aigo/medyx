@@ -661,7 +661,7 @@ def _linhas_para_recorte(posicao_area: pd.DataFrame, casc: dict,
 def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
                       rotulo: str, recorte: str | None,
                       n_comparaveis: int, contexto: dict | None = None) -> dict:
-    """Os blocos que SEGUEM O RECORTE: os três cards e os dois Paretos. Um lugar só para montá-los, porque a carga inicial da página e a
+    """Os blocos que SEGUEM O RECORTE: a Leitura da área e os dois Paretos. Um lugar só para montá-los, porque a carga inicial da página e a
     troca de recorte precisam produzir exatamente o mesmo formato — se
     divergirem, a tela mostra uma coisa ao abrir e outra ao clicar no mesmo
     recorte que já estava ativo.
@@ -690,7 +690,11 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
     em_cena = set(ids)
     return {
         "recorte": {"chave": recorte, "rotulo": rotulo, "n": len(ids)},
-        "cards": cards,
+        # `cards` NÃO sai na resposta desde 2026-09-07: a faixa de KPIs saiu da
+        # tela e a Leitura da área é montada a partir dela aqui dentro. Ele
+        # continua sendo calculado porque é a ÚNICA fonte dos cinco valores
+        # formatados e dos seus hovers — recalcular na Leitura seria um segundo
+        # lugar produzindo os mesmos números.
         "leitura": blocos.leitura_da_area(
             cards, ids, n_comparaveis,
             _exc.get("leitura_concentracao"), _exc.get("n_nucleo"),
@@ -826,8 +830,13 @@ def meta(p: ParametrosDep) -> dict[str, Any]:
                  if _ORDEM_NIVEL[a] <= _ORDEM_NIVEL[p.criterio]], config.ALVO_DEFAULT),
                 "ativo": p.referencia, "recomendado": config.ALVO_DEFAULT,
                 "rotulo": "Referência do grupo",
+                # A terceira frase ("Nunca acima do critério de revisão") saiu
+                # em 2026-09-07: o próprio controle já a cumpre — `opcoes` só
+                # oferece alvos <= o critério ativo, e com P75 escolhido o P90
+                # nem aparece no seletor. A frase avisava de uma escolha que a
+                # tela não deixa fazer.
                 "ajuda": ("Ponto tomado como uso adequado; é dele que se mede o "
-                          "excedente. Nunca acima do critério de revisão."),
+                          "excedente."),
                 "regra": "sempre ≤ critério de revisão"},
             "confianca": {"opcoes": _opcoes(config.NIVEIS_CONFIANCA_UI,
                                             config.NIVEL_CONFIANCA_DEFAULT,
@@ -1078,8 +1087,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
         # o contexto fixo da área, em UMA linha sob o título. Era a faixa de
         # três números-herói até 2026-08-19: mesmo conteúdo, sem o tamanho.
         "contexto": blocos.contexto_da_area(
-            gatilho, p.criterio, float(sinal["excedente_itens"].sum()),
-            casc["excedente_reais"], n_sinalizados,
+            gatilho, p.criterio, n_sinalizados,
             int(posicao["avaliavel"].sum()), len(posicao),
             len(composicao["excluidos"]), estado["codigo"], n_formam,
             # a população do ACHADO: quem tem excedente em algum procedimento.
@@ -1178,7 +1186,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
 def area_achados(area_id: Annotated[str, PathParam(description="id da área (slug), de /api/meta")],
                  p: ParametrosDep,
                  recorte: RecorteQ = None, perfil: PerfilQ = None) -> dict[str, Any]:
-    """Só os blocos que SEGUEM O RECORTE: os três cards e os dois Paretos.
+    """Só os blocos que SEGUEM O RECORTE: a Leitura da área e os dois Paretos.
 
     Existe para a troca de chip não ter de rebuscar a área inteira. Devolve
     exatamente as mesmas chaves que `/api/area/{id}` traz na carga inicial —
@@ -1186,7 +1194,7 @@ def area_achados(area_id: Annotated[str, PathParam(description="id da área (slu
     já estava ativo não muda nada na tela.
     """
     return {k: v for k, v in area(area_id, p, recorte, perfil).items()
-            if k in ("recorte", "cards", "leitura", "pareto_cooperados",
+            if k in ("recorte", "leitura", "pareto_cooperados",
                      "pareto_procedimentos")}
 
 
@@ -1195,12 +1203,13 @@ def area_procedimentos(area_id: Annotated[str, PathParam(description="id da áre
                        p: ParametrosDep,
                        recorte: RecorteQ = None, perfil: PerfilQ = None) -> dict[str, Any]:
     """Aba Procedimentos: prevalência, solicitantes elegíveis, referência,
-    qualidade da referência, quantos estão acima do critério, variação
-    excedente e % acumulado.
+    qualidade da referência, solicitações, quantos estão acima do critério,
+    variação excedente e % acumulado.
 
-    O recorte alcança METADE da tabela — o achado (acima do critério, variação
-    excedente, R$, % acumulado). Prevalência, solicitantes, referência e
-    qualidade são RÉGUA e não se movem; ver `blocos.linhas_procedimentos`.
+    O recorte alcança METADE da tabela — o achado (solicitações, acima do
+    critério, variação excedente, R$, % acumulado). Prevalência, solicitantes,
+    referência e qualidade são RÉGUA e não se movem; ver
+    `blocos.linhas_procedimentos`.
     """
     r = _rodar(p)
     nome = _resolver_area(r, area_id)
@@ -1262,6 +1271,186 @@ def area_procedimentos(area_id: Annotated[str, PathParam(description="id da áre
         "linhas": linhas,
         "proveniencia": _proveniencia(p, r),
     }
+
+
+@app.get("/api/area/{area_id}/procedimento/{cd}", tags=["tela área"])
+def area_painel_procedimento(
+        area_id: Annotated[str, PathParam(description="id da área (slug), de /api/meta")],
+        cd: Annotated[str, PathParam(description="código do procedimento")],
+        p: ParametrosDep,
+        recorte: RecorteQ = None, perfil: PerfilQ = None) -> dict[str, Any]:
+    """Painel lateral de UM procedimento na tela de área.
+
+    O irmão de `painel_procedimento` (dossiê) com a unidade trocada: lá "de onde
+    vem o volume DESTE médico", aqui **este exame é norma da área ou hábito de
+    alguns**. A tabela de procedimentos não distingue os dois casos, e eles
+    pedem ações opostas — um é discussão de protocolo, o outro é auditoria.
+
+    Endpoint próprio pela mesma razão do outro: montá-lo para os 671
+    procedimentos da aba seria pagar 671 vezes por um painel que abre uma vez.
+    Todos os motores que ele consome já estão em cache pela própria página.
+
+    O RECORTE alcança o achado (peso, concentração, lista, repetição,
+    autorreferência, trimestres); a distribuição é RÉGUA e não se move, como as
+    colunas de régua da tabela de onde o painel é aberto.
+    """
+    r = _rodar(p)
+    nome = _resolver_area(r, area_id)
+
+    posproc = r["posicao_proc"]
+    posproc = posproc[posproc["AREA_ATUACAO"] == nome]
+    do_proc = posproc[posproc["CD_PROCEDIMENTO"] == cd]
+    if do_proc.empty:
+        raise HTTPException(404, f"procedimento sem solicitações em {nome}: {cd}")
+
+    norma_proc = r["norma_proc"]
+    n_linha = norma_proc[(norma_proc["AREA_ATUACAO"] == nome)
+                         & (norma_proc["CD_PROCEDIMENTO"] == cd)]
+    linha_norma = n_linha.iloc[0] if len(n_linha) else None
+    posicao = r["posicao"][r["posicao"]["AREA_ATUACAO"] == nome]
+
+    # ── o recorte, o MESMO da tabela ─────────────────────────────────────────
+    casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
+                         p.criterio, p.referencia, p.incluir_ps)
+    perfis_area = blocos.perfis_da_area(posicao, dados.carregar_classificacao())
+    ids, rotulo_rec, _ = _em_cena(
+        recorte, perfil, _linhas_para_recorte(posicao, casc, perfis_area),
+        perfis_area)
+    em_cena = do_proc[do_proc["ID_COOPERADO"].isin(ids)]
+
+    # ── DISTRIBUIÇÃO: régua, e por isso sobre os FORMADORES, não sobre o
+    # recorte. Recalculá-la no recorte reconstruiria a norma sobre quem foi
+    # filtrado, que é exatamente o que a lei 0 proíbe.
+    formadores = do_proc[do_proc["elegivel_norma"].astype(bool)
+                         & do_proc["avaliavel"].astype(bool)]
+    gat = (str(linha_norma["gatilho_usado"])
+           if linha_norma is not None and "gatilho_usado" in linha_norma
+           and pd.notna(linha_norma.get("gatilho_usado")) else None)
+    if gat is None:
+        g_par = do_proc.iloc[0].get("gatilho_usado")
+        gat = None if pd.isna(g_par) else str(g_par)
+    alvo = str(do_proc.iloc[0].get("alvo_usado") or p.referencia)
+    n_area = int(posicao["avaliavel"].astype(bool).sum())
+    # a distribuição é montada DEPOIS do achado: a rampa de cor dos pontos é a
+    # ordem dos excedentes, e é ela que faz o gráfico e a lista concordarem
+    # sobre quem importa (ver `distribuicao_do_procedimento`)
+    _dist_args = (dict(zip(formadores["ID_COOPERADO"], formadores["taxa"])),
+                  linha_norma, gat, p.criterio, alvo,
+                  dict(zip(formadores["ID_COOPERADO"],
+                           formadores["consultas_totais"])), n_area)
+
+    # ── ACHADO: quem passou o critério, no recorte ───────────────────────────
+    sinal = filtrar_sinalizados(em_cena)
+    re_ = dados.rodar_pipeline_execucao(
+        p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
+        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps)
+    rs_all = re_["posicao_proc_rs"]
+    rs_proc = rs_all[(rs_all["AREA_ATUACAO"] == nome)
+                     & (rs_all["CD_PROCEDIMENTO"] == cd)]
+    preco = (float(rs_proc.iloc[0]["preco_mediano"])
+             if len(rs_proc) and pd.notna(rs_proc.iloc[0]["preco_mediano"]) else None)
+    reais_sinal = filtrar_sinalizados(rs_proc[rs_proc["ID_COOPERADO"].isin(ids)],
+                                      exigir_preco=True)
+    reais_por_coop = (dict(zip(reais_sinal["ID_COOPERADO"],
+                               reais_sinal["excedente_reais"]))
+                      if len(reais_sinal) else {})
+
+    referencia_val = (float(linha_norma[alvo])
+                      if linha_norma is not None and pd.notna(linha_norma.get(alvo))
+                      else None)
+    linhas_acima = []
+    for _, l in sinal.sort_values("excedente_itens", ascending=False).iterrows():
+        taxa = float(l["taxa"])
+        linhas_acima.append({
+            "id": l["ID_COOPERADO"],
+            "taxa_fmt": blocos.fmt_frequencia(taxa),
+            "razao_fmt": (None if not referencia_val else
+                          f"{blocos.fmt(taxa / referencia_val, 1)}×"),
+            "solicitacoes_fmt": blocos.fmt(float(l["n_solicitacoes"]), 0),
+            "excedente_fmt": blocos.fmt(float(l["excedente_itens"]), 0),
+            "excedente_itens": float(l["excedente_itens"]),
+            "reais_fmt": (blocos.fmt_reais(reais_por_coop[l["ID_COOPERADO"]])
+                          if l["ID_COOPERADO"] in reais_por_coop else None),
+        })
+    exc_por_coop = (dict(zip(sinal["ID_COOPERADO"], sinal["excedente_itens"]))
+                    if len(sinal) else {})
+    distribuicao = blocos.distribuicao_do_procedimento(
+        *_dist_args, excedente_por_coop=exc_por_coop,
+        reais_por_coop=reais_por_coop, ids_em_cena=set(ids))
+    nucleo = blocos.concentracao_entre_cooperados(exc_por_coop, reais_por_coop)
+    # o CORTE da lista é o núcleo dos 80% que a seção acima anuncia: a frase
+    # dela passa a ser a legenda da lista, em vez de as duas se parecerem por
+    # coincidência
+    acima = blocos.cooperados_acima_do_criterio(
+        linhas_acima, None if nucleo is None else nucleo["n_nucleo"])
+
+    # ── PESO no que a área solicitou, com o denominador do MESMO recorte ─────
+    n_sol = float(em_cena["n_solicitacoes"].sum()) if len(em_cena) else 0.0
+    total_recorte = float(posproc[posproc["ID_COOPERADO"].isin(ids)]
+                          ["n_solicitacoes"].sum())
+    com_preco = rs_all[(rs_all["AREA_ATUACAO"] == nome)
+                       & rs_all["ID_COOPERADO"].isin(ids)
+                       & rs_all["preco_mediano"].notna()]
+    custo_area = (float((com_preco["taxa"] * com_preco["consultas_totais"]
+                         * com_preco["preco_mediano"]).sum())
+                  if len(com_preco) else None)
+    peso = blocos.peso_do_exame_na_area(
+        n_sol, total_recorte, None if preco is None else n_sol * preco,
+        custo_area, sum(reais_por_coop.values()) or None, preco)
+
+    # ── BENEFICIÁRIOS e AUTORREFERÊNCIA, no recorte ──────────────────────────
+    pacientes = dados.pacientes_do_procedimento(
+        tuple(ids), cd, p.janela_ini, p.janela_fim, p.incluir_ps)
+    repeticao = blocos.repeticao_do_exame_na_area(pacientes)
+    aut = dados.rodar_autorref_proc(p.janela_ini, p.janela_fim, nome, p.incluir_ps)
+    autorref = blocos.autorreferencia_da_area(
+        aut[aut["CD_PROCEDIMENTO"] == cd] if len(aut) else aut, ids)
+
+    painel = blocos.painel_do_procedimento_na_area(
+        cd, str(do_proc.iloc[0].get("DS_PROCEDIMENTO", config.SEM_MEDIDA)).strip(),
+        distribuicao, nucleo, acima, peso, repeticao, autorref,
+        None if linha_norma is None else {
+            "apresentavel": bool(linha_norma["apresentavel"]),
+            "rotulo": ("sólida" if linha_norma["apresentavel"]
+                       else "referência não conclusiva"),
+            "n_solicitantes": int(linha_norma["n_solicitantes_elegiveis"]),
+            "prevalencia_fmt": blocos.fmt_pct(float(linha_norma["prevalencia"])),
+            "criterio_ajustado": bool(gat is not None and gat != p.criterio),
+        })
+
+    # ── A SÉRIE TRIMESTRAL DO EXAME NA ÁREA ─────────────────────────────────
+    # Mesma régua congelada do dossiê (METODOLOGIA §5.4.1): preço e alvo anuais,
+    # o trimestre entra com as solicitações dele e as consultas do MESMO grupo.
+    # A série corre sobre os SINALIZADOS, não sobre o recorte inteiro. É o que
+    # faz os quatro trimestres somarem o excedente que o painel anuncia: o
+    # excedente do ano é a soma dos pares acima do critério, e uma barra que
+    # incluísse quem está abaixo da referência subtrairia dela um valor que o
+    # número do ano nunca contou. Mesma população no numerador e no denominador,
+    # e a seção declara qual é.
+    ids_sinal = list(dict.fromkeys(sinal["ID_COOPERADO"].tolist())) if len(sinal) else []
+    fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
+    evolucao = None
+    if preco and len(fatias) >= config.MIN_JANELAS_AVALIAVEIS and ids_sinal:
+        pers = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
+                                        p.referencia, None,
+                                        config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
+        evolucao = blocos.evolucao_do_procedimento(
+            dados.volume_do_procedimento_por_trimestre(
+                cd, tuple(ids_sinal), fatias, p.incluir_ps),
+            pers.get("por_janela_cooperado"), ids_sinal, preco,
+            referencia_val, referencia_val is not None,
+            [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias],
+            dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim))
+    painel["evolucao"] = evolucao
+
+    # REPARTIÇÃO ETÁRIA das solicitações do exame na área: contexto, nunca
+    # cálculo. `cooperado=""` pede a leitura da ÁREA — a mesma função que o
+    # painel do dossiê usa para produzir a coluna de comparação.
+    painel["faixas"] = blocos.faixas_do_exame(dados.rodar_solicitacoes_por_faixa(
+        p.janela_ini, p.janela_fim, nome, cd, tuple(ids), p.incluir_ps))
+    painel["recorte"] = {"chave": recorte, "rotulo": rotulo_rec, "n": len(ids)}
+    painel["proveniencia"] = _proveniencia(p, r)
+    return painel
 
 
 @app.get("/api/cooperado/{cooperado_id}", tags=["tela dossiê"])

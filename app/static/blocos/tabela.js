@@ -367,7 +367,8 @@ function linhaDaTabela(l, excluido, perfilFlag) {
  * @returns {{aplicar: (chave: string|null) => void}}  para a barra comandar
  */
 export function montarTabela(destino, dados,
-                             { aoEscolherLinha, aoOrdenar, aoBuscar, busca = '' }) {
+                             { aoEscolherLinha, aoOrdenar, aoBuscar, busca = '',
+                               localizacao = null, aoLimparLocalizacao }) {
   const { cooperados, composicao } = dados;
   const excluidoPorId = new Map((composicao?.excluidos ?? []).map((e) => [e.id, e]));
 
@@ -392,6 +393,28 @@ export function montarTabela(destino, dados,
      esconde linhas, sem tocar em KPI, Pareto ou excedente somado. */
   if (aoBuscar) topo.appendChild(campoDeBusca({
     placeholder: 'Buscar cooperado', valor: busca, aoDigitar: aoBuscar }));
+
+  /* A LOCALIZAÇÃO VINDA DE FORA, como pílula desligável ao lado da busca. Ela
+     chega da gaveta de um exame ("ver os 13 na tabela de Cooperados") e é da
+     mesma natureza da busca: encontra dentro do que está em cena e não move
+     nenhum agregado. Precisa de um jeito de sair — filtro sem saída visível é
+     filtro que o leitor esquece que ligou, e aí a lista curta vira "sumiram
+     cooperados". O rodapé também o declara, como declara a busca. */
+  const pilulaLoc = el('button', 'pill pill-on hd-ctl');
+  pilulaLoc.type = 'button';
+  pilulaLoc.hidden = true;
+  pilulaLoc.title = 'Remover a localização e voltar à lista do recorte.';
+  if (aoLimparLocalizacao) {
+    pilulaLoc.addEventListener('click', () => aoLimparLocalizacao());
+  }
+  topo.appendChild(pilulaLoc);
+
+  /** Liga ou desliga a pílula. Texto nulo esconde. */
+  function mostrarLocalizacao(texto) {
+    pilulaLoc.hidden = !texto;
+    if (texto) pilulaLoc.textContent = `${texto} ✕`;
+  }
+  mostrarLocalizacao(localizacao);
 
   /* O rodapé (`peEstado`) carrega o ESTADO DA VISTA: qual recorte e qual
      ordenação estão valendo. Com ordenação por clique, o estado deixou de ser
@@ -462,5 +485,5 @@ export function montarTabela(destino, dados,
     aoEscolherLinha?.(tr.classList.contains('selected') ? null : tr.dataset.id);
   });
 
-  return { atualizar, destacar };
+  return { atualizar, destacar, mostrarLocalizacao };
 }
