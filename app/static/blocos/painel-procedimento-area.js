@@ -289,9 +289,12 @@ function acima(destino, d, hrefDoCooperado, plot) {
   /* A REGRA DO CORTE dita em voz alta, logo abaixo da lista: sem ela "por que
      oito e não treze" fica sem resposta na tela, e um corte sem regra lê como
      arbitrário — que é o que ele era antes. */
-  if (a.criterio_do_corte && a.resto) {
-    corpo.appendChild(el('span', 'sub', a.criterio_do_corte));
-  }
+  /* A REGRA DO CORTE só vale enquanto o corte existe. Expandida, a lista mostra
+     TODOS os que passaram o critério, e a frase passaria a descrever um recorte
+     que não está mais na tela — o leitor procuraria os 80% numa lista que soma
+     100%. `nota` some junto com o corte e volta com ele. */
+  const nota = (a.criterio_do_corte && a.resto)
+    ? corpo.appendChild(el('span', 'sub', a.criterio_do_corte)) : null;
   if (a.resto) {
     /* MESMA marcação da ação da linha de contexto ("ver os 6 fora da
        referência"): link inline, não botão. É a convenção do app para revelar
@@ -307,6 +310,7 @@ function acima(destino, d, hrefDoCooperado, plot) {
         entradas[i].hidden = !abrindo;
       }
       link.dataset.aberto = abrindo ? 'sim' : 'nao';
+      if (nota) nota.hidden = abrindo;
       /* "Mostrar só os que concentram o excedente" saiu em 2026-09-07: TODOS os
          listados têm excedente — é o que "acima do critério" significa —, e a
          frase sugeria que os outros cinco não tivessem. O que separa os dois
@@ -550,12 +554,9 @@ function evolucao(destino, d) {
  * @param {object} recorte  o recorte ativo, que o achado do painel obedece
  * @param {() => void} aoFechar
  * @param {(id: string) => string} [hrefDoCooperado]  destino de cada nome
- * @param {(cd: string, ids: string[]) => void} [aoVerNaTabela]  leva os nomes
- *   para a aba Cooperados, localizados neste exame
  */
 export async function abrirPainelDoExame(destino, area, linha, recorte,
-                                         aoFechar, hrefDoCooperado,
-                                         aoVerNaTabela) {
+                                         aoFechar, hrefDoCooperado) {
   destino.replaceChildren();
   destino.hidden = false;
 
@@ -614,23 +615,4 @@ export async function abrirPainelDoExame(destino, area, linha, recorte,
   repeticao(corpo, d);
   autorreferencia(corpo, d);
   evolucao(corpo, d);
-
-  /* RODAPÉ com a saída, como no painel do dossiê. A gaveta responde "quem pede
-     este exame fora do padrão"; a pergunta seguinte é "e como esses estão no
-     resto da prática deles?", e essa é a tabela de Cooperados — com ordenação,
-     colunas agregadas e busca, que a lista da gaveta não tem e não deve ter.
-     O link LOCALIZA a tabela nestes nomes; não recorta nada, e a régua e todos
-     os agregados da página continuam onde estavam. */
-  if (aoVerNaTabela && d.acima?.n) {
-    const pe = el('div', 'pnl-ft');
-    const b = el('button', 'btn');
-    b.type = 'button';
-    b.textContent = `Ver ${d.acima.n === 1 ? 'o cooperado' : `os ${d.acima.n}`} `
-      + 'na tabela de Cooperados';
-    b.addEventListener('click', () => {
-      aoVerNaTabela(d.codigo, d.acima.linhas.map((l) => l.id));
-    });
-    pe.appendChild(b);
-    destino.appendChild(pe);
-  }
 }

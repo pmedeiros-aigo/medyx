@@ -211,18 +211,7 @@ await abrirPagina({
        só rodam depois. */
     busca: new URLSearchParams(location.search).get('q') || '',
     aoBuscar: (q) => definir({ q: q || null }),
-    localizacao: rotuloDaLocalizacao(
-      new URLSearchParams(location.search).get('exame'),
-      (new URLSearchParams(location.search).get('exame_ids') || '')
-        .split(',').filter(Boolean).length),
-    aoLimparLocalizacao: () => definir({ exame: null, exame_ids: null }),
   });
-
-  /** A pílula que declara a localização por exame, redigida num lugar só. */
-  function rotuloDaLocalizacao(cd, n) {
-    if (!cd || !n) return null;
-    return `${n} acima do critério em ${cd}`;
-  }
 
   /* ── A GAVETA DO EXAME ────────────────────────────────────────────────────
    * Mesma superfície do painel de procedimento do dossiê: gaveta sobre a
@@ -273,18 +262,8 @@ await abrirPagina({
        contradição que o recorte veio corrigir. */
     abrirPainelDoExame(gavetaExame, dados.area?.id ?? '', linha, recorteAtivo(),
                        fecharExame,
-                       (id) => comRegua(TELAS.cooperado.caminho(id)),
-                       verNaTabela);
+                       (id) => comRegua(TELAS.cooperado.caminho(id)));
   }
-  /* A PORTA PARA A TABELA. Fecha a gaveta, troca de aba e localiza a tabela de
-     Cooperados nos nomes que estavam na lista. É localização, não recorte: os
-     cards, os Paretos e a régua não se movem — só a lista visível encolhe, com
-     o rodapé declarando por quê. */
-  function verNaTabela(cd, ids) {
-    fecharExame();
-    definir({ aba: 'cooperados', exame: cd, exame_ids: ids.join(',') });
-  }
-
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape' && exameAberto) fecharExame();
   });
@@ -317,7 +296,7 @@ await abrirPagina({
    * vistas de propósito. */
   const { estado, definir } = criarVista(
     { recorte: RECORTE_PADRAO, perfil: null, aba: 'cooperados', q: null, qp: null,
-      pexc: null, exame: null, exame_ids: null,
+      pexc: null,
       ...ordemInicial() },
     aplicar);
 
@@ -359,16 +338,6 @@ await abrirPagina({
        recorte e o perfil deixaram em cena, e não muda nenhum agregado. Por
        isso não entra em `recorteAtivo()`, que é o que o servidor reagrega. */
     if (estado.q) linhas = linhas.filter((l) => casa(l.id, estado.q));
-    /* A LOCALIZAÇÃO POR EXAME, irmã de `q` e não do recorte: os cooperados
-       acima do critério num procedimento, vindos da gaveta dele. LOCALIZA
-       dentro do que o recorte deixou em cena e não toca em soma nenhuma (lei 0:
-       o recorte muda quem está em cena, a busca só encontra), e por isso
-       também não entra em `recorteAtivo()`. */
-    const idsDoExame = (estado.exame_ids || '').split(',').filter(Boolean);
-    if (idsDoExame.length) {
-      const alvo = new Set(idsDoExame);
-      linhas = linhas.filter((l) => alvo.has(l.id));
-    }
     if (escolhidos.length) {
       const flags = new Set(escolhidos.map((p) => p.flag));
       linhas = linhas.filter(
@@ -382,8 +351,6 @@ await abrirPagina({
     const { recorte, perfis: escolhidos, linhas } = emCena();
     chips.marcar(recorte.chave);
     perfis?.marcar(escolhidos.map((p) => p.chave));
-    tabela.mostrarLocalizacao(rotuloDaLocalizacao(
-      estado.exame, (estado.exame_ids || '').split(',').filter(Boolean).length));
 
     /* O contador da aba conta QUEM ESTÁ EM CENA, não o total da área: ele fica
        encostado no rótulo que nomeia a lista logo abaixo, e um número parado
@@ -490,7 +457,6 @@ await abrirPagina({
        frase só, e um filtro que não aparece nela é um filtro que o leitor
        esquece que ligou. */
     if (estado.q) diz += ` · busca: "${estado.q}"`;
-    if (estado.exame) diz += ` · acima do critério no exame ${estado.exame}`;
     const ordem = coluna
       ? `${coluna.nome.toLowerCase()}, ${estado.dir === 'asc' ? 'crescente' : 'decrescente'}`
       : `${dados.cooperados.ordenado_por} (padrão)`;

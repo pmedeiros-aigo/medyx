@@ -25,12 +25,7 @@
 /* `q` é a busca da tabela de COOPERADOS e `qp` a de PROCEDIMENTOS. Duas chaves
    porque são duas tabelas em abas diferentes: uma chave só faria o termo de uma
    filtrar a outra ao trocar de aba. */
-/* `exame`/`exame_ids` são a LOCALIZAÇÃO por procedimento na tabela de
-   cooperados: a gaveta do exame manda para cá quem está acima do critério
-   nele. Vivem aqui, com `q`, porque são estado de VISTA (encontram dentro do
-   que está em cena) e não de recorte (que reagrega no servidor). */
-const CHAVES = ['recorte', 'perfil', 'aba', 'ord', 'dir', 'q', 'qp', 'pexc',
-                'exame', 'exame_ids'];
+const CHAVES = ['recorte', 'perfil', 'aba', 'ord', 'dir', 'q', 'qp', 'pexc'];
 
 /**
  * Cria o estado da vista, já lido da URL.
