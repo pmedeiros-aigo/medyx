@@ -7,38 +7,71 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
-<script>
-  const baseDeEstilos = location.protocol === 'file:' ? 'css' : '/static/css';
-  document.write(`<link rel="stylesheet" href="${baseDeEstilos}/tokens.css">`);
-  document.write(`<link rel="stylesheet" href="${baseDeEstilos}/components.css">`);
-</script>
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/components.css">
+<!-- SEM `tema.js`, de propósito (set/2026). O tema é preferência de quem já
+     está DENTRO do app: ele é escolhido lá, no botão da barra, e vale para as
+     telas de trabalho. A porta é anterior a isso, e é anterior à própria
+     sessão, então não tem de quem herdar preferência nenhuma.
+     Sem o script não existe <html data-tema>, e como a paleta escura do
+     `tokens.css` só entra por esse atributo (não há `prefers-color-scheme` no
+     contrato), a entrada fica sempre clara, sem nada a decidir antes da
+     primeira pintura. -->
 </head>
+<!--
+  A PORTA DO APP, desenhada com o app (set/2026).
+
+  A versão anterior era uma landing: painel verde ocupando 64% da tela, uma
+  frase de proposta em 20px e, no canto, uma marca montada à mão — só o símbolo
+  do logotipo, em branco, ao lado da palavra "Medyx" escrita em Geist. Três
+  problemas de uma vez.
+
+  · MARCA. O app tem UM logotipo, o `.mark`, a assinatura horizontal inteira
+    (84x24). A entrada remontava outro a partir das peças, e o resultado não
+    batia com o da lateral em desenho nem em proporção (DIRETRIZES §5: não
+    existe segunda versão de um componente que já existe). Agora é o MESMO
+    arquivo do `shell.html`, no mesmo tamanho.
+  · COR. A marca é preta (`.mark` -> --g-900). Ela só aparecia branca aqui
+    porque o painel verde a obrigava a herdar --ink-inv. Tirado o painel, a
+    tinta volta ao token e o logotipo da porta é o mesmo da tela seguinte.
+  · PORTE. `--fs-3xl` no símbolo mais `--fs-xl` na palavra davam a uma tela de
+    um botão o peso visual de uma capa.
+
+  O layout agora é o de sempre no app: canvas branco, coluna centrada e um
+  `.card` lido pela BORDA. Quem entra vê a mesma superfície que vai encontrar do
+  outro lado do login, e nada aqui precisa de classe que não exista no contrato.
+-->
 <body class="entrada">
-  <main class="entrada-grade">
-    <section class="entrada-marca" aria-labelledby="entrada-titulo">
-      <a class="entrada-logo" href="https://medyx.com.br/" aria-label="Medyx">
-        <svg viewBox="0 0 282 292" aria-hidden="true"><path d="M133.148 1.96015L75.8498 63.1601C71.2151 68.1101 68.6338 74.7001 68.6338 81.5501V212.45C68.6338 218.13 75.3609 220.95 79.2622 216.91L138.525 155.48V284.01C138.525 289.68 145.233 292.5 149.134 288.49L207.508 228.42C212.348 223.44 215.066 216.7 215.066 209.68V80.3902C215.066 74.7302 208.378 71.9001 204.467 75.9001L144.627 137.17L143.844 6.32015C143.815.620149 137.01-2.14985 133.157 1.97015L133.148 1.96015Z"/><path d="M74.0606 143.56L39.2908 109.19C36.8463 106.77 32.9548 106.82 30.5592 109.29L1.793 139.09C-.602554 141.57-.592776 145.55 1.793 148.02L30.5592 177.69C32.945 180.15 36.8268 180.2 39.2712 177.79L74.0508 143.55L74.0606 143.56Z"/><path d="M209.482 145.019L242.101 110.619C244.526 108.059 248.535 108.049 250.979 110.589L279.755 140.519C282.151 143.009 282.131 147.009 279.706 149.469L251.155 178.559C248.73 181.029 244.819 181.029 242.394 178.559L209.473 145.019H209.482Z"/></svg>
-        <span>Medyx</span>
-      </a>
-      <div class="entrada-proposta">
-        <h1 id="entrada-titulo">Análise de utilização com critérios declarados e trilha de auditoria completa.</h1>
-      </div>
-      <p class="entrada-garantia">Acesso restrito e auditado · dados hospedados no Brasil · LGPD.</p>
-    </section>
-    <section class="entrada-acesso" aria-labelledby="acesso-titulo">
-      <div class="entrada-cartao">
-        <div class="entrada-cliente">
-          <span class="entrada-cliente-marca" aria-hidden="true">U</span>
-          <div><strong>Unimed Natal</strong><span>portal.medyx.com.br</span></div>
-        </div>
-        <div class="entrada-conteudo">
-          <div class="stack g6"><h2 id="acesso-titulo">Entrar no portal</h2><p class="sub">Use seu acesso institucional para continuar.</p></div>
-          <a class="btn btn-primary entrada-acao" href="/auth/entrar">Entrar no portal</a>
-          <p class="note note-t">Este acesso é registrado na trilha de auditoria da cooperativa.</p>
+  <main class="entrada-col">
+    <a class="entrada-marca" href="https://medyx.com.br/" aria-label="Medyx"><svg class="mark" width="84" height="24" viewBox="0 0 1012 291" role="img" aria-label="Medyx"><path d="M328.353 57H351.478L405.853 189.812H407.728L462.103 57H485.228V217H467.103V95.4375H465.54L415.54 217H398.04L348.04 95.4375H346.478V217H328.353V57ZM571.888 219.5C560.325 219.5 550.351 216.948 541.966 211.844C533.632 206.688 527.2 199.5 522.669 190.281C518.19 181.01 515.95 170.229 515.95 157.938C515.95 145.646 518.19 134.812 522.669 125.437C527.2 116.01 533.502 108.667 541.575 103.406C549.7 98.0937 559.179 95.4375 570.013 95.4375C576.263 95.4375 582.435 96.4792 588.528 98.5625C594.622 100.646 600.169 104.031 605.169 108.719C610.169 113.354 614.153 119.5 617.122 127.156C620.091 134.812 621.575 144.24 621.575 155.437V163.25H529.075V147.312H602.825C602.825 140.542 601.471 134.5 598.763 129.187C596.106 123.875 592.304 119.682 587.356 116.609C582.461 113.536 576.679 112 570.013 112C562.669 112 556.315 113.823 550.95 117.469C545.638 121.062 541.549 125.75 538.685 131.531C535.82 137.312 534.388 143.51 534.388 150.125V160.75C534.388 169.813 535.95 177.495 539.075 183.797C542.252 190.047 546.653 194.812 552.278 198.094C557.903 201.323 564.44 202.938 571.888 202.938C576.731 202.938 581.106 202.26 585.013 200.906C588.971 199.5 592.382 197.417 595.247 194.656C598.112 191.844 600.325 188.354 601.888 184.187L619.7 189.188C617.825 195.229 614.674 200.542 610.247 205.125C605.82 209.656 600.351 213.198 593.841 215.75C587.33 218.25 580.013 219.5 571.888 219.5ZM694.935 219.5C684.935 219.5 676.106 216.974 668.45 211.922C660.794 206.818 654.804 199.63 650.481 190.359C646.159 181.036 643.997 170.021 643.997 157.313C643.997 144.708 646.159 133.771 650.481 124.5C654.804 115.229 660.82 108.068 668.528 103.016C676.237 97.9635 685.143 95.4375 695.247 95.4375C703.06 95.4375 709.231 96.7396 713.763 99.3438C718.346 101.896 721.836 104.812 724.231 108.094C726.679 111.323 728.58 113.979 729.935 116.062H731.497V57H749.935V217H732.122V198.562H729.935C728.58 200.75 726.653 203.51 724.153 206.844C721.653 210.125 718.086 213.068 713.45 215.672C708.815 218.224 702.643 219.5 694.935 219.5ZM697.435 202.938C704.83 202.938 711.08 201.01 716.185 197.156C721.289 193.25 725.169 187.859 727.825 180.984C730.481 174.057 731.81 166.062 731.81 157C731.81 148.042 730.507 140.203 727.903 133.484C725.299 126.714 721.445 121.453 716.341 117.703C711.237 113.901 704.935 112 697.435 112C689.622 112 683.112 114.005 677.903 118.016C672.747 121.974 668.867 127.365 666.263 134.187C663.711 140.958 662.435 148.562 662.435 157C662.435 165.542 663.737 173.302 666.341 180.281C668.997 187.208 672.903 192.729 678.06 196.844C683.268 200.906 689.726 202.938 697.435 202.938ZM798.138 262C795.013 262 792.226 261.74 789.778 261.219C787.33 260.75 785.638 260.281 784.7 259.813L789.388 243.563C793.867 244.708 797.825 245.125 801.263 244.812C804.7 244.5 807.747 242.964 810.403 240.203C813.112 237.495 815.586 233.094 817.825 227L821.263 217.625L776.888 97H796.888L830.013 192.625H831.263L864.388 97H884.388L833.45 234.5C831.159 240.698 828.32 245.828 824.935 249.891C821.549 254.005 817.617 257.052 813.138 259.031C808.711 261.01 803.711 262 798.138 262ZM922.474 97L951.224 146.062L979.974 97H1001.22L962.474 157L1001.22 217H979.974L951.224 170.437L922.474 217H901.224L939.349 157L901.224 97H922.474Z"/><path d="M133.148 1.96015L75.8498 63.1601C71.2151 68.1101 68.6338 74.7001 68.6338 81.5501V212.45C68.6338 218.13 75.3609 220.95 79.2622 216.91L138.525 155.48V284.01C138.525 289.68 145.233 292.5 149.134 288.49L207.508 228.42C212.348 223.44 215.066 216.7 215.066 209.68V80.3902C215.066 74.7302 208.378 71.9001 204.467 75.9001L144.627 137.17L143.844 6.32015C143.815 0.620149 137.01 -2.14985 133.157 1.97015L133.148 1.96015Z"/><path d="M74.0606 143.56L39.2908 109.19C36.8463 106.77 32.9548 106.82 30.5592 109.29L1.793 139.09C-0.602554 141.57 -0.592776 145.55 1.793 148.02L30.5592 177.69C32.945 180.15 36.8268 180.2 39.2712 177.79L74.0508 143.55L74.0606 143.56Z"/><path d="M209.482 145.019L242.101 110.619C244.526 108.059 248.535 108.049 250.979 110.589L279.755 140.519C282.151 143.009 282.131 147.009 279.706 149.469L251.155 178.559C248.73 181.029 244.819 181.029 242.394 178.559L209.473 145.019H209.482Z"/></svg></a>
+
+    <section class="card" aria-labelledby="entrada-titulo">
+      <!-- ONDE se está entrando, antes de COMO. Numa porta institucional a
+           primeira pergunta é "este é o portal certo?", e o domínio responde. -->
+      <div class="entrada-cliente">
+        <span class="av av-lg" aria-hidden="true">U</span>
+        <div class="nm">
+          <strong>Unimed Natal</strong>
+          <span>portal.medyx.com.br</span>
         </div>
       </div>
-      <footer class="entrada-rodape"><a href="https://medyx.com.br/">← medyx.com.br</a><span>Portal operado por Medyx.</span></footer>
+
+      <div class="stack g6">
+        <h1 id="entrada-titulo">Entrar no portal</h1>
+        <p class="sub">Use seu acesso institucional para continuar.</p>
+      </div>
+
+      <a class="btn btn-primary entrada-acao" href="/auth/entrar">Entrar no portal</a>
+
+      <p class="note note-t">Este acesso é registrado na trilha de auditoria da cooperativa.</p>
     </section>
+
+    <p class="micro">Análise de utilização com critérios declarados e trilha de auditoria completa. Acesso restrito e auditado · dados hospedados no Brasil · LGPD.</p>
+
+    <footer class="entrada-rodape">
+      <a href="https://medyx.com.br/">← medyx.com.br</a>
+      <span>Portal operado por Medyx.</span>
+    </footer>
   </main>
 </body>
 </html>

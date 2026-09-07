@@ -1896,6 +1896,40 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .graficos-vistas .vista-painel > .tbl{flex:1;display:flex;flex-direction:column}
 .graficos-vistas .vista-painel > .tbl > .tbl-band{flex:1;display:flex;flex-direction:column}
 .graficos-vistas .vista-painel > .tbl > .tbl-band > .plot{flex:1 1 var(--ch-h);min-height:var(--ch-h)}
+/* ...MENOS COM O CARTÃO FECHADO (2026-09-07). A altura reservada e o `flex:1`
+   que a preenche existem para a troca de vista não sacudir a tabela logo
+   abaixo — mas fechado não há vista para segurar, e os dois juntos desfaziam o
+   gesto: `.fechado` escondia o corpo e o cartão voltava a esticar até os
+   516px. A seta parecia quebrada, e o que sobrava era um retângulo vazio de
+   410px sob o cabeçalho.
+   Recolhido, o bloco devolve a altura: nada abaixo dele precisa de lugar
+   guardado para um gráfico que não está em cena. */
+.graficos-vistas .vista-painel:has(> .tbl.fechado){min-height:0}
+.graficos-vistas .vista-painel > .tbl.fechado{flex:none}
+/* E o corpo some de verdade. `.tbl.fechado > *:not(.tbl-hd)` já mandava, mas a
+   regra de esticar logo acima nomeia mais classes e vencia por especificidade —
+   a distribuição e a dispersão fechavam com a faixa do gráfico ainda em cena
+   (288px e 460px em vez de 102px). Quem fecha manda; devolver a especificidade
+   aqui é mais barato do que enfraquecer a regra que estica. */
+.graficos-vistas .vista-painel > .tbl.fechado > .tbl-band{display:none}
+
+/* A SETA NO ALTO DO CARTÃO, como em todo bloco recolhível do app. Aqui o
+   `.tbl-hd` do título é a SEGUNDA faixa — a das abas de gráfico mora dentro do
+   cartão e vem antes —, e a seta descia junto com ele: 71px do topo, contra os
+   15px de `Principais oportunidades` e do Pareto de Procedimentos. Mesma
+   moldura, mesmo controle, dois lugares diferentes.
+   Ancorada no CARTÃO, ela volta ao ponto único. `position:static` no cabeçalho
+   porque `.tbl-hd` é relativo por padrão e roubaria a referência; nada dentro
+   dele depende disso (o `.help` carrega a própria `position:relative`). A
+   direita da faixa de abas está vaga, então a seta pousa ali sem disputar
+   espaço com nada.
+   O deslocamento é o PADDING do `.tbl-hd` (14px 16px), e não um par de números
+   escolhido a olho: absoluto, a seta mede a partir da caixa de padding do
+   cartão, que é exatamente de onde o cabeçalho de qualquer outro bloco começa
+   a contar. Os dois caem no mesmo pixel. */
+.graficos-vistas .vista-painel > .tbl{position:relative}
+.graficos-vistas .vista-painel > .tbl > .tbl-hd{position:static}
+.graficos-vistas .vista-painel > .tbl > .tbl-hd > .tbl-toggle{position:absolute;top:14px;right:16px}
 
 /* ── recorte: segmented control (Clean v3) ──────────────────────────────────
    Trilho cinza contínuo, pastilha branca no ativo. Mesma construção do
@@ -3022,15 +3056,122 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
 
 /* ── ENTRADA · porta de autenticação ---------------------------------------
-   O painel escuro comunica o produto; a coluna clara restringe a ação a um
-   único caminho, que encaminha a credencial ao Cognito. */
-.entrada{min-height:100vh;background:var(--surface)}
-.entrada-grade{min-height:100vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,36%)}
-.entrada-marca{display:flex;flex-direction:column;justify-content:space-between;gap:var(--s-7);padding:var(--s-7);background:var(--acc-deep);color:var(--ink-inv)}
-.entrada-logo{display:inline-flex;align-items:center;gap:var(--s-3);width:max-content;color:var(--ink-inv);font-size:var(--fs-xl);font-weight:600;text-decoration:none}
-.entrada-logo:hover{color:var(--ink-inv);text-decoration:none}.entrada-logo svg{width:var(--fs-3xl);height:var(--fs-3xl);fill:currentColor}
-.entrada-proposta{display:flex;flex-direction:column;gap:var(--s-4);max-width:42ch}.entrada-proposta h1{color:var(--ink-inv);font-size:var(--fs-2xl);font-weight:500;line-height:1.45;letter-spacing:-.01em}.entrada-proposta p{font-size:var(--fs-sm);color:var(--g-400)}.entrada-garantia{font-size:var(--fs-xs);color:var(--g-500)}
-.entrada-acesso{display:flex;flex-direction:column;justify-content:center;gap:var(--s-7);padding:var(--s-7) var(--s-6);background:var(--surface)}.entrada-cartao{display:flex;flex-direction:column;gap:var(--s-6)}
-.entrada-cliente{display:flex;align-items:center;gap:var(--s-3)}.entrada-cliente-marca{display:grid;place-items:center;width:calc(var(--s-5) + var(--s-4));height:calc(var(--s-5) + var(--s-4));border-radius:var(--r-md);background:var(--acc);color:var(--ink-inv);font-size:var(--fs-lg);font-weight:600}.entrada-cliente>div{display:flex;flex-direction:column;gap:var(--s-1)}.entrada-cliente strong{font-size:var(--fs-lg);font-weight:600;color:var(--g-900)}.entrada-cliente span:not(.entrada-cliente-marca){font-family:var(--font-num);font-size:var(--fs-xs);color:var(--g-400)}
-.entrada-conteudo{display:flex;flex-direction:column;gap:var(--s-5)}.entrada-acao{width:100%;height:var(--row-h);font-size:var(--fs-md)}.entrada-rodape{display:flex;justify-content:space-between;gap:var(--s-3);font-size:var(--fs-xs);color:var(--g-400)}.entrada-rodape a{color:var(--g-500)}.entrada-rodape a:hover{color:var(--acc-strong)}
-@media (max-width:800px){.entrada-grade{grid-template-columns:1fr}.entrada-marca{min-height:35vh;padding:var(--s-6)}.entrada-acesso{min-height:65vh;padding:var(--s-6) var(--s-5)}}
+   Uma tela, uma ação: dizer em que portal se está entrando e mandar a
+   credencial ao Cognito. Tudo aqui é componente do contrato (`.mark`, `.card`,
+   `.av av-lg`, `.btn btn-primary`, `.sub`, `.note`); as classes abaixo só
+   posicionam. */
+/* Coluna centrada sobre o canvas branco, como qualquer tela do app: o cartão é
+   lido pela BORDA, não por contraste de fundo (tokens.css, --canvas/--surface).
+   A versão anterior era um split de 64% em --acc-deep, e era ele que obrigava a
+   marca a virar branca. Sem painel, o `.mark` volta ao --g-900 do contrato e o
+   logotipo da porta é o mesmo da lateral do app, no mesmo tamanho.
+   `dvh` e não `vh`: no celular a barra do navegador come os 100vh e a coluna
+   nascia cortada. */
+.entrada{min-height:100dvh;display:grid;place-items:center;background:var(--canvas);padding:var(--s-6) var(--s-4)}
+/* 400px é a largura de um formulário de uma decisão só. Mais que isso e o botão
+   vira uma faixa atravessando a tela. */
+.entrada-col{width:100%;max-width:400px;display:flex;flex-direction:column;gap:var(--s-5)}
+/* A marca é link para o site, e o alvo é o DESENHO: sem sublinhado, sem cor de
+   link, e a caixa encolhe até o SVG para o clique não pegar a faixa vazia. */
+.entrada-marca{display:block;width:max-content;text-decoration:none}
+.entrada-marca:hover{opacity:.72}
+.entrada-marca:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm)}
+/* ONDE se está entrando. O quadrado verde de antes era um terceiro avatar do
+   app; agora é o `.av` do contrato no tamanho grande, o mesmo da tela de conta
+   (DIRETRIZES §5). O domínio vai em --font-num porque é IDENTIFICADOR, a regra
+   de papel das duas famílias em tokens.css. */
+.entrada-cliente{display:flex;align-items:center;gap:var(--s-3)}
+.entrada-cliente .nm{display:flex;flex-direction:column;gap:var(--s-1);min-width:0}
+.entrada-cliente strong{font-size:var(--fs-lg);font-weight:600;color:var(--g-900)}
+.entrada-cliente .nm span{font-family:var(--font-num);font-size:var(--fs-xs);color:var(--g-400)}
+/* A única ação da tela ocupa a largura do cartão, na altura de linha do app. */
+.entrada-acao{width:100%;height:var(--row-h);font-size:var(--fs-md)}
+.entrada-rodape{display:flex;justify-content:space-between;gap:var(--s-3);font-size:var(--fs-xs);color:var(--g-400)}
+.entrada-rodape a{color:var(--g-500)}
+.entrada-rodape a:hover{color:var(--acc-strong)}
+@media (max-width:440px){.entrada{padding:var(--s-5) var(--s-4)}}
+
+/* ── PRINCIPAIS OPORTUNIDADES · a fila de trabalho da área (set/2026) --------
+   O bloco é a moldura de tabela do app, sem nada próprio: mesmas colunas,
+   mesmos nomes, mesma linha clicável e mesmo chevron das outras duas tabelas da
+   página. A primeira versão dele usou a entrada da gaveta lateral, um cartão de
+   leitura vertical, e destoava de tudo em volta.
+
+   O que sobra aqui é o RODAPÉ, que carrega duas coisas em vez de uma: a regra
+   que define caso qualificado (à esquerda, podendo ocupar duas linhas) e o link
+   que revela o resto da lista (à direita, sempre visível). O rodapé padrão
+   distribui dois filhos nas pontas e supõe que cabem na mesma linha. */
+/* A DESCRIÇÃO DO PROCEDIMENTO trunca em vez de quebrar. Os nomes da TUSS
+   chegam com 50 caracteres ("Rm - Pelve (Não Inclui Articulações
+   Coxofemorais)") e quebravam em duas linhas, dobrando a altura de cada linha
+   da tabela num bloco que existe para ser varrido de relance. O nome inteiro
+   continua no `title` da célula, com o código ao lado. */
+.col-corta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opo-nota{display:block;line-height:1.5}
+.opo-nota + .opo-nota{margin-top:2px}
+.opo-acao{flex:none;padding-left:16px;white-space:nowrap}
+@media (max-width:900px){
+  .tbl .tbl-ft:has(.opo-acao){flex-direction:column;align-items:flex-start;gap:6px}
+  .opo-acao{padding-left:0}
+}
+
+/* ── [hidden] VENCE, sempre (set/2026) ---------------------------------------
+   `hidden` é atributo de conteúdo: o elemento não está na tela, e nenhuma regra
+   de aparência deveria poder desfazer isso. A folha do navegador o implementa
+   com `display:none` de especificidade zero, então QUALQUER `display` escrito
+   por nós ganha dele sem querer, e o elemento reaparece vazio.
+
+   O defeito já apareceu três vezes, e as três foram remendadas uma a uma:
+   `.painel-lateral[hidden]`, `.pnl-ent[hidden]` e agora `.side-ft`, o rodapé da
+   lateral, que sem sessão ficava ocupando o espaço dele em branco. Remendo por
+   seletor não fecha a classe do problema: o próximo componente com `display`
+   próprio recomeça o ciclo.
+
+   `!important` aqui não é atalho, é a semântica do atributo: ele não descreve
+   estilo, descreve ausência. As duas regras por seletor acima continuam de pé
+   sem prejuízo, e ficam redundantes de propósito, para quem ler o bloco delas
+   entender que o caso já está coberto. */
+[hidden]{display:none!important}
+
+/* ── PANORAMA · o cartão de área e a faixa de pendência (set/2026) -----------
+   O Panorama não traz componente novo: o cartão de área é o `.kpi` do contrato,
+   a lista de áreas sem régua é `.pill`, e a faixa de classificação pendente é a
+   `.res-destaque` da Leitura da área. O que falta abaixo é só o que muda quando
+   o `.kpi` vira LINK e ganha uma barra de proporção.
+
+   Por que `.kpi` e não um cartão próprio: a página tem duas áreas com régua, e
+   a pergunta do cartão é a mesma de um KPI (um número grande, um rótulo, um
+   apoio). Um segundo desenho de cartão de número no mesmo app seria a segunda
+   versão do componente que a DIRETRIZES §5 impede. */
+.kpi-acao{color:inherit;text-decoration:none;transition:border-color 120ms ease-out}
+.kpi-acao:hover{border-color:var(--g-400);text-decoration:none}
+.kpi-acao:focus-visible{outline:none;box-shadow:var(--focus-ring)}
+/* A BARRA é a fatia da área no excedente da especialidade. Trilho na cor da
+   superfície secundária e preenchimento no acento: mesma dupla das barras do
+   Pareto, para as duas proporções da tela se lerem com a mesma gramática. */
+.pano-trilho{position:relative;height:6px;margin-top:4px;border-radius:999px;
+  background:var(--g-100);overflow:hidden}
+.pano-trilho i{display:block;height:100%;border-radius:999px;background:var(--acc)}
+[data-tema="dark"] .pano-trilho{background:var(--g-800)}
+/* as linhas de apoio do cartão de área não quebram: elas são rótulos
+   telegráficos, e "63 comparáveis" sobre "de 64" lê como dois números */
+.kpis-areas .kpi .micro{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* o MOTIVO é a exceção, e quebra. Nos cartões sem régua ele é a informação
+   principal — é o que explica a ausência dos números —, e truncá-lo em
+   "cooperados insuficientes para…" deixa na tela exatamente a metade que não
+   informa. */
+.kpis-areas .kpi .pano-motivo{white-space:normal;text-wrap:pretty}
+/* ÁREA SEM RÉGUA: o cartão continua inteiro e continua levando à área, só
+   recua. Esmaecer é o que distingue "medido" de "não medível" sem tirar
+   ninguém da tela; e o recuo desfaz no hover, porque quem foi até lá com o
+   cursor já decidiu olhar. */
+.kpi-sem-regua{opacity:.62}
+.kpi-sem-regua:hover{opacity:1}
+/* A GRADE DE ÁREAS: sete cartões do MESMO tamanho, mais estreitos que o `.kpi`
+   padrão porque são um catálogo e não uma faixa de números-herói. Houve uma
+   versão com dois cartões grandes na frente; eles prometiam responder "onde o
+   excesso está", e essa é pergunta de Pareto, que tem seção própria. */
+.kpis-areas{grid-template-columns:repeat(auto-fit,minmax(184px,1fr));gap:12px}
+.kpis-areas .kpi{gap:4px;padding:14px 16px}
+.kpis-areas .kpi .v{font-size:var(--fs-2xl)}
+.kpis-areas .kpi .k{font-weight:500;color:var(--g-900)}
