@@ -821,7 +821,8 @@ def panorama(p: ParametrosDep) -> dict[str, Any]:
     # oportunidades da especialidade inteira. Empilhar é legítimo porque cada
     # excedente já foi medido contra a referência da PRÓPRIA área — junta-se o
     # achado, nunca a régua.
-    pares, rs_pares, confs = [], [], []
+    pares, rs_pares, confs, custo_pares = [], [], [], []
+    reais_coop, custos_coop, area_do_coop = {}, {}, {}
     for a in areas:
         if not a["comparavel"]:
             continue
@@ -850,6 +851,11 @@ def panorama(p: ParametrosDep) -> dict[str, Any]:
         rs_pares.append(casc["rs"])
         if casc["conf"] is not None:
             confs.append(casc["conf"])
+        reais_coop.update(casc["excedente_reais_coop"])
+        custos_coop.update(casc["valor_total_coop"])
+        custo_pares.append(casc["custo_pares"])
+        for coop in casc["excedente_reais_coop"]:
+            area_do_coop[coop] = a["titulo"]
 
     bloco = blocos.panorama_da_especialidade(
         config.ESPECIALIDADE_MVP, areas, totais, config.AREA_INDEFINIDA)
@@ -864,6 +870,18 @@ def panorama(p: ParametrosDep) -> dict[str, Any]:
             pd.concat(confs) if confs else None, None,
             bloco["totais"]["excedente_reais"], p.referencia, p.criterio,
             len(fatias), escopo="da especialidade")
+        # OS DOIS PARETOS da especialidade, com os mesmos blocos das outras
+        # telas e o conjunto trocado: onde o excesso se concentra (por
+        # cooperado) e quais procedimentos o puxam em mais de uma área.
+        bloco["concentracao"] = blocos.concentracao_da_especialidade(
+            reais_coop, custos_coop, area_do_coop,
+            {a["titulo"]: totais[a["id"]]["excedente_reais"] for a in areas
+             if a["comparavel"]},
+            {a["titulo"]: totais[a["id"]].get("custo_total") or 0.0
+             for a in areas if a["comparavel"]})
+        bloco["transversais"] = blocos.procedimentos_transversais(
+            pd.concat(rs_pares),
+            pd.concat(custo_pares) if any(len(c) for c in custo_pares) else None)
     bloco["proveniencia"] = _proveniencia(p, r)
     bloco["banner"] = config.BANNER_HOMOLOGACAO
     return bloco
@@ -2199,7 +2217,21 @@ async def _exigir_sessao(request: Request, call_next):
     if caminho.startswith("/api"):
         return JSONResponse({"detail": "Sessão ausente ou expirada."},
                             status_code=401)
-    return RedirectResponse("/entrar", status_code=303)
+    # DIRETO PARA O PROVEDOR, e não para a porta visual (set/2026). A `/entrar`
+    # é uma tela de um botão só: quem chegou sem sessão já disse o que queria
+    # ao digitar o endereço, e um clique a mais para repetir isso é cerimônia.
+    # Agora quem digita o portal cai no formulário de senha; um endereço, um
+    # formulário.
+    #
+    # A `/entrar` não sai do app: continua sendo o destino de FALHA e de SAÍDA,
+    # para onde `/auth/callback` manda quando a volta não confere e para onde
+    # se vai depois de `/sair`. É a tela que declara o estado quando não há o
+    # que fazer, e é por isso que ela não podia ser também o pedágio de quem
+    # está entrando bem.
+    #
+    # Não há laço: o guardião só age com `identidade_ligada()`, e é exatamente
+    # nesse caso que `/auth/entrar` NÃO devolve para `/entrar`.
+    return RedirectResponse("/auth/entrar", status_code=303)
 
 
 # A ORDEM destes dois registros importa, e ela é o inverso da leitura: o último
