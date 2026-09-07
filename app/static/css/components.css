@@ -807,6 +807,41 @@ th{vertical-align:middle}
 .plot .reflbl{position:absolute;top:0;transform:translateX(-50%);padding:0 4px;background:var(--surface);font-size:var(--ch-label-fs);font-weight:400;letter-spacing:.02em;white-space:nowrap;z-index:2}
 .plot .reflbl.median{color:var(--g-900)}
 .plot .reflbl.criterion{color:var(--g-900)}
+
+/* ── a DISTRIBUIÇÃO DA ÁREA, que cresce com o painel (2026-09-07) ───────────
+   As medidas acima são as de um gráfico de 110px: caixa de 38, réguas de 58,
+   tudo cravado em pixels a partir do topo. Dentro da faixa de gráficos a
+   plotagem passou a receber a altura que sobra da vista mais alta (~269px), e
+   número cravado num quadro que estica deixa o desenho encolhido num canto.
+
+   O que este bloco faz é AMPLIAR o mesmo desenho, não esticá-lo. Cada medida é
+   a MESMA FRAÇÃO que tinha no gráfico de 110px, agora contada sobre a faixa
+   entre o topo e a linha do eixo. A caixa continua sem encostar no eixo, com a
+   mesma folga relativa de antes (32% da faixa); a haste continua no meio da
+   caixa; as réguas continuam ultrapassando a caixa em cima e embaixo pela mesma
+   sobra. Cresce tudo junto, e o boxplot é reconhecidamente o mesmo.
+
+   As frações vêm do desenho antigo, sobre a faixa de 94px que ele tinha acima
+   do eixo (110 menos os 16 do rótulo):
+
+     caixa    topo 26/94 = .277   altura 38/94 = .404
+     réguas   topo 14/94 = .149   altura 58/94 = .617
+     tampas   topo 34/94 = .362   altura 23/94 = .245
+     haste    45/94 do topo, ou .521 da faixa contada do eixo para cima
+
+   `--ch-eixo` e `--ch-base-frac` são lidos TAMBÉM pelo JavaScript, que precisa
+   do eixo do enxame em pixels para empacotar os pontos. Sem unidade e sem
+   `calc` do lado do JS de propósito: CSS e JS param na mesma linha porque fazem
+   a mesma conta sobre os mesmos dois números.
+
+   O JITTER sobe de 34 para 92px na mesma proporção da caixa (38 → 102): o
+   limite não estica o enxame — quem está sozinho continua na haste —, só deixa
+   de cortá-lo onde ele é denso, e cortar era o que acontecia com 63 pontos. */
+.plot-area{--ch-eixo:16px;--ch-jitter:92px;--ch-base-frac:.521}
+.plot-area .iqrband{top:calc(.277 * (100% - var(--ch-eixo)));height:calc(.404 * (100% - var(--ch-eixo)))}
+.plot-area .refline{top:calc(.149 * (100% - var(--ch-eixo)));height:calc(.617 * (100% - var(--ch-eixo)))}
+.plot-area .tampa{top:calc(.362 * (100% - var(--ch-eixo)));height:calc(.245 * (100% - var(--ch-eixo)))}
+.plot-area .haste{top:auto;bottom:calc(var(--ch-eixo) + var(--ch-base-frac) * (100% - var(--ch-eixo)))}
 /* O ponto NEUTRO. Opacidade de .5 para .65 em 2026-08-19: em .5 o cinza saía
    quase branco sobre o canvas e o corpo da distribuição — que é a maioria dos
    pontos, e o contexto contra o qual se lê quem está fora — mal aparecia.
@@ -820,23 +855,8 @@ th{vertical-align:middle}
 .pt-crit{width:var(--ch-dot-hi);height:var(--ch-dot-hi);margin-left:calc(var(--ch-dot-hi)/-2);background:var(--crit);opacity:1;box-shadow:none}
 .pt-crit:hover{background:var(--crit)}
 
-/* ---------- a RAMPA de cor do ponto (2026-08-20) -----------------------------
-   A cor do ponto é o EXCEDENTE EM R$: `--i` (0–1) vem do motor, e a tinta sai
-   dele. Substituiu a paleta de severidade (`.pt-read`/`.pt-crit`), que dizia
-   "acima do critério agregado" — régua que não governa nada, enquanto 34% do
-   dinheiro ficava em pontos cinza. Precisa vir DEPOIS das regras acima: mesma
-   especificidade, e quem está por último vence.
-
-   Interpolação em DUAS PERNAS, cinza → âmbar → vermelho: uma rampa direta de
-   cinza a vermelho passa por marrom no meio, que some sobre o papel. As três
-   tintas são as do contrato (--g-400, --read-above, --crit) — a paleta não
-   muda, muda o que ela significa.
-
-   Os `clamp` não são preciosismo: `color-mix` recusa porcentagem fora de
-   0–100%, e uma perna sozinha produz valor negativo em metade do domínio —
-   o que invalida a declaração inteira e derruba a cor para o cinza base.
-   CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
-/* VARIANTE E do artboard "Medyx Escala de Cor" ("sem escala e sem brilho"),
+/* ---------- os DOIS ESTADOS do ponto (2026-09-07) ----------------------------
+   VARIANTE E do artboard "Medyx Escala de Cor" ("sem escala e sem brilho"),
    adotada em 2026-09-07 para TODOS os gráficos de distribuição do app. Dois
    estados: dentro do padrão da área em cinza, acima do critério em verde
    chapado. Sem rampa, sem halo.
@@ -848,7 +868,11 @@ th{vertical-align:middle}
 
    O que a variante cobra, e o artboard declara: a cor deixa de dizer QUANTO, e
    o realce passa a depender só de matiz. É o Pareto ao lado que responde
-   "quanto", e é por isso que os dois vivem no mesmo cartão. */
+   "quanto", e é por isso que os dois vivem no mesmo cartão.
+
+   Precisa vir DEPOIS de `.pt`, `.pt-read` e `.pt-crit`: `.plot .pt` já ganha
+   por especificidade, mas a dupla acima ainda descreve o desenho antigo e o
+   `.plot` é o que decide qual dos dois vale dentro do gráfico. */
 .plot .pt{background:var(--g-500);opacity:.6}
 .plot .pt.pt-acima{width:8px;height:8px;margin-left:-4px;
   background:var(--acc);opacity:1;z-index:3}
@@ -1854,8 +1878,24 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 
    Só na FAIXA DE GRÁFICOS: as abas Cooperados/Procedimentos são conteúdos de
    tamanhos legitimamente diferentes, e reservar a altura da maior deixaria um
-   vazio permanente sob a menor. */
+   vazio permanente sob a menor.
+
+   O CARTÃO PREENCHE o painel, em vez de flutuar no topo dele (2026-09-07). Com
+   `min-height` sozinho a distribuição fechava em 357px e os 159 restantes eram
+   branco embaixo do cartão: a página parava de sacudir, mas a vista passava a
+   ler como um gráfico pequeno numa moldura grande. Fazendo o cartão, a faixa e
+   a plotagem crescerem juntos, a altura sobrando vira ESPAÇO DE DESENHO — que a
+   distribuição usa (63 pontos num enxame que estava batendo no teto), e que os
+   outros dois simplesmente não pedem, porque já preenchem.
+
+   `flex-basis` na altura própria de cada gráfico, e não em zero: quem já tem
+   altura declarada continua com ela como piso, e só o excedente é distribuído.
+   Se um dia a vista mais alta encolher, todos encolhem até o próprio piso e
+   param — nunca abaixo do que a leitura pede. */
 .graficos-vistas .vista-painel{min-height:var(--vista-h,516px)}
+.graficos-vistas .vista-painel > .tbl{flex:1;display:flex;flex-direction:column}
+.graficos-vistas .vista-painel > .tbl > .tbl-band{flex:1;display:flex;flex-direction:column}
+.graficos-vistas .vista-painel > .tbl > .tbl-band > .plot{flex:1 1 var(--ch-h);min-height:var(--ch-h)}
 
 /* ── recorte: segmented control (Clean v3) ──────────────────────────────────
    Trilho cinza contínuo, pastilha branca no ativo. Mesma construção do

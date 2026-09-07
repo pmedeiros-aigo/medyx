@@ -1280,7 +1280,7 @@ def _norma_da_medida(av: pd.DataFrame, valores: pd.Series, piso: int):
 
 def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
                      motivo_fora: str, av: pd.DataFrame, valores: pd.Series,
-                     norma, rotulos_posicao: pd.Series, intensidade,
+                     norma, rotulos_posicao: pd.Series,
                      exc: dict[str, float], gatilho: str | None = None,
                      alvo: str = "mediana") -> dict | None:
     """Uma medida pronta para desenhar: escala, haste, caixa, eixo e pontos.
@@ -1345,8 +1345,6 @@ def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
             "id": coop,
             "valor": round(float(valor), 4), "valor_fmt": formatar(valor),
             "pos_pct": _pos(valor, escala),
-            # `intensidade` é DADO (0–1); a tinta sai dele no CSS
-            "intensidade": intensidade(coop),
             "excedente_reais": round(exc.get(coop, 0.0), 2),
             "excedente_reais_fmt": fmt_reais(exc[coop]) if coop in exc else None,
             "consultas": int(linha["consultas_totais"]),
@@ -1443,36 +1441,40 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
     medida é leitura e não recorte, e uma ida ao servidor para mudar de eixo
     faria parecer que o conjunto medido mudou junto.
 
-    ── a COR é o DINHEIRO, e é a MESMA nas três (2026-08-20) ────────────────
-    Cada ponto é tingido pelo EXCEDENTE EM R$ do cooperado, do neutro ao
-    vermelho. Antes a cor era severidade (cinza / acima do P75 / acima do
-    critério), e havia dois problemas nisso.
+    ── DOIS ESTADOS, e não uma rampa (2026-09-07) ──────────────────────────
+    Cada ponto tem duas aparências: cinza, ou marcado por estar acima do critério
+    da medida em cena. É a variante E do artboard "Medyx Escala de Cor", "sem
+    escala e sem brilho", e ela desfaz um arranjo anterior em que a cor era o
+    EXCEDENTE EM R$, por quantil, do neutro ao vermelho.
 
-    O primeiro: o critério agregado não governa nada. Não filtra a cascata, não
-    entra em nenhum R$, não decide quem vai a comitê. Produzia uma contagem na
-    tela e a cor dos pontos, e nada mais. Era régua que não media.
+    A rampa dizia dinheiro enquanto o eixo dizia frequência, e cobrava do leitor
+    uma legenda de três valores para ser decodificada. Pior: cor contínua sugere
+    ordenação contínua, e o cooperado que ficava um degrau mais escuro que o
+    vizinho não estava, por isso, mais fora do padrão que ele — o que decide isso
+    é a posição, não a tinta. O que a cor deixou de dizer, o Pareto e a lista ao
+    lado dizem melhor, e a dica de cada ponto imprime o excedente por extenso.
 
-    O segundo, que é o grave: 46 dos 63 cooperados ficavam CINZA com a legenda
-    "abaixo do P75", e esses 46 carregavam 34% do dinheiro da área. O gráfico
-    convidava a concluir que o problema eram os 8 vermelhos, quando metade do
-    excedente estava fora deles.
+    Sobrou UMA distinção, e ela é a que o desenho precisa carregar: de que lado
+    da régua o ponto está. Com dois estados, cor e posição afirmam a mesma coisa,
+    e nunca podem se contradizer.
 
-    Com a cor no dinheiro, o gráfico responde uma pergunta por canal: POSIÇÃO
-    diz quanto (a grandeza escolhida no controle), COR diz quanto isso custa no
-    total, e a caixa IQR diz como o grupo se espalha. Na medida "excesso" os
-    dois canais são o mesmo dinheiro em lentes diferentes, e de propósito:
-    posição é a INTENSIDADE (por consulta), cor é a MAGNITUDE (o total da
-    janela), as duas lentes que o rigor §3 exige juntas.
+    ── as DUAS RÉGUAS, e a ressalva que anda com elas (2026-09-07) ──────────
+    Referência de adequação e critério de revisão voltaram a ser desenhadas, pelo
+    artboard "Medyx Area de Atuacao". Elas tinham saído em ago/2026, e o
+    argumento de então continua de pé: o critério AGREGADO não governa nada. Não
+    filtra a cascata, não entra em nenhum R$, não decide quem vai a comitê — a
+    sinalização do método é por PAR (cooperado × procedimento). Por isso o título
+    da linha e o rodapé do bloco dizem isso com todas as letras.
 
-    A escala da cor é por QUANTIL, não por valor: o excedente vai de dezenas de
-    milhares a centenas de milhares, e uma rampa linear pintaria dois pontos
-    vermelhos e sessenta e um quase brancos. Quantil dá gradação em toda a nuvem,
-    e a escolha viaja declarada na legenda, porque escala de cor sem método
-    anunciado faz o leitor supor proporcionalidade que não existe.
+    O que mudou é o reconhecimento de que um enxame sem marca nenhuma não
+    responde pergunta: o leitor vê espalhamento e não sabe onde a área considera
+    que o normal acaba. A régua aqui LOCALIZA; quem julga é o gráfico por exame,
+    onde ela de fato rege.
 
-    As LINHAS de referência e critério saíram junto: sem paleta de severidade,
-    elas eram as últimas réguas decorativas do bloco. Quem quiser ver régua de
-    verdade vê no gráfico por exame, onde ela de fato rege.
+    Vale repetir o que o desenho não deve deixar concluir: 46 dos 63 cooperados
+    ficam do lado de cá da linha, e esses 46 carregam 34% do dinheiro da área.
+    Estar abaixo do critério agregado não é estar limpo, e é para isso que o
+    Pareto ao lado existe.
 
     Parâmetros além dos evidentes:
         piso: volume mínimo de consultas, por argumento (Lei 3), o mesmo do
@@ -1488,18 +1490,9 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
     if av.empty:
         return None
 
-    # ── a rampa de cor: posição do cooperado na ORDEM dos excedentes ─────────
-    # Quem não tem excedente valorado fica em 0 (o extremo neutro da rampa):
-    # é ausência de dinheiro, e a rampa começa exatamente aí.
+    # o excedente em R$ não tinge mais nada (ver "as duas cores", acima); ele
+    # continua viajando porque a dica de cada ponto o imprime por extenso.
     exc = {c: float(v) for c, v in (excedente_por_coop or {}).items() if v > 0}
-    ordem = sorted(exc.values())
-
-    def _intensidade(coop: str) -> float:
-        v = exc.get(coop)
-        if v is None or len(ordem) < 2:
-            return 0.0
-        # fração de quem ele supera: 0 no menor, 1 no maior
-        return round(ordem.index(v) / (len(ordem) - 1), 4)
 
     medidas = []
     for chave, rotulo, titulo, grandeza, motivo_fora in _MEDIDAS:
@@ -1511,7 +1504,7 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
                  else _norma_da_medida(av, valores, piso))
         bloco = _bloco_da_medida(chave, rotulo, titulo, grandeza, motivo_fora,
                                  av, valores, norma, rotulos_posicao,
-                                 _intensidade, exc, gatilho_usado, referencia)
+                                 exc, gatilho_usado, referencia)
         if bloco is not None:
             medidas.append(bloco)
     if not medidas:

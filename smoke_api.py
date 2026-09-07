@@ -63,20 +63,36 @@ checar("meta · avaliáveis (todas as áreas)",
        sum(a["n_avaliaveis"] for a in meta["areas"]), config.SMOKE_N_AVALIAVEIS)
 
 _, gin = get("/api/area/ginecologia")
-# A distribuição NÃO desenha mais linha de referência nem de critério
-# (blocos.py, 2026-08-20): régua desenhada que não mede era o defeito do bloco,
-# e `referencias` passou a sair vazia POR DECISÃO. O smoke ainda exigia a linha
-# e morria com StopIteration antes de checar qualquer outra coisa — checagem
-# obsoleta, removida em ago/2026. A mediana continua provada pelo rodapé da
-# tabela, logo abaixo, que é onde ela aparece para o usuário.
 # TRÊS MEDIDAS desde 2026-08-31 (exames, custo, excesso por consulta): o bloco
 # deixou de ter uma geometria só e passou a ter uma por medida, todas no mesmo
 # payload. As checagens abaixo valem para as três.
 _medidas_gin = {m["chave"]: m for m in gin["distribuicao"]["medidas"]}
 checar("area · distribuição serve as três medidas",
        sorted(_medidas_gin), ["custo", "exames", "excesso"])
-checar("area · nenhuma medida desenha régua de referência",
-       [m["referencias"] for m in _medidas_gin.values()], [[], [], []])
+# AS DUAS RÉGUAS voltaram em 2026-09-07, pelo artboard "Medyx Area de Atuacao".
+# Elas tinham saído em ago/2026 com o argumento de que o critério agregado não
+# governa a sinalização — o que continua verdade e está dito no rodapé do bloco.
+# O que mudou é o reconhecimento de que enxame sem marca nenhuma não responde
+# pergunta: o leitor vê espalhamento e não sabe onde a área diz que o normal
+# acaba. As duas saem da MESMA norma que desenha a caixa.
+checar("area · as três medidas desenham referência e critério",
+       [[r["classe"] for r in m["referencias"]] for m in _medidas_gin.values()],
+       [["median", "criterion"]] * 3)
+# a linha do critério ANUNCIA qual gatilho está em cena: régua sem nome é régua
+# que o leitor supõe.
+checar("area · a régua do critério nomeia o gatilho ativo",
+       {m["referencias"][1]["rotulo"].split()[0] for m in _medidas_gin.values()},
+       {config.GATILHO_DEFAULT.upper()})
+# o ponto marcado e a régua contam a MESMA história: verde à esquerda da linha
+# do critério seria o desenho contradizendo a si mesmo.
+checar("area · pontos marcados são exatamente os acima do critério",
+       [sum(p["acima"] for p in m["pontos"])
+        == sum(p["valor"] > m["referencias"][1]["valor"] for p in m["pontos"])
+        for m in _medidas_gin.values()], [True, True, True])
+# a rampa de cor do excedente saiu junto (variante E do artboard "Medyx Escala
+# de Cor"): dois estados, sem escala e sem brilho.
+checar("area · distribuição não publica rampa de cor",
+       gin["distribuicao"]["rampa"], None)
 checar("area · mediana também no rodapé da tabela",
        f"mediana {config.SMOKE_MEDIANA_GINECOLOGIA:.2f}".replace(".", ",")
        in gin["cooperados"]["rodape"]["direita"], True)

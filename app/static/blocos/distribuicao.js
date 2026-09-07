@@ -147,15 +147,6 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
   const d = dados.distribuicao;
   if (!d?.medidas?.length || dados.estado?.tem_distribuicao === false) return null;
 
-  const estilo = getComputedStyle(document.documentElement);
-  const jitter = parseFloat(estilo.getPropertyValue('--ch-jitter')) || 26;
-  const diametro = parseFloat(estilo.getPropertyValue('--ch-dot')) || 7;
-  /* CLEAN V3: os pontos caem DENTRO da caixa interquartil (topo em 27px,
-     altura 29). O centro da faixa fica em 41px do topo, e como o CSS posiciona
-     por `bottom`, a conta vira altura-do-plot menos isso. */
-  const alturaPlot = parseFloat(estilo.getPropertyValue('--ch-h')) || 110;
-  const base = Math.round(alturaPlot - 45);
-
   /* Mesma moldura e mesmo cabeçalho da tabela: o gráfico e a lista são dois
      blocos da mesma família, e o título do guia (`font-size:14px;weight:600`,
      escrito inline lá) é exatamente `.tbl-hd .t`. O corpo entra numa `.tbl-band`
@@ -182,7 +173,30 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
   cartao.appendChild(topo);
 
   const corpo = el('div', 'tbl-band');
-  const plot = el('div', 'plot');
+  const plot = el('div', 'plot plot-area');
+  /* A GEOMETRIA VEM DA PLOTAGEM, não da raiz (2026-09-07). A altura deste
+     gráfico deixou de ser o token `--ch-h`: dentro da faixa de gráficos ele
+     estica para preencher a vista, e a altura real só existe depois de o cartão
+     entrar no documento. Ler da raiz devolvia 110px enquanto a plotagem media
+     269, e os pontos caíam 159px abaixo da caixa que deveriam ocupar.
+
+     `--ch-jitter` e `--ch-base-pct` saem do MESMO elemento pelo mesmo motivo: o
+     CSS os declara em `.plot-area`, e o painel lateral do exame, que é `.plot`
+     também, continua com os valores da raiz. Um token lido do lugar errado é um
+     desenho que discorda de si mesmo sem avisar. */
+  const medirPlot = () => {
+    const est = getComputedStyle(plot);
+    const eixo = parseFloat(est.getPropertyValue('--ch-eixo')) || 16;
+    const frac = parseFloat(est.getPropertyValue('--ch-base-frac')) || 0.521;
+    return {
+      jitter: parseFloat(est.getPropertyValue('--ch-jitter')) || 26,
+      diametro: parseFloat(est.getPropertyValue('--ch-dot')) || 7,
+      /* o EIXO DO ENXAME, em px do rodapé da plotagem: a linha em que fica quem
+         não tem vizinho para desviar, e a mesma altura em que o CSS desenha a
+         haste. A conta é a do CSS, sobre a faixa acima da linha do eixo. */
+      base: Math.round(eixo + frac * (plot.clientHeight - eixo)),
+    };
+  };
   corpo.appendChild(plot);
 
   /* A legenda é do BLOCO, não da medida: as marcas valem para as três, e o
@@ -212,6 +226,7 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
   let escolhido = null;
   let recorte = null;      // Set dos ids em cena; null = sem recorte
   let porId = new Map();
+  let naTela = [];         // [{dado, elemento}] na ordem do payload
 
   /**
    * Redesenha a PLOTAGEM para a medida em cena, e só ela: cabeçalho, legenda e
@@ -256,17 +271,37 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
       plot.appendChild(posicionado('span', 'axislbl', t.pos_pct, null, t.valor_fmt));
     }
 
-    const pontos = medida.pontos ?? [];
-    const alturas = posicionarEmEnxame(pontos, plot.clientWidth, jitter, diametro, base);
-    porId = new Map();
-    pontos.forEach((p, i) => {
-      const s = ponto(p, alturas[i], escolher);
-      porId.set(p.id, s);
+    naTela = (medida.pontos ?? []).map((p) => {
+      const s = ponto(p, 0, escolher);
       plot.appendChild(s);
+      return { dado: p, elemento: s };
     });
+    porId = new Map(naTela.map(({ dado, elemento }) => [dado.id, elemento]));
+    posicionarPontos();
 
     aplicarRecorte();
     aplicarEscolha();
+  }
+
+  /**
+   * Reparte os pontos em altura, para a plotagem que existe AGORA.
+   *
+   * Separado de `desenhar` porque a plotagem deixou de ter altura fixa: ela
+   * cresce para preencher a vista, e a altura final só existe depois de o
+   * layout assentar. Na primeira montagem o enxame media 300px e desenhava o
+   * eixo 15px acima de onde a caixa acabava ficando, e redimensionar a janela
+   * repetia o desvio sem nunca corrigi-lo.
+   *
+   * Repor a altura é barato — mexe em `style.bottom` e mais nada —, então o
+   * observador pode chamar sem cerimônia. O que NÃO se refaz aqui é o DOM: o
+   * ponto escolhido, o recorte e o foco continuam onde estavam.
+   */
+  function posicionarPontos() {
+    if (!naTela.length || !plot.clientWidth) return;
+    const { jitter, diametro, base } = medirPlot();
+    const alturas = posicionarEmEnxame(naTela.map((x) => x.dado), plot.clientWidth,
+                                       jitter, diametro, base);
+    naTela.forEach(({ elemento }, i) => { elemento.style.bottom = `${alturas[i]}px`; });
   }
 
   /**
@@ -320,6 +355,13 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
   });
 
   desenhar();
+
+  /* O enxame acompanha a plotagem. Largura já era motivo (quem é "vizinho"
+     depende de quantos pontos cabem lado a lado); altura passou a ser, porque o
+     gráfico agora estica para preencher a vista. O observador dispara na
+     montagem e a cada mudança de caixa, e repor altura não muda a caixa — não
+     há laço. */
+  new ResizeObserver(() => posicionarPontos()).observe(plot);
 
   /* Recolhível DEPOIS de montado: o enxame já leu a largura real da plotagem,
      e fechar agora não a zera para a próxima abertura. */

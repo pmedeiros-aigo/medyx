@@ -88,8 +88,29 @@ Pergunta: "o que é normal aqui, e quem está fora?"
 excedente · impacto estimado · peso na especialidade). [v0]
 - **Distribuição** (dentro do container de gráficos, aba "Distribuição"): 1 ponto
 por cooperado avaliável, haste do menor ao maior, faixa IQR do grupo que forma a
-referência, cor pelo excedente em R$. Clicar num ponto destaca a linha na tabela.
-Não renderiza nos estados sem referência plena. [v0]
+referência, régua de referência e de critério. Clicar num ponto destaca a linha na
+tabela. Não renderiza nos estados sem referência plena. [v0]
+  - **Escala de cor: variante E**, a mesma dos dois painéis de procedimento (ver
+    abaixo), adotada em todo o app em set/2026. Dois estados: dentro do padrão da área
+    em cinza, acima do critério da medida em cena em verde chapado, sem rampa e sem
+    halo. O que saiu foi a tinta por excedente em R$ (cinza-âmbar-vermelho, por
+    quantil): ela dizia dinheiro enquanto o eixo dizia frequência, e cobrava uma
+    legenda de três valores para ser lida. Quem responde "quanto" é o Pareto ao lado, e
+    a dica de cada ponto imprime o excedente por extenso.
+  - **As duas réguas voltaram** em set/2026, pelo artboard "Medyx Area de Atuacao":
+    referência de adequação (tracejada) e critério de revisão (contínua), as duas em
+    `--g-900`, rotuladas com o valor. Elas tinham saído em ago/2026 porque o critério
+    AGREGADO não governa a sinalização — o que continua verdade, está no título da
+    linha e no rodapé do bloco, e é por isso que a régua aqui LOCALIZA em vez de
+    julgar; quem julga é o gráfico por exame. O que mudou é o reconhecimento de que
+    enxame sem marca nenhuma não responde pergunta: via-se espalhamento sem saber onde
+    a área considera que o normal acaba. Ressalva que o desenho não pode apagar: 46 dos
+    63 ficam do lado de cá da linha e carregam 34% do dinheiro — abaixo do critério
+    agregado não é limpo.
+  - **Convenção de linha** (artboard "Medyx Escala de Cor"): contínua = critério, o que
+    julga; tracejada = referência, o que contextualiza. Vale nos três gráficos que
+    desenham régua. Os tokens `--ch-ref-style-*` estavam invertidos e foram corrigidos
+    em set/2026 — replicar no Design.
   - **Três medidas no eixo**, num segmentado no cabeçalho do cartão (2026-08-31):
     *Exames* (solicitações por consulta) · *Custo* (R$ solicitados por consulta,
     a mesma fonte da coluna "Custo por consulta" da tabela) · *Excesso* (variação
@@ -98,7 +119,26 @@ Não renderiza nos estados sem referência plena. [v0]
     troca, e a medida não viaja na URL. Nas medidas de dinheiro, quem não tem
     preço nas contas ou par acima do critério fica FORA do gráfico e é contado
     no rodapé (ausência não é zero); a caixa some quando menos de
-    `N_MINIMO_P75` formadores da referência têm a medida.
+    `N_MINIMO_P75` formadores da referência têm a medida. Cada medida traz as suas
+    duas réguas, tiradas da MESMA norma que desenha a caixa: no índice é a norma
+    publicada da área, nas duas de dinheiro é a construída sobre o mesmo grupo.
+  - **Altura igual nas três vistas** (set/2026): Concentração, Distribuição e
+    Quantidade × custo mediam 516, 357 e 511px, e trocar de aba fazia a página saltar
+    sob o cursor. Um `min-height` no painel iguala as três pela mais alta (o Pareto,
+    medido — não arbitrado). Container que muda de altura ao trocar de vista faz o
+    leitor perder o lugar, e a aba é leitura: não devia mover nada.
+    - O CARTÃO PREENCHE o painel, em vez de flutuar no topo com o vão embaixo: a
+      distribuição fechava em 357px e os 159 restantes eram branco, o que trocava o
+      salto por um gráfico pequeno numa moldura grande. Cartão, faixa e plotagem
+      crescem juntos, e a altura que sobra vira espaço de desenho.
+    - O boxplot é AMPLIADO, não esticado: cada medida guarda a fração que tinha no
+      gráfico de 110px, contada sobre a faixa entre o topo e a linha do eixo. A caixa
+      continua sem encostar no eixo, com a mesma folga relativa; a haste continua no
+      meio dela. Esticar até o eixo (como faz o artboard) daria outro desenho.
+    - O enxame é reposto por `ResizeObserver`, e não só na montagem: a altura final só
+      existe depois que o layout assenta, e ler antes punha os pontos 15px fora da
+      caixa. O DOM não é refeito — muda só a altura de cada ponto, então escolha,
+      recorte e foco sobrevivem.
   - Antes o eixo era só o índice, e quem pedia POUCO e CARO ficava no meio da
     nuvem: era a pergunta que o bloco não sabia responder.
 - **Linha de contexto** sob o título: escopo da área, fixo, acima dos chips —
