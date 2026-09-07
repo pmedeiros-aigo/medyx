@@ -364,7 +364,7 @@ GRUPOS_DE_AREAS = (
      "posição descritiva por posto; sem percentil e sem sinalização",
      (blocos.ESTADO_INSUFICIENTE,)),
     ("fora_de_comparacao", "Fora de comparação",
-     "sem grupo de pares: leitura por cooperado",
+     "sem área de atuação: leitura por cooperado",
      (blocos.ESTADO_SEM_PEER_GROUP,)),
 )
 
@@ -399,7 +399,7 @@ def _areas_resolvidas(resultado: dict, criterio: str) -> list[dict]:
                 f"{MARCA_SEM_REFERENCIA} "
                 + (f"o único cooperado da área não forma" if n_total == 1 else
                    f"nenhum dos {n_total} cooperados forma")
-                + " a referência: sem grupo de pares para comparar")
+                + " a referência: sem cooperados contra quem comparar")
         saida.append({
             "id": blocos.slug(area), "nome": area,
             # o nome que a tela imprime — o interno "INDEFINIDO" nunca vaza (léxico)
@@ -524,6 +524,22 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
          * com_preco["preco_mediano"])
         .groupby(com_preco["ID_COOPERADO"]).sum().to_dict()
         if len(com_preco) else {})
+    # o custo por PAR (cooperado × procedimento), sem o filtro de sinalização.
+    # É o TODO dentro do qual o excedente é uma parcela: o Pareto desenha a
+    # barra inteira com este número e preenche o trecho com o excedente. Vem
+    # cru, por par, porque o recorte da tela corta por cooperado antes de
+    # agregar por procedimento.
+    custo_pares = (
+        com_preco.assign(
+            custo=com_preco["taxa"] * com_preco["consultas_totais"]
+            * com_preco["preco_mediano"])[
+                ["ID_COOPERADO", "CD_PROCEDIMENTO", "custo"]]
+        if len(com_preco) else com_preco)
+    # cobertura de PREÇO na área: o custo total só conta procedimento com preço
+    # apurado nas contas, e o bloco de leitura declara essa base
+    n_procs_area = int(rs_bruto["CD_PROCEDIMENTO"].nunique()) if len(rs_bruto) else 0
+    n_procs_preco = int(com_preco["CD_PROCEDIMENTO"].nunique()) if len(com_preco) else 0
+
     rs = filtrar_sinalizados(rs_bruto, exigir_preco=True)
     excedente_reais = float(rs["excedente_reais"].sum()) if len(rs) else None
     # as MESMAS somas, por cooperado e por procedimento, para a tabela e a aba
@@ -581,7 +597,12 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
             "excedente_reais_coop_piso": reais_coop_piso,
             "excedente_reais_proc": reais_proc,
             # o R$ SOLICITADO por cooperado (não o excedente), para a dispersão
+            # e para o comprimento da barra do Pareto
             "valor_total_coop": valor_total_coop,
+            # o mesmo R$ solicitado, por par, para o Pareto de procedimentos
+            "custo_pares": custo_pares,
+            "n_procs_area": n_procs_area,
+            "n_procs_preco": n_procs_preco,
             # os pares sinalizados COM PREÇO, crus. Saem daqui em vez do Pareto
             # pronto porque o Pareto agora depende do recorte, e esta função é
             # `lru_cache` na régua — recorte não é régua e não entra na chave.
@@ -639,7 +660,7 @@ def _linhas_para_recorte(posicao_area: pd.DataFrame, casc: dict,
 
 def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
                       rotulo: str, recorte: str | None,
-                      n_comparaveis: int) -> dict:
+                      n_comparaveis: int, contexto: dict | None = None) -> dict:
     """Os blocos que SEGUEM O RECORTE: os três cards e os dois Paretos. Um lugar só para montá-los, porque a carga inicial da página e a
     troca de recorte precisam produzir exatamente o mesmo formato — se
     divergirem, a tela mostra uma coisa ao abrir e outra ao clicar no mesmo
@@ -656,15 +677,37 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
                                "solicitacoes": l.get("solicitacoes"),
                                "valor_total": l.get("valor_total")}
                      for l in linhas_coop}
+    cards = blocos.cards_do_recorte(casc["excedente_reais_coop"],
+                                    itens_por_coop, ids, rotulo,
+                                    n_comparaveis, base_por_coop)
+    par_coop = blocos.pareto_cooperados(
+        casc["excedente_reais_coop"], linhas_coop, ids, sub,
+        casc["valor_total_coop"])
+    # a concentração e o custo total saem do PARETO já montado: um número, um
+    # lugar. O de custo total é a soma das linhas na ordem "custo".
+    _exc = (par_coop.get("dados") or {}).get("excedente") or {}
+    _cus = (par_coop.get("dados") or {}).get("custo") or {}
+    em_cena = set(ids)
     return {
         "recorte": {"chave": recorte, "rotulo": rotulo, "n": len(ids)},
-        "cards": blocos.cards_do_recorte(casc["excedente_reais_coop"],
-                                         itens_por_coop, ids, rotulo,
-                                         n_comparaveis, base_por_coop),
-        "pareto_cooperados": blocos.pareto_cooperados(
-            casc["excedente_reais_coop"], linhas_coop, ids, sub),
+        "cards": cards,
+        "leitura": blocos.leitura_da_area(
+            cards, ids, n_comparaveis,
+            _exc.get("leitura_concentracao"), _exc.get("n_nucleo"),
+            (contexto or {}).get("n_sinalizados", 0),
+            (contexto or {}).get("n_com_excedente"),
+            (contexto or {}).get("excedente_itens_area", 0.0),
+            (contexto or {}).get("excedente_reais_area"),
+            float(sum(v for c, v in itens_por_coop.items() if c in em_cena)),
+            float(sum(v for c, v in casc["excedente_reais_coop"].items()
+                      if c in em_cena)) or None,
+            _cus.get("total"), casc.get("n_procs_preco"),
+            casc.get("n_procs_area"),
+            (contexto or {}).get("referencia"), (contexto or {}).get("criterio"),
+            (contexto or {}).get("gatilho"), (contexto or {}).get("n_formam", 0)),
+        "pareto_cooperados": par_coop,
         "pareto_procedimentos": blocos.pareto_procedimentos(
-            casc["rs"], ids, sub),
+            casc["rs"], ids, sub, casc["custo_pares"]),
     }
 
 
@@ -770,21 +813,21 @@ def meta(p: ParametrosDep) -> dict[str, Any]:
                                          lambda v: f"{config.JANELAS_UI[v]} meses"),
                        "ativo": p.rotulo_janela, "recomendado": config.JANELA_DEFAULT,
                        "rotulo": "Janela de apuração",
-                       "ajuda": ("Período de solicitações somado no cálculo; "
-                                 "janelas curtas oscilam mais")},
+                       "ajuda": ("Período de solicitações somado no cálculo. "
+                                 "Janelas curtas oscilam mais.")},
             "criterio": {"opcoes": _opcoes(config.GATILHOS_UI, config.GATILHO_DEFAULT,
                                            str.upper),
                          "ativo": p.criterio, "recomendado": config.GATILHO_DEFAULT,
                          "rotulo": "Critério de revisão",
                          "ajuda": ("Distância dos pares a partir da qual o "
-                                   "cooperado entra na lista")},
+                                   "cooperado entra na lista.")},
             "referencia": {"opcoes": _opcoes(
                 [a for a in config.ALVOS_UI
                  if _ORDEM_NIVEL[a] <= _ORDEM_NIVEL[p.criterio]], config.ALVO_DEFAULT),
                 "ativo": p.referencia, "recomendado": config.ALVO_DEFAULT,
                 "rotulo": "Referência do grupo",
                 "ajuda": ("Ponto tomado como uso adequado; é dele que se mede o "
-                          "excedente. Sempre ≤ critério"),
+                          "excedente. Nunca acima do critério de revisão."),
                 "regra": "sempre ≤ critério de revisão"},
             "confianca": {"opcoes": _opcoes(config.NIVEIS_CONFIANCA_UI,
                                             config.NIVEL_CONFIANCA_DEFAULT,
@@ -793,7 +836,7 @@ def meta(p: ParametrosDep) -> dict[str, Any]:
                           "recomendado": config.NIVEL_CONFIANCA_DEFAULT,
                           "rotulo": "Confiança exigida",
                           "ajuda": ("Margem para afirmar que a diferença não é "
-                                    "do acaso")},
+                                    "do acaso.")},
             # Controles numéricos viajam com as RESTRIÇÕES (minimo/maximo/passo/
             # unidade) ao lado de ativo/recomendado. O front não conhece regra
             # nenhuma — desenha o que recebe e valida contra o que recebe. Os
@@ -802,13 +845,13 @@ def meta(p: ParametrosDep) -> dict[str, Any]:
             "piso": {"ativo": p.piso,
                      "recomendado": config.PISO_CONSULTAS_ANO["_default"],
                      "rotulo": "Volume mínimo para avaliação",
-                     "ajuda": "Abaixo disso o cooperado é listado sem comparação",
+                     "ajuda": "Abaixo disso o cooperado é listado sem comparação.",
                      "unidade": UNIDADE_PISO, "unidade_curta": "consultas",
                      **config.LIMITES_CONTROLES["piso"]},
             "n_minimo": {"ativo": p.n_minimo, "recomendado": config.N_MINIMO_PEER_GROUP,
                          "rotulo": "Mínimo de solicitantes por procedimento",
                          "ajuda": ("Procedimento com menos solicitantes não entra "
-                                   "na norma"),
+                                   "na norma."),
                          "unidade": "solicitantes", "unidade_curta": "solicitantes",
                          **config.LIMITES_CONTROLES["n_minimo"]},
         },
@@ -982,8 +1025,22 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
     # `?perfil=opera` na coluna de classificação correspondente
     perfis_area = blocos.perfis_da_area(posicao, classificacao)
     ids, rotulo_rec, _ = _em_cena(recorte, perfil, linhas_coop, perfis_area)
+    # o que a Leitura da área precisa e não vem do recorte: os totais da ÁREA e
+    # a régua ativa. Eles não se movem com o filtro, e é isso que o bloco diz.
+    _contexto_area = {
+        "n_sinalizados": n_sinalizados,
+        "n_com_excedente": sum(1 for linha in linhas_coop
+                               if (linha.get("excedente_itens") or 0) > 0),
+        "excedente_itens_area": float(sinal["excedente_itens"].sum()),
+        "excedente_reais_area": casc["excedente_reais"],
+        "referencia": (None if norma_linha is None else float(norma_linha["mediana"])),
+        "criterio": (None if norma_linha is None or not gatilho
+                     else float(norma_linha[gatilho])),
+        "gatilho": gatilho,
+        "n_formam": n_formam,
+    }
     achado = _blocos_de_achado(casc, linhas_coop, ids, rotulo_rec, recorte,
-                               int(posicao["avaliavel"].sum()))
+                               int(posicao["avaliavel"].sum()), _contexto_area)
     return {
         "area": {
             "id": blocos.slug(nome), "nome": nome, "titulo": rotulo_titulo,
@@ -1129,7 +1186,7 @@ def area_achados(area_id: Annotated[str, PathParam(description="id da área (slu
     já estava ativo não muda nada na tela.
     """
     return {k: v for k, v in area(area_id, p, recorte, perfil).items()
-            if k in ("recorte", "cards", "pareto_cooperados",
+            if k in ("recorte", "cards", "leitura", "pareto_cooperados",
                      "pareto_procedimentos")}
 
 
@@ -1241,12 +1298,22 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
 
     fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
     persist_coop = None
+    evolucao = None
     if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
         pers = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
                                         p.referencia, None,
                                         config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
         pp = pers["por_procedimento"]
         persist_coop = pp[pp["ID_COOPERADO"] == cooperado_id]
+        # os meses de cada trimestre vêm das PRÓPRIAS fatias: um rótulo escrito
+        # à mão diria "mai–jul" sob uma janela que começa em novembro
+        rotulos = [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias]
+        evolucao = blocos.evolucao_trimestral(
+            pers.get("por_janela_cooperado"), pers.get("custo_por_janela"),
+            cooperado_id, rotulos,
+            # o pedaço da janela que não formou trimestre completo: sem ele o
+            # bloco afirmaria uma identidade que só vale quando o resto é zero
+            dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim))
 
     pares, conf = casc.get("pares"), casc.get("conf")
     pares_coop = (pares[pares["ID_COOPERADO"] == cooperado_id]
@@ -1272,8 +1339,17 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
     m = perfil[perfil["ID_COOPERADO"] == cooperado_id]
     perfil_row = m.iloc[0].to_dict() if len(m) else None
 
+    # A CARTEIRA ATENDIDA: contexto, nunca cálculo. As duas composições saem da
+    # MESMA função e da mesma janela, porque a leitura é a comparação entre elas.
+    carteira_coop = dados.rodar_composicao_carteira(
+        p.janela_ini, p.janela_fim, nome, cooperado_id, p.incluir_ps)
+    carteira_area = dados.rodar_composicao_carteira(
+        p.janela_ini, p.janela_fim, nome, None, p.incluir_ps)
+
     # o lugar dele no Pareto da área: leitura da ordem já entregue pelo motor
     par = base.get("pareto_cooperados") or {}
+    # o bloco pode chegar como ENVELOPE de ordens (`dados`) ou como bloco único
+    par = (par.get("dados", {}).get(par.get("ordem_default")) or {}) if par.get("dados") else par
     barra = next(({"posto": i, "total": len(par["linhas"]),
                    "pct_do_total_fmt": l["pct_do_total_fmt"],
                    "no_nucleo": l["no_nucleo"]}
@@ -1291,6 +1367,10 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
         pj = pers["por_janela"]
         janelas_coop = pj[pj["ID_COOPERADO"] == cooperado_id]
 
+    cabecalho = blocos.cabecalho_dossie(
+        linha, posicao_area, pacientes, base["cooperados"]["linhas"])
+    n_pacientes = pacientes.get(cooperado_id)
+
     procs = blocos.procedimentos_do_cooperado(
         posproc_coop, persist_coop, pares_coop, conf_coop,
         reais_por_proc, len(fatias), preco_por_proc, janelas_coop,
@@ -1307,8 +1387,15 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
             "forma_referencia": linha["forma_referencia"],
         },
         "estado": base["estado"],
-        "cabecalho": blocos.cabecalho_dossie(
-            linha, posicao_area, pacientes, base["cooperados"]["linhas"]),
+        "cabecalho": cabecalho,
+        # O CASO EM UM BLOCO, no lugar da faixa de sete KPIs: os mesmos números
+        # agrupados pela pergunta que respondem, mais a carteira que ele atende.
+        # `cabecalho` é reusado, não recalculado.
+        "resumo": blocos.resumo_do_caso(
+            cabecalho, blocos.frase_do_caso(linha),
+            blocos.partes_do_caso(linha), barra,
+            blocos.carteira_atendida(carteira_coop, carteira_area),
+            (linha["consultas"] / n_pacientes) if n_pacientes else None),
         "leitura": {
             # o caso numa frase: subtítulo da Leitura, redigido no motor
             "frase": blocos.frase_do_caso(linha),
@@ -1321,7 +1408,6 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
                 "itens_fmt": linha["excedente_fmt"],
                 "motivo": linha["excedente_motivo"],
                 "reais_fmt": linha["excedente_reais_fmt"],
-                "piso_fmt": procs["piso_total_fmt"],
                 "pareto": barra,
             },
             "grupos": linha["grupos"],
@@ -1330,6 +1416,7 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
         # onde está o dinheiro DELE, por procedimento, com a parcela acima da
         # referência dentro de cada barra. `rs_todos` já está montado acima para
         # o preço da tabela — nenhum motor novo roda por causa deste bloco.
+        "evolucao": evolucao,
         "pareto_custo": blocos.pareto_custo_do_cooperado(rs_todos),
         "contexto": blocos.contexto_do_cooperado(resumo_row, perfil_row),
         "justificativa": base.get("justificativa"),
@@ -1376,13 +1463,18 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
                       & (posproc["CD_PROCEDIMENTO"] == cd)]
     formadores = do_proc[do_proc["elegivel_norma"].astype(bool)
                          & do_proc["avaliavel"]]["taxa"]
+    # QUANTOS cooperados a área tem, para o painel dizer "32 DE 63" em vez de um
+    # 32 solto: sem o denominador, o leitor não sabe se 32 é a área inteira ou
+    # um punhado dela.
+    n_area = int(pos_all[(pos_all["AREA_ATUACAO"] == nome)
+                         & pos_all["avaliavel"].astype(bool)].shape[0])
     regua = None
     if (bool(linha_par["apresentavel"]) and bool(linha_par["avaliavel"])
             and len(formadores)):
         regua = blocos.regua_do_procedimento(
             linha_par, float(formadores.quantile(0.25)),
             float(linha_par["taxa"]), p.criterio,
-            taxas_pares=formadores.to_numpy())
+            taxas_pares=formadores.to_numpy(), n_area=n_area)
 
     conc = dados.rodar_concentracao(p.janela_ini, p.janela_fim, p.piso,
                                     p.n_minimo, nome, p.incluir_ps)
@@ -1432,10 +1524,42 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
     total_coop = float(posproc[posproc["ID_COOPERADO"] == cooperado_id]
                        ["n_solicitacoes"].sum())
 
-    return blocos.painel_do_procedimento(
+    # ── A SÉRIE TRIMESTRAL DESTE EXAME ──────────────────────────────────────
+    # Régua congelada, como o bloco do dossiê (METODOLOGIA §5.4.1): o alvo e o
+    # preço são anuais e o trimestre entra só com as solicitações dele.
+    # `mede_excedente` é o mesmo portão que produz o excedente do ano: sem ele,
+    # as barras mostram só o custo, e o bloco declara isso.
+    evolucao = None
+    if preco and len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
+        pers_ev = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
+                                           p.referencia, None,
+                                           config.MIN_JANELAS_AVALIAVEIS,
+                                           p.incluir_ps)
+        alvo_col = str(linha_par.get("alvo_usado") or p.referencia)
+        mede = (bool(linha_par["avaliavel"]) and bool(linha_par["apresentavel"])
+                and bool(linha_par["sinalizado"])
+                and pd.notna(linha_par.get(alvo_col)))
+        evolucao = blocos.evolucao_do_procedimento(
+            dados.volume_do_par_por_trimestre(cooperado_id, cd, fatias, p.incluir_ps),
+            pers_ev.get("por_janela_cooperado"), cooperado_id, preco,
+            float(linha_par[alvo_col]) if pd.notna(linha_par.get(alvo_col)) else None,
+            mede,
+            [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias],
+            dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim))
+
+    # REPARTIÇÃO ETÁRIA das solicitações deste exame: contexto, nunca cálculo.
+    # A do cooperado e a da área saem da mesma chamada, sob a mesma janela e o
+    # mesmo recorte de PS, porque a leitura é a comparação entre as duas.
+    faixas = blocos.faixas_do_exame(dados.rodar_solicitacoes_por_faixa(
+        p.janela_ini, p.janela_fim, nome, cd, cooperado_id, p.incluir_ps))
+
+    painel = blocos.painel_do_procedimento(
         cd, str(linha_par.get("DS_PROCEDIMENTO", config.SEM_MEDIDA)).strip(),
         conc_row, pacientes, autorref_row, regua, serie,
         blocos._confianca_do_par(conf_row), linha_par, conc_row, preco, total_coop)
+    painel["evolucao"] = evolucao
+    painel["faixas"] = faixas
+    return painel
 
 
 # ─────────────────────────────────────────────────────────────────────────────

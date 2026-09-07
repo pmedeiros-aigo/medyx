@@ -40,6 +40,7 @@ import { montarProcedimentos } from '../blocos/procedimentos.js';
 import { montarDistribuicao } from '../blocos/distribuicao.js';
 import { montarPareto } from '../blocos/pareto.js';
 import { montarCards } from '../blocos/cards.js';
+import { montarLeituraDaArea } from '../blocos/leitura-area.js';
 import { montarDispersao } from '../blocos/dispersao.js';
 
 await abrirPagina({
@@ -67,7 +68,7 @@ await abrirPagina({
   /* A primeira carga após o servidor subir paga o parquet e os motores, e uma
      tela em branco nesse intervalo lê como falha: `buscar` anuncia e limpa. */
   const dados = await buscar(`/api/area/${encodeURIComponent(escolhida)}`,
-                             { anunciarEm: conteudo, rotulo: 'carregando a área…',
+                             { anunciarEm: conteudo, rotulo: 'Calculando',
                                extra: recorteInicial() });
 
   const excluidos = montarExcluidos(conteudo, dados.composicao);
@@ -94,6 +95,10 @@ await abrirPagina({
      que está em cena. O contexto fixo da área é a linha sob o título, acima
      dos chips (CLAUDE.md, lei 0). */
   const cards = montarCards(conteudo, dados.cards);
+  /* A LEITURA DA ÁREA, logo abaixo dos cards e seguindo o mesmo recorte: os
+     mesmos números agrupados pela pergunta que respondem, com o excedente em
+     destaque e a régua declarada. Os cards continuam no lugar por ora. */
+  const leitura = montarLeituraDaArea(conteudo, dados);
 
   /* ── as duas unidades de análise, LOGO ABAIXO DOS CARDS ──────────────────
      As abas subiram em 2026-08-20, para o lugar que era da distribuição. O que
@@ -128,7 +133,7 @@ await abrirPagina({
     { chave: 'pareto', rotulo: 'Concentração' },
     { chave: 'distribuicao', rotulo: 'Distribuição' },
     { chave: 'dispersao', rotulo: 'Quantidade × custo' },
-  ], (k) => { graficos.marcar(k); encaixar(k); });
+  ], (k) => { graficos.marcar(k); encaixar(k); }, { forma: 'seg' });
 
   /* A faixa de abas mora DENTRO do cartão do gráfico em cena, não acima dele:
      fora das bordas ela parecia uma segunda navegação de página, irmã da de
@@ -138,7 +143,7 @@ await abrirPagina({
      cada troca, em vez de haver três cópias sincronizadas. Vai dentro de um
      `.tbl-hd` para herdar o respiro das bordas do contrato, e como primeiro
      filho para pegar o arredondamento de topo (`.tbl>:first-child`). */
-  const faixaGraficos = abas.paineis.cooperados.querySelector('.vistas');
+  const faixaGraficos = graficos.faixa;
   const capaAbas = el('div', 'tbl-hd');
   capaAbas.appendChild(faixaGraficos);
 
@@ -195,8 +200,12 @@ await abrirPagina({
   const paretoProc = montarPareto(abas.paineis.procedimentos,
                                   dados.pareto_procedimentos, null,
                                   'pareto-procedimentos');
-  const procedimentos = montarProcedimentos(abas.paineis.procedimentos,
-                                            dados.area?.id ?? '');
+  const procedimentos = montarProcedimentos(
+    abas.paineis.procedimentos, dados.area?.id ?? '',
+    /* Da URL pelo mesmo motivo da tabela de Cooperados: este bloco é montado
+       ANTES de `criarVista`, e ler o estado aqui estoura a tela. */
+    { busca: new URLSearchParams(location.search).get('qp') || '',
+      aoBuscar: (t) => definir({ qp: t || null }) });
 
   /* ── o estado da vista, e o que ele governa ──────────────────────────────
    * "Todos" inclui quem está abaixo do volume mínimo, que entra sem posição,
@@ -205,7 +214,7 @@ await abrirPagina({
    * do CLAUDE.md); "Todos" fica a um clique, e é lá que essas linhas são
    * vistas de propósito. */
   const { estado, definir } = criarVista(
-    { recorte: RECORTE_PADRAO, perfil: null, aba: 'cooperados', q: null,
+    { recorte: RECORTE_PADRAO, perfil: null, aba: 'cooperados', q: null, qp: null,
       ...ordemInicial() },
     aplicar);
 
@@ -337,6 +346,7 @@ await abrirPagina({
                            { extra: alvo });
     if (meu !== sequencia) return;
     cards.atualizar(a.cards);
+    leitura?.atualizar(a.leitura);
     pareto?.atualizar(a.pareto_cooperados);
     paretoProc?.atualizar(a.pareto_procedimentos);
     /* O Pareto redesenha com `cartao.replaceChildren`, e isso leva junto a

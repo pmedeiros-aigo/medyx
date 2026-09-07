@@ -56,8 +56,11 @@ export function montarBarraSuperior(meta, area) {
     caixa.replaceChildren();
     cheias.forEach((p, i) => {
       if (i) {
+        /* O separador é FORMA, desenhada pelo CSS (`.crumbs i`, chevron por
+           mask). Aqui ele nasce vazio e invisível ao leitor de tela: barra ou
+           chevron lidos em voz alta são ruído entre os degraus do rastro. */
         const sep = document.createElement('i');
-        sep.textContent = '/';
+        sep.setAttribute('aria-hidden', 'true');
         caixa.appendChild(sep);
       }
       const folha = i === cheias.length - 1;
@@ -71,6 +74,33 @@ export function montarBarraSuperior(meta, area) {
   /* A vigência dos dados NÃO é escrita aqui. Ela vive no seletor de Período,
      que é onde ela pode ser mudada; repeti-la no canto da barra dava ao leitor
      duas janelas para conferir e só uma para editar. */
+}
+
+/**
+ * Liga o alternador de tema da barra superior.
+ *
+ * O botão NÃO desenha nada: os dois ícones estão na marcação e o CSS escolhe
+ * qual aparece a partir de `<html data-tema>`. Aqui só se alterna o estado
+ * (`MedyxTema.alternar`) e se reescreve o rótulo, que é TEXTO — e texto é a
+ * única coisa que muda com o tema e não cabe numa classe.
+ *
+ * O rótulo diz o que vem no PRÓXIMO clique, não o que está na tela: o ícone já
+ * diz o estado atual, e um botão que anuncia o que já aconteceu não ajuda
+ * ninguém a decidir se clica.
+ */
+export function ligarTema() {
+  const b = document.querySelector('[data-tema-btn]');
+  const tema = globalThis.MedyxTema;
+  if (!b || !tema) return;
+
+  const rotular = (t) => {
+    const txt = t === 'dark' ? 'Mudar para o tema claro' : 'Mudar para o tema escuro';
+    b.setAttribute('aria-label', txt);
+    b.title = txt;
+  };
+  rotular(tema.atual());
+  tema.aoMudar(rotular);
+  b.addEventListener('click', () => tema.alternar());
 }
 
 /**

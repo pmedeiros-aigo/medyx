@@ -16,7 +16,14 @@
  * semânticas (referência, leitura, crítico) continuam as mesmas. O redesenho é
  * de forma e densidade, não de identidade.
  */
+/* `color-scheme` não é enfeite: é o que manda o NAVEGADOR pintar no tema certo
+   o que não é nosso — barra de rolagem nativa, campo de formulário, cursor de
+   texto, menu de <select>. Sem ela, o app escuro fica com barras claras
+   grudadas nas bordas, e nenhuma regra de CSS nossa alcança isso.
+   É propriedade HERDADA: declarada na raiz, vale para todo descendente com
+   rolagem própria (tabela, Pareto, painel). */
 :root{
+  color-scheme:light;
   /* neutros — rampa ZINC do shadcn (14/ago).
      A rampa anterior tinha um leve tom verde (#FBFBFA, #F5F6F5, #EDEFEE...),
      herdado do institucional. Num app que usa o verde como SIGNIFICADO
@@ -29,6 +36,48 @@
 
   /* institucional e semântica */
   --acc:#17624A; --acc-strong:#0F4736; --acc-soft:#EAF1EE; --acc-line:#C6D9D1;
+  /* PREENCHIMENTO DE DADO, separado da marca (set/2026). O artboard novo tem
+     --exc como token proprio e um modo alternativo (data-exc="grafite") que
+     troca o verde por grafite sem mexer na marca. Nome proprio existe por
+     isso: e' o unico jeito de trocar a cor do DADO sem trocar a do PRODUTO.
+     O valor e' o mesmo --acc; o artboard tem #186E52, um tom de diferenca que
+     nao se distingue na tela e nao justifica um quarto verde no sistema. */
+  --exc:var(--acc);
+
+  /* ── importados dos artboards de set/2026 ────────────────────────────────
+     Sete valores que o app nao tinha com nenhum nome. Estao declarados aqui
+     como TOKEN; cada um passa a ser usado quando o bloco que o pede for
+     estilizado, e nao antes. */
+
+  /* TINTA DE TEXTO, um degrau abaixo do --g-900. O artboard separa "o cinza
+     mais escuro da rampa" (#18181B, que ele usa em fundo de botao e em marca)
+     de "a tinta com que se escreve" (#09090B). Sao papeis diferentes e
+     acabavam no mesmo valor. */
+  --ink:#09090B;
+
+  /* ESCALA DO VERDE. O app tinha quatro degraus (--acc + strong/soft/line)
+     desenhados para FUNDO e BORDA; o artboard precisa de dois de TEXTO, para
+     link em repouso e link sob o cursor. --b700 fica a um fio do --acc e nao
+     vira token proprio: link usa --acc. */
+  --acc-link-hover:#1B7A5C;   /* --b600 do artboard */
+  --acc-deep:#173328;         /* --b800: fundo de apoio no verde escuro */
+
+  /* SOMBRA DE POPOVER do artboard: duas camadas, uma larga e difusa e uma
+     curta e proxima, em vez da unica que o app usa. A dupla e' o que da a
+     leitura de "flutua perto" em vez de "flutua alto". */
+  --sh-pop-2:0 10px 24px -10px rgba(9,9,11,.16),0 2px 6px -2px rgba(9,9,11,.06);
+
+  /* SOMBRA DE CARTAO. O Clean v3 tinha decidido "nada de sombra em cartao",
+     e os dois artboards novos voltam atras: todo cartao leva 0 1px 2px. E'
+     mais baixa que a --sh-1 atual e usa a tinta zinc, nao a esverdeada. */
+  --sh-card:0 1px 2px rgba(9,9,11,.05);
+
+  /* LATERAL CLARA. O artboard oferece as duas (data-side claro/escuro) e o
+     padrao dele e' a CLARA; o app escolheu a escura em 19/ago e essa escolha
+     nao esta sendo revista aqui. O par claro fica nomeado para a alternancia
+     existir sem inventar cor depois. */
+  --side-bg-claro:#FAFAFA;
+  --side-line-claro:#E4E4E7;
   --warn:#8A6414; --warn-soft:#F7F2E4; --warn-line:#E5DCC1; --warn-mark:#B48A28;
   --crit:#8B4234; --crit-soft:#F6ECE9; --crit-line:#E2CFC9;
 
@@ -39,11 +88,38 @@
   --caveat-line:#C9A64A; --caveat-soft:#FBF8F0; --caveat-ink:#8A6414;
   --caveat-border-style:dashed;
 
-  /* tipografia — Geist no texto, Geist Mono em todo NÚMERO.
-     Número em mono não é enfeite: tabela e KPI são comparação de dígitos, e
-     largura fixa é o que deixa a coluna alinhar sem esforço de leitura. */
+  /* ---------- tipografia ----------
+     DUAS FAMÍLIAS, COM PAPEL FIXO (uniformização set/2026):
+
+       --font       tudo, inclusive todo NÚMERO de leitura
+       --font-num   só IDENTIFICADOR: código TUSS, cooperado_NN, o resumo de
+                    critérios do cabeçalho
+
+     Número de leitura alinha coluna por `font-variant-numeric:tabular-nums`,
+     que o `body` liga uma vez para o app inteiro. Tabular alinha igual ao mono
+     e não dá ao número o peso datilográfico que ele não deveria ter. Antes o
+     mono valia para todo número, e o resultado eram tabelas, eixos, rampas,
+     contadores e steppers com cara de terminal.
+
+     ESCALA FECHADA DE SETE DEGRAUS. Não existe font-size literal fora deste
+     arquivo, e não existe degrau entre dois destes: cada tamanho novo que se
+     inventa cria uma hierarquia que ninguém lê como intenção, só como falta de
+     cuidado (DIRETRIZES §7, §8). Antes eram 21 tamanhos distintos, com nove
+     meios-pontos (8,5 · 9,5 · 10,5 · 11,5 · 12,5 · 13,5) herdados da cópia do
+     guia. 11px é o PISO: abaixo disso não se lê em tela de reunião. */
   --font:Geist,system-ui,-apple-system,sans-serif;
   --font-num:'Geist Mono',ui-monospace,SFMono-Regular,monospace;
+
+  --fs-xs:11px;    /* legenda de gráfico, eixo, contador, rótulo de dado */
+  --fs-sm:12px;    /* apoio, cabeçalho de coluna, rodapé de bloco */
+  --fs-md:13px;    /* corpo, célula de tabela, item de menu */
+  --fs-lg:14px;    /* título de bloco, valor destacado de faixa */
+  --fs-xl:16px;    /* ícone tipográfico, avatar grande */
+  --fs-2xl:20px;   /* número secundário de destaque */
+  /* O topo existe porque 20px achataria a faixa de métricas contra o título de
+     bloco (14px): "494" passaria a ler como subtítulo. Só duas regras o usam,
+     o título de tela e o número principal do cartão. */
+  --fs-3xl:26px;   /* título de tela (h2), número principal de cartão */
 
   /* espaço, raio, linha */
   --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px; --s-8:64px;
@@ -51,6 +127,12 @@
      ninguém percebe como intenção, só como inconsistência. Os três nomes
      sobrevivem porque 74 regras os usam. */
   --r-sm:6px; --r-md:6px; --r-lg:6px;
+  /* EXCECAO AO 'UM RAIO SO' (set/2026, do artboard 'Medyx Dossie Cooperado').
+     O artboard usa 6px em 33 lugares e 12px em exatamente 6: os seis cartoes
+     de secao. Nao e' variacao aleatoria, e' uma hierarquia de duas alturas: o
+     cartao e' o CONTINENTE, tudo dentro dele e' conteudo. Os tres nomes acima
+     seguem valendo para todo o resto. */
+  --r-card:12px;
   --line:var(--g-200); --line-soft:var(--g-150);
   --sh-1:0 1px 2px rgba(20,25,24,.04);
   /* CANVAS BRANCO, como num app shadcn: a área de trabalho é a superfície
@@ -58,6 +140,26 @@
      BORDA (não pelo contraste de fundo), que é o padrão do sistema — borda
      leve, raio 6, sombra mínima. */
   --canvas:#fff;
+  /* SUPERFICIE DO CARTAO, separada do canvas. No claro os dois sao brancos e
+     quem separa o cartao e' a borda; no escuro eles divergem, e sem um nome
+     proprio nao haveria onde escrever essa diferenca. */
+  --surface:#fff;
+  /* FAIXA DE APOIO do cartão: a que segura o cabeçalho de colunas em cima e a
+     legenda/ressalva embaixo. É uma só, e é por isso que tem nome: enquanto
+     eram dois valores escolhidos separadamente (o `th` num cinza, o rodapé em
+     outro), o mesmo cartão abria e fechava em tons diferentes.
+     Vale para TODA faixa que emoldura conteúdo sem ser conteúdo. */
+  --surface-2:var(--g-50);
+  /* TINTA SOBRE TINTA: o texto que fica em cima de uma superfície escura de
+     propósito (tooltip em --g-900, botão primário em --acc, opção marcada em
+     --g-800). Era `#fff` literal em 20 e poucas regras, o que no tema escuro
+     dava branco sobre claro — invisível, porque lá o --g-900 é que é claro. */
+  --ink-inv:#fff;
+  /* ---------- barra de rolagem ---------- */
+  /* Haste fina e arredondada sobre trilho transparente. É cromo, não dado:
+     fica no cinza de régua e só ganha contraste sob o cursor. */
+  --scroll-thumb:var(--g-300);
+  --scroll-thumb-hover:var(--g-400);
   --sh-pop:0 12px 32px rgba(20,25,24,.12);   /* popover e diálogo */
 
   /* densidade de tabela */
@@ -67,17 +169,35 @@
      CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
   --row-pad:14px 12px;
   --row-pad-compact:7px 12px;
-  --row-hover:var(--g-25);
+  /* Só o CABEÇALHO tem altura fixa, e é ela que centra o rótulo na faixa. A
+     célula continua com a altura do respiro de sempre: a densidade de 38px que
+     eu havia trazido do Claude Design fazia caber muito mais linha na mesma
+     rolagem, e a leitura ficou apertada. Revertido em 2026-09-05. */
+  --row-h:38px;
+  /* ---------- superfície sob o cursor ---------- */
+  /* UM cinza de hover no app inteiro (2026-09-05). Havia três em uso — --g-25
+     na linha da tabela, --g-50 no Pareto e nos botões, --g-100 na navegação e
+     nos menus — e a mesma ação de apontar respondia com três intensidades
+     diferentes conforme o lugar. Quem usa o app o dia todo lê isso como
+     inconsistência antes de ler como hierarquia.
+     O valor é o do Claude Design (#F4F4F5). Vale para SUPERFÍCIE apontada:
+     linha, opção, item de menu, botão, gatilho. Marca de gráfico (ponto,
+     barra) tem realce próprio, porque ali o hover concorre com a cor do DADO. */
+  --hover:var(--g-100);
+  --row-hover:var(--hover);
   /* Linha selecionada em NEUTRO, não em institucional.
      Seleção é estado de INTERAÇÃO; âmbar e vermelho na mesma linha são estado de
      DADO. Com --acc-soft a interação inundava a linha inteira enquanto a marca
      do dado tinha 3px, e o verde vencia a leitura que a linha existe para dar.
      Some-se que --acc já tem significado atribuído no mapa de cor (referência,
      mediana, item ativo): usá-la aqui dava dois sentidos ao mesmo pigmento.
-     --g-100 fica um degrau acima do hover (--g-25), então os dois estados
-     continuam distinguíveis; --g-900 na canaleta é a mesma tinta neutra que o
-     sistema já usa para "este é o que você apontou" (.seg>span.on, .tab.on). */
-  --row-selected:var(--g-100);
+     --g-150 fica um degrau acima do hover (--hover, hoje --g-100), então os dois
+     estados continuam distinguíveis; --g-900 na canaleta é a mesma tinta neutra
+     que o sistema já usa para "este é o que você apontou" (.seg>span.on).
+     Subiu de --g-100 para --g-150 quando o hover unificado ocupou o --g-100:
+     seleção e cursor com o mesmo cinza tiravam do usuário a única pista de que
+     a linha continuava escolhida depois que o mouse saía. */
+  --row-selected:var(--g-150);
   --row-selected-edge:var(--g-900);
 
   /* ---------- gráfico ---------- */
@@ -112,36 +232,111 @@
   --ch-haste:var(--g-300);      /* haste do box: mínimo ao máximo observado */
   --ch-axis:var(--g-300);
   --ch-axis-w:1px;
-  --ch-axis-fs:10.5px;          /* rótulo de eixo */
-  --ch-label-fs:11px;           /* rótulo de linha de referência */
+  --ch-axis-fs:var(--fs-xs);    /* rótulo de eixo */
+  --ch-label-fs:var(--fs-xs);   /* rótulo de linha de referência */
   --ch-bar-h:6px;
   --ch-bar-track:var(--g-100);
 
   /* ---------- shell do aplicativo ---------- */
   --shell-side-w:256px;      /* barra lateral */
   --shell-top-h:52px;        /* barra superior fixa */
-  /* LATERAL ESCURA (2026-08-19, da página "Área de Atuação" do Claude Design).
-     Era #FAFAFA. O verde profundo é o único plano escuro do app: a lateral é
-     chassi, e o contraste forte com o branco do conteúdo separa as duas sem
-     régua nenhuma — a borda direita saiu junto.
-     As tintas de dentro são BRANCO EM OPACIDADE, não cinzas próprios: sobre um
-     fundo só, a escala de alfa mantém a hierarquia sem inventar seis cores que
-     depois teriam de existir também no claro. */
-  --shell-side-bg:#0F1D18;
-  --side-ink:#fff;                       /* item ativo, marca */
-  --side-ink-2:rgba(255,255,255,.66);    /* item em repouso */
-  --side-ink-3:rgba(255,255,255,.4);     /* rótulo de grupo */
-  --side-icon:rgba(255,255,255,.5);
-  --side-icon-on:#7BC4A8;                /* verde claro: só no item ativo */
-  --side-hover:rgba(255,255,255,.06);
-  --side-active:rgba(255,255,255,.1);
-  --side-line:rgba(255,255,255,.1);
+  /* Chevron do separador da migalha. Vive como token porque é FORMA, não cor:
+     entra por `mask`, e a tinta continua vindo de um cinza da escala. */
+  --ico-chev-r:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M9 6l6 6-6 6'/></svg>");
+  /* LATERAL CLARA (2026-09-05). Reverte o verde profundo de 19/ago.
+     O verde era o único plano escuro do app e separava a coluna do conteúdo
+     sozinho, sem régua. O custo era alto demais: uma paleta inteira em branco
+     translúcido que só existia ali, um verde claro no ícone ativo que não se
+     repetia em lugar nenhum, e um bloco que, no tema escuro, ficava MAIS escuro
+     que o próprio fundo.
+     Agora a lateral é cinza de apoio, com a borda direita de volta fazendo o
+     trabalho que a cor fazia. Cada tinta é um degrau da rampa --g-*, então ela
+     acompanha o tema sem uma segunda paleta: no escuro, --g-25 e --g-900 já
+     estão invertidos. Só o fundo tem valor próprio lá embaixo, para acompanhar
+     o cartão em vez de ficar mais escuro que o fundo. */
+  --shell-side-bg:var(--g-25);
+  --side-line:var(--line);
+  --side-ink:var(--g-900);               /* item ativo, marca */
+  --side-ink-2:var(--g-600);             /* item em repouso */
+  --side-ink-3:var(--g-500);             /* rótulo de grupo */
+  --side-icon:var(--g-500);
+  /* o ícone do item ativo NÃO tem cor própria: segue a tinta do texto. Verde
+     no ícone e neutro no rótulo dava duas leituras para um estado só. */
+  --side-icon-on:currentColor;
+  --side-av-bg:var(--g-200);
+  --side-av-ink:var(--g-700);
+  --side-hover:var(--hover);
+  --side-active:var(--g-150);
   --shell-params-bg:var(--g-50);
   --shell-nav-active-bg:var(--acc-soft);
   --shell-nav-active-bar:2px;
   --content-max:1600px;      /* área de trabalho fluida até */
   --content-min:1280px;      /* largura mínima suportada — sem mobile */
   --content-pad:24px;
-  --focus-ring:0 0 0 2px #fff, 0 0 0 4px var(--acc);
+  --focus-ring:0 0 0 2px var(--surface), 0 0 0 4px var(--acc);
   --focus-ring-offset:2px;
+}
+
+/* ═══ TEMA ESCURO · PALETA PREPARADA, AINDA NÃO LIGADA ═══════════════════════
+ *
+ * Traduzido do artboard "Medyx Dossie Cooperado" (set/2026), que já traz o
+ * escuro pronto. Está aqui SÓ como paleta: nenhuma regra do components.css foi
+ * revista, e o app não tem alternador. Ligar o escuro de verdade é outro
+ * trabalho, e ele começa por varrer o components.css atrás de cor que não veio
+ * de token (branco literal em fundo de cartão é o caso conhecido).
+ *
+ * Nenhuma cor foi inventada: a rampa --g-* do app é a ZINC completa, e o escuro
+ * do artboard é a MESMA rampa invertida. Cada linha abaixo troca o valor de um
+ * degrau pelo degrau equivalente do outro extremo, preservando o PAPEL: o que
+ * era hover sutil segue sendo hover sutil, o que era tinta de texto segue sendo
+ * tinta de texto. É por isso que a inversão não é simétrica degrau a degrau.
+ */
+[data-tema="dark"]{
+  color-scheme:dark;
+  /* rampa invertida por PAPEL (comentário = papel no claro) */
+  --g-25:#1F1F23;    /* hover sutil de linha        (claro #FAFAFA) */
+  --g-50:#18181B;    /* superfície de apoio         (claro #F7F7F8) */
+  --g-100:#1F1F23;   /* linha selecionada           (claro #F4F4F5) */
+  --g-150:#1F1F23;   /* régua leve                  (claro #ECECEE) */
+  --g-200:#27272A;   /* régua                       (claro #E4E4E7) */
+  --g-300:#3F3F46;   /* haste de gráfico, eixo      (claro #D4D4D8) */
+  --g-400:#52525B;   /*                             (claro #A1A1AA) */
+  --g-500:#A1A1AA;   /* tinta de apoio              (claro #71717A) */
+  --g-600:#A1A1AA;   /*                             (claro #52525B) */
+  --g-700:#D4D4D8;   /* tinta secundária            (claro #3F3F46) */
+  --g-800:#E4E4E7;   /*                             (claro #27272A) */
+  --g-900:#FAFAFA;   /* tinta principal             (claro #18181B) */
+
+  /* superfícies: no escuro o cartão SE SEPARA do fundo, coisa que no claro não
+     acontece (os dois são brancos e a borda é que separa). */
+  --canvas:#0A0A0B;
+  --surface:#131316;
+  --surface-2:#18181B;
+  --ink-inv:#09090B;
+
+  /* verde: um só no escuro. O artboard usa #4CAE8A para link, marca e
+     preenchimento de dado, porque o verde profundo do claro (#17624A) não tem
+     contraste sobre fundo escuro. */
+  --acc:#4CAE8A; --acc-strong:#7BC4A8; --acc-soft:#16211C; --acc-line:#27272A;
+
+  /* crítico. O artboard escuro traz um vermelho mais aberto que a terracota do
+     claro, pelo mesmo motivo de contraste. */
+  --crit:#F0918A; --crit-soft:#2A1412; --crit-line:#4E211D;
+
+  /* NÃO TRADUZIDO: o âmbar (--warn, --read-above, --caveat-*). O artboard não
+     usa âmbar em lugar nenhum do dossiê, então não há de onde tirar o par
+     escuro. Inventar aqui seria escolher, no escuro, uma cor que carrega
+     SIGNIFICADO no método ("acima da referência, abaixo do critério"). Fica em
+     aberto de propósito, e quem ligar o escuro decide com o desenho na mão. */
+
+  --sh-1:0 1px 2px rgba(0,0,0,.4);
+  --sh-pop:0 12px 28px -12px rgba(0,0,0,.6);
+
+  /* no escuro a lateral acompanha o CARTÃO, e não o fundo: --g-25 sozinho a
+     deixaria mais clara que as superfícies que ela emoldura. */
+  --shell-side-bg:var(--surface);
+
+  /* o anel de foco do claro tem um halo BRANCO (--focus-ring), que no escuro
+     vira uma borda luminosa em volta de tudo. */
+  --focus-ring:0 0 0 2px #0A0A0B, 0 0 0 4px var(--acc);
 }

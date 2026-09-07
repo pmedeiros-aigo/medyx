@@ -115,7 +115,23 @@ def linha_justificativa(area: str, n_comparaveis: int, base: str,
         # o lugar dela é o banner da página e o carimbo de proveniência, não a
         # linha que diz contra quem se compara. Repetida aqui, empurrava para
         # fora do campo de leitura justamente o que a linha existe para dizer.
-        "resumo": f"Comparado com: {area} · n={n_comparaveis} comparáveis · {base}",
+        #
+        # A ÁREA ABRE A LINHA (set/2026), e é por isso que ela não precisa mais
+        # de uma linha só para si acima: no dossiê a área aparecia duas vezes
+        # seguidas, uma sozinha e outra dentro de "Comparado com: Ginecologia".
+        # Saíram também o "n=" (notação de artigo, não de tela) e o parêntese do
+        # PS, que é regra de método e já está no carimbo de proveniência e no
+        # hover desta linha.
+        # "cooperados comparáveis", com a palavra do chip de recorte e da
+        # estatística do cabeçalho: é o MESMO conjunto, e ele não pode ter três
+        # nomes na mesma tela. "cooperados da área" seria pior que impreciso —
+        # a área tem 64, e 63 é quantos sustentam comparação.
+        "resumo": (f"{area} · {n_comparaveis} cooperados comparáveis · "
+                   f"{base.split(' (')[0]}"),
+        # o que a linha resume, por extenso, no hover dela
+        "resumo_detalhe": (
+            f"Comparação restrita aos cooperados de {area} que atingem o volume "
+            f"mínimo de consultas no período. Base de cálculo: {base}."),
         "detalhes": [
             {"rotulo": "Gatilho", "valor": gatilho_txt},
             {"rotulo": "Referência de adequação", "valor": alvo},
@@ -134,7 +150,7 @@ def linha_justificativa(area: str, n_comparaveis: int, base: str,
 
 
 def traduzir_percentil(rotulo_posicao: str) -> str:
-    """'P98' -> 'acima de 98% dos cooperados da área'.
+    """'P98' -> 'acima de 98% dos que formam a referência'.
 
     Ajuste 2 do handoff: percentil nunca viaja sem tradução. Mas a tradução é
     PRECISA, não aproximada: "9 em cada 10" arredondava P92 e P98 para a mesma
@@ -146,7 +162,11 @@ def traduzir_percentil(rotulo_posicao: str) -> str:
     """
     if not rotulo_posicao.startswith("P") or not rotulo_posicao[1:].isdigit():
         return ""
-    return f"acima de {int(rotulo_posicao[1:])}% dos cooperados da área"
+    # "dos que formam a referência", e não "dos cooperados da área": o percentil
+    # é apurado entre os FORMADORES (avaliáveis e elegíveis para a norma), que na
+    # Ginecologia são 58 dos 64. A frase antiga prometia um denominador maior que
+    # o usado, justamente na comparação que o cooperado vai contestar.
+    return f"acima de {int(rotulo_posicao[1:])}% dos que formam a referência"
 
 
 _MES_CURTO = ("jan", "fev", "mar", "abr", "mai", "jun",

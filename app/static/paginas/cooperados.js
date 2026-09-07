@@ -64,7 +64,7 @@ await abrirPagina({
     conteudo.appendChild(topo);
 
     const dados = await buscar('/api/cooperados', {
-      anunciarEm: conteudo, rotulo: 'carregando o elenco', soMotor: true,
+      anunciarEm: conteudo, rotulo: 'Calculando', soMotor: true,
     });
     const todos = dados.cooperados ?? [];
     sub.textContent = `${dados.total} cooperados na classificação · `
@@ -104,7 +104,7 @@ await abrirPagina({
          do dossiê, que é o mesmo tipo de ressalva. */
       if (!c.disponivel && c.motivo) {
         const t = el('span', 'tag tag-caveat', c.motivo);
-        t.title = 'o dossiê não abre nesta janela; troque o período';
+        t.title = 'O dossiê não abre nesta janela. Troque o período.';
         id.appendChild(t);
       }
       tr.appendChild(id);

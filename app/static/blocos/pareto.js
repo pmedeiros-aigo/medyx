@@ -47,7 +47,15 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
 
   const cartao = el('div', 'tbl');
   destino.appendChild(cartao);
-  desenhar(d);
+
+  /* O payload chega de duas formas: o BLOCO pronto, ou um ENVELOPE com as
+     ordens já calculadas (`{ordem_default, ordens, dados}`). Num Pareto a
+     ordem e o acumulado são a mesma grandeza, então cada ordem é um bloco
+     inteiro vindo do motor — o front nunca reordena, porque reordenar aqui
+     mudaria a coluna de acumulado, que é número. */
+  let pacote = d;
+  let ordem = d.ordem_default ?? null;
+  desenhar();
 
   return {
     /**
@@ -59,11 +67,26 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
      * front não calcula. Então quem muda é o dado, e o bloco só redesenha.
      * `null` (recorte sem nada a distribuir vindo como bloco vazio já vem
      * tratado do motor) mantém o cartão e mostra o estado vazio.
+     *
+     * A ordem escolhida SOBREVIVE à troca de recorte: quem pediu para ordenar
+     * por custo não quer voltar ao default a cada filtro.
      */
-    atualizar: (novo) => desenhar(novo ?? d),
+    atualizar: (novo) => {
+      if (novo) pacote = novo;
+      if (!pacote?.dados?.[ordem]) ordem = pacote?.ordem_default ?? null;
+      desenhar();
+    },
   };
 
-  function desenhar(d) {
+  /** O bloco em cena: o próprio payload, ou a ordem escolhida dentro dele. */
+  function emCena() {
+    if (!pacote?.dados) return pacote;
+    return pacote.dados[ordem] ?? pacote.dados[pacote.ordem_default];
+  }
+
+  function desenhar() {
+  const d = emCena();
+  if (!d) return;
   const partes = [];
   const topo = el('div', 'tbl-hd');
   const titulo = el('div', 'stack g4');
@@ -79,6 +102,30 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
     titulo.appendChild(l);
   }
   topo.appendChild(titulo);
+
+  /* ORDENAR POR, na direita do cabeçalho. Não é filtro: as duas ordens têm as
+     mesmas linhas e os mesmos valores, muda quem lidera e o que o acumulado
+     soma. Por isso é segmentado (escolha entre alternativas de leitura) e não
+     um chip de recorte. Fica no `.hd-ctl`, o mesmo lugar do seletor de medida
+     do gráfico de distribuição — um controle de bloco, uma posição. */
+  if (pacote?.ordens?.length > 1) {
+    const ctl = el('div', 'hd-ctl row g8');
+    ctl.appendChild(el('span', 'micro', 'Ordenar por'));
+    const seg = el('div', 'segfilt');
+    for (const o of pacote.ordens) {
+      const b = el('button', 'segfilt-o', o.rotulo);
+      b.type = 'button';
+      if (o.chave === ordem) b.classList.add('on');
+      b.addEventListener('click', () => {
+        if (o.chave === ordem) return;
+        ordem = o.chave;
+        desenhar();
+      });
+      seg.appendChild(b);
+    }
+    ctl.appendChild(seg);
+    topo.appendChild(ctl);
+  }
   partes.push(topo);
 
   /* Recorte que não alcança ninguém com excedente valorado: o bloco fica, com
@@ -100,8 +147,11 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
   const col = d.colunas ?? {};
   const cab = el('div', 'pareto-cab');
   cab.append(el('span', 'rot', col.rotulo ?? ''),
-             el('span', 'trilho'),
-             el('span', 'val', col.valor ?? ''),
+             el('span', 'trilho'));
+  /* A coluna de custo só existe quando a barra é aninhada: sem ela, o
+     comprimento cinza seria um desenho sem número ao lado. */
+  if (col.custo) cab.appendChild(el('span', 'custo', col.custo));
+  cab.append(el('span', 'val', col.valor ?? ''),
              el('span', 'cum-rs', col.acumulado_reais ?? ''),
              el('span', 'cum', col.acumulado ?? ''));
   partes.push(cab);
@@ -115,14 +165,25 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
        poucos concentram a maior parte", pergunta da tela de Área. No Pareto de
        custo do dossiê a ordem e o acumulado já dizem isso, e a segunda tinta
        virava uma terceira leitura que ninguém pediu. */
+    /* Com a barra aninhada a segunda tinta já está EM USO (o excedente dentro
+       do custo), e pintar o núcleo de um cinza diferente daria três tintas
+       para duas leituras. Fica só a régua tracejada, que é a marca do corte e
+       não uma cor. */
+    const duplo = d.duplo === true;
     if (d.destacar_nucleo !== false) {
-      if (l.no_nucleo) linha.classList.add('nucleo');
+      if (l.no_nucleo && !duplo) linha.classList.add('nucleo');
       // a régua tracejada fecha a última linha do núcleo
       if (l.no_nucleo && !d.linhas[i + 1]?.no_nucleo) linha.classList.add('corte');
     }
 
     const barra = document.createElement('i');
     barra.style.width = `${l.largura_pct}%`;
+    if (duplo) {
+      barra.classList.add('duplo');
+      const dentro = document.createElement('b');
+      dentro.style.width = `${l.largura_exc_pct}%`;
+      barra.appendChild(dentro);
+    }
     const trilho = el('span', 'trilho');
     trilho.appendChild(barra);
 
@@ -142,7 +203,9 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
        leituras diferentes, e juntas num campo só viram um par de números
        separados por ponto que ninguém decifra — o defeito que a coluna
        "Variação excedente" da tabela tinha. */
-    linha.append(rot, trilho, el('span', 'val', l.reais_fmt),
+    linha.append(rot, trilho);
+    if (col.custo) linha.appendChild(el('span', 'custo', l.custo_fmt ?? ''));
+    linha.append(el('span', 'val', l.excedente_rs_fmt ?? l.reais_fmt),
                  el('span', 'cum-rs', l.reais_acumulado_fmt ?? ''),
                  el('span', 'cum', l.pct_acumulado_fmt), tip);
 
@@ -177,7 +240,14 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
   /* A GRANDEZA vem do payload: este mesmo bloco serve o Pareto de excesso da
      tela de Área e o de custo do dossiê, e "80% do excesso" numa lista ordenada
      por custo total seria simplesmente falso. */
-  if (d.destacar_nucleo !== false) {
+  if (d.duplo === true) {
+    /* Cada marca diz O QUE ELA É, e para aí. Descrever a geometria da barra
+       ("barra inteira", "trecho escuro") gastava a legenda explicando o
+       desenho em vez de nomear a grandeza, que é o que o leitor procura. */
+    marca('bar-total', 'Custo total');
+    marca('bar-exc', 'Custo excedente');
+    marca('bar-corte', `corte de ${pct}% do acumulado`);
+  } else if (d.destacar_nucleo !== false) {
     marca('bar-nucleo', `concentram ${pct}% ${d.grandeza ?? 'do excesso'}`);
     marca('bar-cauda', 'demais');
     legenda.appendChild(el('span', null, `linha tracejada = corte de ${pct}%`));
@@ -186,11 +256,14 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
        muda de suporte. */
     legenda.appendChild(el('span', null, d.leitura ?? ''));
   }
-  partes.push(legenda);
-
-  // a ressalva é parte do número: método no rodapé, visível sem hover
-  const pe = el('div', 'tbl-ft');
-  pe.appendChild(el('span', null, d.metodo ?? ''));
+  /* LEGENDA E RESSALVA DIVIDEM O RODAPÉ, numa faixa de cinza claro que fecha o
+     cartão. As duas respondem à mesma pergunta ("o que estou vendo, e o que
+     este número é"), e soltas sobre o branco a legenda ficava colada na última
+     linha da lista, lida como se fosse mais uma. A ressalva continua: é parte
+     do número, e método no rodapé se lê sem hover. */
+  const pe = el('div', 'tbl-ft tbl-ft-nota');
+  pe.appendChild(legenda);
+  if (d.metodo) pe.appendChild(el('span', 'nota', d.metodo));
   partes.push(pe);
 
   cartao.replaceChildren(...partes);

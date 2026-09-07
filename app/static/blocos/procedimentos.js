@@ -74,8 +74,7 @@ const COLUNAS = [
     ordem: 'excedente', valor: (l) => l.excedente_itens },
   { nome: 'Excesso em R$', direita: true, classe: 'col-num-md',
     def: 'As mesmas solicitações excedentes valoradas a preços de referência '
-       + 'internos. Em quarentena até a tabela contratual — não é economia '
-       + 'realizada.',
+       + 'internos derivados das contas do período.',
     ordem: 'reais', valor: (l) => l.excedente_reais },
   /* O acumulado é de ITENS (a ordem padrão da aba), não do R$ da coluna ao
      lado — a definição declara, senão a vizinhança sugere o contrário. O
@@ -153,7 +152,7 @@ function linhaDaTabela(l) {
  * @param {string} area  id da área, para o endpoint
  * @returns {{render: () => Promise<void>}}
  */
-export function montarProcedimentos(destino, area) {
+export function montarProcedimentos(destino, area, opcoes = {}) {
   /* MESMA moldura das outras tabelas do app (lib/tabelas.js). Esta montava a
      sua à mão e estava sem `tbl-fixa`, então a largura das colunas pulava a
      cada repintura, ao contrário da tabela de Cooperados ao lado. */
@@ -176,10 +175,18 @@ export function montarProcedimentos(destino, area) {
   /* BUSCA: localiza dentro do que já está em cena, sem tocar em soma nenhuma.
      Casa código e descrição — quem tem o código na mão cola, quem não tem
      digita o nome. */
-  let termo = '';
+  /* A busca vem da URL: é assim que o painel do procedimento consegue mandar o
+     leitor para cá JÁ no exame que ele estava vendo, em vez de largá-lo numa
+     lista de centenas de linhas. */
+  let termo = opcoes.busca ?? '';
   topo.appendChild(campoDeBusca({
     placeholder: 'Buscar por nome ou código',
-    aoDigitar: (t) => { termo = t; if (dados) desenhar(); },
+    valor: termo,
+    aoDigitar: (t) => {
+      termo = t;
+      opcoes.aoBuscar?.(t);
+      if (dados) desenhar();
+    },
   }));
   destino.appendChild(quadro);
 

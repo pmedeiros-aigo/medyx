@@ -91,8 +91,7 @@ export const COLUNAS = [
      quem pede muito e barato, e uma coluna só não separava os dois. */
   { nome: 'Custo por consulta', direita: true, classe: 'col-num-md',
     def: 'Valor de tudo que ele solicitou dividido pelas consultas da janela, '
-       + 'a preços de referência internos. Em quarentena até a tabela '
-       + 'contratual, como o excesso em R$.',
+       + 'a preços de referência internos derivados das contas do período.',
     ordem: 'custo', valor: (l) => l.custo_por_consulta },
   { nome: 'Valor total', direita: true, classe: 'col-num-md',
     def: 'Soma de tudo que ele solicitou na janela, a preços de referência '
@@ -120,8 +119,7 @@ export const COLUNAS = [
     ordem: 'excedente', valor: (l) => l.excedente_itens },
   { nome: 'Excesso em R$', direita: true, classe: 'col-num-md',
     def: 'As mesmas solicitações excedentes valoradas a preços de referência '
-       + 'internos. Em quarentena até a tabela contratual — não é economia '
-       + 'realizada.',
+       + 'internos derivados das contas do período.',
     ordem: 'excedente_reais', valor: (l) => l.excedente_reais },
   /* Coluna de AÇÃO: sem nome, sem ordenação, largura só do alvo de toque. É a
      segunda afordância para o dossiê — a primeira é o nome como link. Com oito
@@ -197,7 +195,7 @@ function celulaIdentidade(linha, excluido) {
     tags.appendChild(t);
     if (excluido.em_revisao) {
       const r = el('span', 'tag tag-caveat', 'em revisão');
-      r.title = 'classificação sob contestação do médico';
+      r.title = 'Classificação sob contestação do médico.';
       tags.appendChild(r);
     }
   }
@@ -276,7 +274,7 @@ function celulaChevron(l) {
   a.className = 'chev';
   a.href = enderecoDoDossie(l.id);
   a.textContent = '\u203a';
-  a.title = 'abrir dossiê analítico';
+  a.title = 'Abrir o dossiê analítico deste cooperado.';
   a.setAttribute('aria-label', `abrir dossiê analítico de ${l.id}`);
   td.appendChild(a);
   return td;
@@ -315,7 +313,8 @@ function linhaDaTabela(l, excluido, perfilFlag) {
   const indice = el('td', 'rt num', l.indice_fmt);
   if (motivo) {
     indice.classList.add('val-ressalva');
-    indice.title = `${motivo}: com poucas consultas o índice oscila e não sustenta comparação`;
+    indice.title = `${motivo}. Com poucas consultas o índice oscila e não `
+      + 'sustenta comparação.';
   }
 
   /* Custo por consulta leva a MESMA ressalva do índice, e pela mesma razão:
@@ -326,8 +325,8 @@ function linhaDaTabela(l, excluido, perfilFlag) {
                                 'Valor solicitado por consulta');
   if (motivo && l.custo_por_consulta_fmt) {
     custo.classList.add('val-ressalva');
-    custo.title = `${motivo}: com poucas consultas o custo por consulta oscila `
-                + 'e não sustenta comparação';
+    custo.title = `${motivo}. Com poucas consultas o custo por consulta `
+                + 'oscila e não sustenta comparação.';
   }
 
   tr.append(
@@ -369,41 +368,23 @@ function linhaDaTabela(l, excluido, perfilFlag) {
  */
 export function montarTabela(destino, dados,
                              { aoEscolherLinha, aoOrdenar, aoBuscar, busca = '' }) {
-  const { cooperados, composicao, justificativa } = dados;
+  const { cooperados, composicao } = dados;
   const excluidoPorId = new Map((composicao?.excluidos ?? []).map((e) => [e.id, e]));
 
   const { quadro, topo, tabela, pe, peEstado } = moldura();
   const titulo = el('div', 'stack g4');
-  /* O título nomeia a UNIDADE em cena e acompanha a aba. A linha "Comparado
-     com: …" logo abaixo NÃO muda: ela declara a régua, que é a mesma nas duas.
-     São camadas diferentes — o que se está listando e sob que regra. */
-  const tituloBloco = el('span', 't', 'Cooperados da área');
-  titulo.appendChild(tituloBloco);
-  /* Justificativa em dois níveis, redigida pela API.
-     O RESUMO carrega só o que não está visível em outro lugar: área, n, base e
-     classificação. Gatilho e referência saíram porque já estão nos chips do topo
-     e no bloco Análise da lateral — repetidos numa terceira superfície não
-     informam, só empurram o resto da frase para fora do campo de leitura.
-     Uma linha de justificativa por página, não uma por componente. */
-  if (justificativa?.resumo) titulo.appendChild(el('span', 'sub', justificativa.resumo));
-  if (justificativa?.detalhes?.length) {
-    const abrir = document.createElement('a');
-    abrir.href = '#';
-    abrir.textContent = 'detalhes do recorte';
-    abrir.className = 'micro';
-    const corpo = el('div', 'note');
-    corpo.textContent = justificativa.detalhes
-      .map((d) => `${d.rotulo}: ${d.valor}`).join(' · ');
-    // sem classe de visibilidade: o bloco existe ou não existe
-    abrir.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      if (corpo.isConnected) { corpo.remove(); abrir.textContent = 'detalhes do recorte'; }
-      else { titulo.appendChild(corpo); abrir.textContent = 'ocultar detalhes'; }
-    });
-    titulo.appendChild(abrir);
-  }
-  // sem ⓘ: cada definição virou uma linha de texto no próprio cabeçalho da
-  // coluna a que pertence, onde não some quando o mouse sai
+  /* SÓ O TÍTULO (2026-09-05). Saíram daqui a linha "Comparado com: …" e o
+     "detalhes do recorte" que abria a justificativa inteira.
+
+     Não é perda de rastreabilidade, é fim de repetição: a área, o n e o recorte
+     em cena estão na linha de contexto logo abaixo do nome da área, no chip de
+     Recorte e no rodapé desta própria tabela ("63 de 64 · recorte: comparáveis
+     · ordenado por …"); a régua está no botão Critérios do cabeçalho. Eram
+     quatro superfícies dizendo a mesma coisa, e a do meio empurrava a tabela
+     para baixo da dobra.
+
+     `justificativa` continua no payload e continua redigida pela API. */
+  titulo.appendChild(el('span', 't', 'Cooperados da área'));
   topo.appendChild(titulo);
 
   /* A BUSCA à direita do título, no mesmo lugar das outras tabelas do app.

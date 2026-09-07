@@ -32,6 +32,7 @@ DIR_MARTS = DIR_UNIMED / "marts"
 CAMINHO_FATO_SOLICITACOES = DIR_MARTS / "fato_solicitacoes.parquet"
 CAMINHO_CONTAS = DIR_MARTS / "contas.parquet"
 CAMINHO_DIM_EXECUTANTES = DIR_MARTS / "dim_executantes_cooperado.parquet"
+CAMINHO_DIM_BENEFICIARIOS = DIR_MARTS / "dim_beneficiarios.parquet"
 CAMINHO_DIM_CLASSIFICACAO = DIR_MARTS / "dim_classificacao.csv"
 CAMINHO_CLASSIFICACAO_V1 = DIR_UNIMED / "dados" / "classificacao_v1.csv"
 
@@ -358,6 +359,18 @@ FAIXA_ESTABILIDADE_SERIE = 0.10
 # ---------------------------------------------------------------------------
 MIN_JANELAS_AVALIAVEIS = 2       # PROVISÓRIO
 
+# ─────────────────────────────────────────────────────────────────────────────
+# VARIACAO_MINIMA_SETA  —  APRESENTAÇÃO  —  set/2026
+#
+# Variação relativa mínima, entre um trimestre e o anterior, para a tela desenhar
+# a seta de direção. Existe como constante, e não solto no bloco, porque a seta
+# é uma AFIRMAÇÃO: sem piso, uma oscilação de 0,4% ganharia o mesmo símbolo de
+# uma queda de 30%, e a tela passaria a apontar ruído amostral como movimento.
+# Abaixo do piso a variação não some — ela continua no hover, em número.
+# PROVISÓRIO: 5% é ponto de partida, não calibração.
+# ─────────────────────────────────────────────────────────────────────────────
+VARIACAO_MINIMA_SETA = 0.05      # PROVISÓRIO
+
 
 # ---------------------------------------------------------------------------
 # TABELA DE PREÇO  —  MEDIÇÃO (externa)  —  doc §3.1, §9
@@ -429,6 +442,58 @@ HASH_BENEFICIARIO_NAO_IDENTIFICADO = (
     "178ADA1D734416F2057C250AFA7427D10AEB88DE88FF0D433FED91EE59D96ECC"
 )
 ID_BENEFICIARIO_NAO_IDENTIFICADO = "beneficiario_nao_identificado"
+
+
+# ---------------------------------------------------------------------------
+# CARTEIRA ATENDIDA  —  DECISÃO (PROVISÓRIO)  —  set/2026
+# A composição etária dos beneficiários que o cooperado atendeu na janela,
+# contra a mesma composição na área. NÃO entra em cálculo nenhum: é fator de
+# contexto, a lente com que se lê a frequência dele antes de concluir qualquer
+# coisa (METODOLOGIA §7.3, confundidor antes de conclusão). Carteira mais velha
+# eleva a frequência ESPERADA de rastreio, e sem esse número na tela a leitura
+# "ele pede demais" fica sem a pergunta seguinte.
+#
+# FAIXAS_ETARIAS: cortes de rotina em saúde suplementar (a última faixa é
+# aberta). Poucas e largas de propósito: dez faixas dariam n pequeno em cada uma
+# para um cooperado de carteira média, e faixa com n de 12 não sustenta
+# comparação com a área.
+FAIXAS_ETARIAS = (
+    (0, 19, "até 19"), (20, 29, "20–29"), (30, 39, "30–39"),
+    (40, 49, "40–49"), (50, 64, "50–64"), (65, 200, "65+"),
+)
+
+# COBERTURA_MINIMA_PERFIL — fração dos beneficiários do cooperado para os quais
+# a idade é conhecida, abaixo da qual a composição NÃO é apresentada.
+#
+# Hoje a cobertura é TOTAL: a idade vem da própria requisição, gravada na
+# dim_beneficiarios pelo preparar_fato, e alcança 100% dos beneficiários do fato
+# (medido em set/2026: zero sem idade em 57.213). O portão fica como guarda —
+# base nova, outra especialidade ou mudança na origem podem trazer buraco, e
+# neste app composição sobre uma minoria da carteira não vai à tela sem dizer
+# que é minoria. A cobertura apurada viaja junto do número quando não é plena.
+#
+# A primeira versão buscava a idade nas CONTAS e chegava a 82%, porque só tem
+# conta quem teve execução na janela; o dado sempre esteve do lado da
+# solicitação. Registrado para ninguém refazer o caminho errado.
+COBERTURA_MINIMA_PERFIL = 0.70     # PROVISÓRIO
+
+# MIN_BENEFICIARIOS_CARTEIRA — carteira mínima para a composição ser publicada.
+# Com 20 beneficiários, uma faixa inteira se move 5 pontos por causa de uma
+# pessoa, e a comparação com a área vira ruído.
+MIN_BENEFICIARIOS_CARTEIRA = 30    # PROVISÓRIO
+
+
+# MIN_SOLICITACOES_FAIXA EXISTIU E FOI REMOVIDO (set/2026). Ele escondia a
+# repartição etária de exames com poucas solicitações, com o argumento de que
+# "8% numa faixa" pode ser uma solicitação só.
+#
+# O argumento vale para a PORCENTAGEM, não para a contagem, e a contagem é o que
+# a seção mostra: cada faixa imprime "20–29 · 2" ao lado de "13%". O n viaja
+# junto da fatia, que é o que a lei analítica exige — e com o n na tela o piso
+# só suprimia dado real, agregado sem nenhuma inferência.
+#
+# Registrado para a regra não voltar por parecer prudente. Ela não era: era
+# esconder o que o usuário pediu para ver.
 
 
 # ---------------------------------------------------------------------------

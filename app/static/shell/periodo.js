@@ -97,8 +97,8 @@ export function montarPeriodo(periodo, aoAplicar) {
       const b = el('div', `per-mes${bloqueado ? ' na' : ''}`
                         + `${am === escolhido ? ' on' : naFaixa ? ' faixa' : ''}`,
                    MESES[m - 1]);
-      b.title = foraDaBase ? 'sem dado neste mês'
-        : invertido ? 'invertido: o início tem de vir antes do fim' : am;
+      b.title = foraDaBase ? 'Sem dado neste mês.'
+        : invertido ? 'O início tem de vir antes do fim.' : am;
       if (!bloqueado) {
         b.tabIndex = 0;
         const acionar = () => {

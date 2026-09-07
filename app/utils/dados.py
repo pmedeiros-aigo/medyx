@@ -46,6 +46,55 @@ def carregar_contas() -> pd.DataFrame:
 
 
 @lru_cache(maxsize=1)
+def carregar_perfil_beneficiarios() -> pd.DataFrame:
+    """ID_BENEFICIARIO -> idade e sexo, para a composição da carteira atendida.
+
+    Sai da `dim_beneficiarios`, onde `preparar_fato` os grava a partir da
+    PRÓPRIA requisição. Duas consequências:
+
+      · cobertura de 100% dos beneficiários do fato. A primeira versão (set/2026)
+        buscava a idade nas CONTAS e chegava a 82%, porque só tem conta quem teve
+        execução na janela. O dado sempre esteve do lado da solicitação;
+      · o hash de origem não sai da dim, e nenhuma tela recebe identificador
+        de origem.
+
+    A idade da origem é a ATUAL, não a da data do evento: numa janela de 12 meses
+    isso vale no máximo um ano de imprecisão, que não move faixa de dez. Nenhum
+    beneficiário aparece com duas idades na janela (verificado em set/2026).
+    """
+    dim = pd.read_parquet(config.CAMINHO_DIM_BENEFICIARIOS)
+    faltando = [c for c in ("IDADE", "SEXO") if c not in dim.columns]
+    if faltando:
+        # mart de antes de set/2026: a carteira não é apresentada, e o motivo
+        # aparece na tela em vez de o app quebrar
+        return pd.DataFrame(columns=["ID_BENEFICIARIO", "idade", "sexo"])
+    return (dim[["ID_BENEFICIARIO", "IDADE", "SEXO"]]
+            .rename(columns={"IDADE": "idade", "SEXO": "sexo"}))
+
+
+@lru_cache(maxsize=64)
+def rodar_composicao_carteira(janela_ini: str, janela_fim: str, area: str,
+                              cooperado: str | None, incluir_ps: bool):
+    """Composição etária da carteira, do motor, cacheada por argumentos.
+
+    Área e cooperado passam pela MESMA chamada: a leitura é a comparação, e ela
+    só vale se os dois saírem da mesma janela e do mesmo recorte de PS.
+    """
+    return pl.composicao_da_carteira(
+        carregar_fato(), carregar_perfil_beneficiarios(),
+        janela_ini, janela_fim, area, cooperado, incluir_ps)
+
+
+@lru_cache(maxsize=256)
+def rodar_solicitacoes_por_faixa(janela_ini: str, janela_fim: str, area: str,
+                                 cd: str, cooperado: str, incluir_ps: bool):
+    """Repartição etária das solicitações de UM exame, do motor, cacheada."""
+    return pl.solicitacoes_por_faixa(
+        carregar_fato(), carregar_perfil_beneficiarios(),
+        janela_ini, janela_fim, area, cd, cooperado, incluir_ps)
+
+
+@lru_cache(maxsize=1)
 def carregar_executantes() -> pd.DataFrame:
     """Dim executante -> cooperado (2+ cadastros por cooperado possíveis)."""
     return pd.read_parquet(config.CAMINHO_DIM_EXECUTANTES)
@@ -164,16 +213,68 @@ def rodar_pipeline_execucao(janela_ini: str, janela_fim: str, piso: int,
     )
 
 
+@lru_cache(maxsize=8)
+def rodar_precos(janela_ini: str, janela_fim: str):
+    """Preço mediano por procedimento nas contas da janela.
+
+    Cacheado à parte porque DOIS motores precisam da mesma tabela: o de execução
+    e a série trimestral. Calculada duas vezes, ela divergiria no dia em que
+    alguém mexesse numa das duas.
+    """
+    c = carregar_contas()
+    c = c[(c["DATA_EXECUCAO"] >= janela_ini) & (c["DATA_EXECUCAO"] <= janela_fim)]
+    return pl.precos_por_procedimento(c)
+
+
+@lru_cache(maxsize=64)
+def volume_do_par_por_trimestre(cooperado: str, cd: str, janelas: tuple,
+                                incluir_ps: bool):
+    """Solicitações e pacientes distintos de UM par (cooperado, procedimento),
+    trimestre a trimestre.
+
+    Mesma definição do pipeline (`n_solicitacoes` = soma de QT_EFETIVO sobre o
+    fato da janela, com a regra de PS aplicada), só que fatiada. Reproduzida
+    aqui, e não guardada pelo motor da persistência, porque a grade
+    (cooperado × procedimento × janela) é grande e o painel abre um par por vez:
+    filtrar o fato por dois campos é barato e não retém memória nenhuma.
+
+    Os dois números saem da MESMA varredura de propósito: são o numerador e o
+    denominador da leitura de repetição, e calculá-los em funções separadas é
+    como eles passam a divergir de filtro no dia em que alguém mexer numa só.
+    Paciente entra como CONTAGEM, nunca identidade.
+
+    Devolve {janela: {"solicitacoes": n, "pacientes": p}}, com zero no trimestre
+    sem solicitação.
+    """
+    f = carregar_fato()
+    f = f[(f["ID_COOPERADO"] == cooperado) & (f["CD_PROCEDIMENTO"] == cd)]
+    f = pl.filtrar_ps(f, incluir_ps)
+    saida = {}
+    for k, (ini, fim) in enumerate(janelas, start=1):
+        j = f[(f["DATA_REQUISICAO"] >= ini) & (f["DATA_REQUISICAO"] <= fim)]
+        saida[k] = {
+            "solicitacoes": float(j["QT_EFETIVO"].sum()) if len(j) else 0.0,
+            "pacientes": int(j["ID_BENEFICIARIO"].nunique()) if len(j) else 0,
+        }
+    return saida
+
+
 @lru_cache(maxsize=32)
 def rodar_persistencia(janelas: tuple, piso: int, n_minimo: int,
                        gatilho: str, alvo: str, area: str | None,
                        min_janelas_avaliaveis: int, incluir_ps: bool):
-    """persistencia_temporal() sobre janelas disjuntas (tupla de (ini, fim))."""
+    """persistencia_temporal() sobre janelas disjuntas (tupla de (ini, fim)).
+
+    O PREÇO entra aqui, e não como argumento: uma tabela de preços não é
+    hashável e quebraria o `lru_cache`. A janela do preço é a união das fatias
+    (da primeira à última), a MESMA do resto da tela.
+    """
+    precos = rodar_precos(janelas[0][0], janelas[-1][1]) if janelas else None
     return pl.persistencia_temporal(
         carregar_fato(), list(janelas), piso=piso, n_minimo=n_minimo,
         gatilho=gatilho, alvo=alvo, area=area,
         min_janelas_avaliaveis=min_janelas_avaliaveis, incluir_ps=incluir_ps,
-        exclusoes_por_par=exclusao_por_par(),
+        exclusoes_por_par=exclusao_por_par(), precos=precos,
     )
 
 

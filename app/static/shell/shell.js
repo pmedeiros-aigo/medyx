@@ -27,7 +27,7 @@ import { buscar, buscarTexto } from '../lib/api.js';
 import { montarSeletor, fecharPopover, escolher } from './seletores.js';
 import { montarFaixaCriterios, montarDialogoCriterios, fecharDialogo, lembrarAbridor }
   from './criterios.js';
-import { montarBarraSuperior, montarNavegacao } from './barra.js';
+import { ligarTema, montarBarraSuperior, montarNavegacao } from './barra.js';
 import { montarPeriodo } from './periodo.js';
 import { montarConta, fecharMenuConta } from './conta.js';
 import { rotaAtual } from '../lib/rotas.js';
@@ -160,6 +160,9 @@ export async function montarShell({ aoTrocarArea, escopo } = {}) {
 
   montarNavegacao(area);
   montarBarraSuperior(meta, area);
+  /* Uma vez só: o botão do tema vive no chassi, que é montado uma vez. Trocar
+     de tela remonta a migalha, não a barra inteira. */
+  ligarTema();
   montarFaixaCriterios(meta);
   montarDialogoCriterios(meta);
   /* DEPOIS de montar, não antes: `montarFaixaCriterios` escreve dentro do

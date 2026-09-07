@@ -36,7 +36,7 @@ await abrirPagina({
     conteudo.appendChild(topo);
 
     const meta = await buscar('/api/meta',
-                              { anunciarEm: conteudo, rotulo: 'carregando as áreas…' });
+                              { anunciarEm: conteudo, rotulo: 'Calculando' });
 
     const cartao = el('div', 'tbl');
     const cab = el('div', 'tbl-hd');

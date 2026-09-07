@@ -85,7 +85,8 @@ checar("area · mediana também no rodapé da tabela",
 # (31/jul/2026). Antes o 58 aparecia como "elegíveis" ao lado de um chip
 # "Comparáveis 63", e nada dizia se eram dois recortes ou dois nomes para um.
 checar("area · n na justificativa",
-       f"n={gin['area']['n_avaliaveis']} comparáveis" in gin["justificativa"]["resumo"], True)
+       f"{gin['area']['n_avaliaveis']} cooperados comparáveis"
+       in gin["justificativa"]["resumo"], True)
 checar("justificativa não fala em elegíveis",
        "elegíveis" in gin["justificativa"]["resumo"], False)
 
@@ -140,7 +141,7 @@ checar("gráfico · nenhum ponto de dinheiro em zero",
        all(p["valor"] > 0 for chave in ("custo", "excesso")
            for p in _medidas_gin[chave]["pontos"]), True)
 checar("gráfico · toda medida declara o n da caixa no rodapé",
-       all("caixa" in m["nota"] for m in _medidas_gin.values()), True)
+       all("caixa" in m["nota"].lower() for m in _medidas_gin.values()), True)
 checar("tabela · linhas == total da área",
        len(gin["cooperados"]["linhas"]), gin["area"]["n_total"])
 checar("gatilho_usado presente em toda linha avaliável",
@@ -188,7 +189,7 @@ checar("comparáveis traz a ação de quem está fora da referência",
 # contexto é curta, então isso vive no `titulo_longo` — migrou para o hover em
 # 2026-08-19, não sumiu.
 checar("hover nomeia o critério de comparação",
-       "volume suficiente para comparação" in comparaveis["titulo_longo"], True)
+       "olume suficiente para comparação" in comparaveis["titulo_longo"], True)
 checar("e diz o que o subconjunto elegível faz",
        "define o padrão" in comparaveis["titulo_longo"], True)
 checar("sem vocabulário interno na tela",
@@ -202,11 +203,13 @@ revisao = parte(gin, "em_revisao")
 checar("acima do critério · sem a palavra 'sinalizados' (léxico)",
        "sinalizad" in (revisao["texto"] + revisao["titulo_longo"]).lower(), False)
 exc = parte(gin, "excedente_reais")
-# LÉXICO DO R$ (decisão 2026-08-14): rótulo único em todas as telas,
-# "(em quarentena)" — o preço interno não é reportável até a tabela oficial.
-# Vira número pleno quando ela for injetada no pipeline.
+# LÉXICO DO R$: o valor vai à tela como número, sem adjetivo. O rótulo
+# "(em quarentena)" e a nota "Estimativa de teto…" saíram do app inteiro em
+# set/2026, por decisão do produto: descreviam o estado do projeto (a tabela
+# contratual não chegou), não a natureza do número. O que a base de preço é
+# continua na definição das colunas de R$ e no hover do valor no dossiê.
 checar("o R$ tem parte própria na linha", "R$ " in exc["texto"], True)
-checar("rotulado em quarentena", "(em quarentena)" in exc["texto"], True)
+checar("sem vocabulário de quarentena", "quarentena" in exc["texto"], False)
 checar("sem o rótulo 'estimativa'", "estimad" in exc["texto"], False)
 # guia, tabela de formatos: "R$ abreviado, 1 casa · R$ 1,2 mi". Sete dígitos numa
 # linha de contexto não se leem; o valor exato pertence ao dossiê.
@@ -217,6 +220,25 @@ checar("R$ abreviado na linha de contexto",
 # de concordar com a faixa (mesma fonte, casc["excedente_reais*"]).
 par = gin["pareto_cooperados"]
 checar("pareto · presente na área com referência", par is not None, True)
+
+
+def _ordem(bloco, chave=None):
+    """O Pareto agora chega como ENVELOPE de ordens (`dados`), uma por
+    grandeza; sem custo apurado ele continua vindo como bloco único. Esta
+    função devolve o bloco a conferir nos dois casos."""
+    if not bloco or "dados" not in bloco:
+        return bloco
+    return bloco["dados"][chave or bloco["ordem_default"]]
+
+
+checar("pareto · duas ordens prontas no motor (custo e excedente)",
+       sorted((par.get("dados") or {}).keys()), ["custo", "excedente"])
+checar("pareto · abre pelo excedente, que é o produto da tela",
+       par.get("ordem_default"), "excedente")
+par_env, par = par, _ordem(par)
+checar("pareto · a barra é o custo e o trecho é o excedente dentro dele",
+       all(0 <= l["largura_exc_pct"] <= 100 and l["excedente_rs"] <= l["custo"] + 0.01
+           for l in par["linhas"]), True)
 # cada barra é arredondada a 2 casas antes de somar; tolerância = 1 centavo/linha
 checar("pareto · soma das barras é o total (tolerância de arredondamento)",
        abs(sum(l["reais"] for l in par["linhas"]) - par["total"])
@@ -224,13 +246,27 @@ checar("pareto · soma das barras é o total (tolerância de arredondamento)",
 checar("pareto · ordenado decrescente",
        all(a["reais"] >= b["reais"] for a, b in zip(par["linhas"], par["linhas"][1:])),
        True)
+# a outra ordem é um bloco INTEIRO, não a mesma lista revirada: ordem, total e
+# acumulado são a mesma grandeza, e misturá-las é o defeito que o envelope evita
+_pc = _ordem(par_env, "custo")
+checar("pareto · ordem por custo tem o próprio acumulado, fechando em 100%",
+       _pc["linhas"][-1]["pct_acumulado"], 1.0)
+checar("pareto · ordem por custo é decrescente NO CUSTO",
+       all(a["custo"] >= b["custo"] for a, b in zip(_pc["linhas"], _pc["linhas"][1:])),
+       True)
+checar("pareto · as duas ordens têm as mesmas linhas",
+       sorted(l["id"] for l in _pc["linhas"]) == sorted(l["id"] for l in par["linhas"]),
+       True)
 checar("pareto · acumulado fecha em 100%",
        par["linhas"][-1]["pct_acumulado"], 1.0)
-checar("pareto · método declarado (teto, não economia)",
-       "teto" in par["metodo"].lower(), True)
+# A nota de método do Pareto ("Estimativa de teto…") foi removida do app em
+# set/2026, por decisão do produto, junto com todo o vocabulário de quarentena.
+# A prova passa a garantir o CONTRÁRIO: o bloco não pode reintroduzi-la.
+checar("pareto · sem nota de teto/quarentena",
+       (par.get("metodo") or "").lower(), "")
 # o Pareto de procedimentos agrega a MESMA fonte pelo outro eixo: os totais
 # têm de ser idênticos (concordância entre blocos)
-parp = gin["pareto_procedimentos"]
+parp = _ordem(gin["pareto_procedimentos"])
 checar("pareto procedimentos · presente", parp is not None, True)
 checar("pareto procedimentos · mesmo total do de cooperados",
        abs(parp["total"] - par["total"]) < 0.01, True)
@@ -355,7 +391,7 @@ _, repro = get("/api/area/reproducao")
 _, ultra = get("/api/area/ultrassonografista")
 checar("Mastologia · frase de apoio",
        mast["estado"]["frase_apoio"],
-       "grupo de pares insuficiente para análise comparativa")
+       "cooperados insuficientes na área para análise comparativa")
 checar("Reprodução · frase de apoio", repro["estado"]["frase_apoio"],
        "sem referência: nenhum cooperado desta área forma a norma, motivos abaixo")
 seg_repro = {s["chave"]: s["n"] for s in repro["composicao"]["segmentos"]}
@@ -484,12 +520,134 @@ checar("dossiê · soma dos procedimentos devolve o excedente do cooperado",
        soma_procs, round(alvo["excedente_itens"], 1))
 checar("dossiê · cabeçalho com o par da área em todo número",
        all("referência" in c["par_fmt"] for c in dossie["cabecalho"]), True)
+
+# ── ACEITE PERMANENTE (METODOLOGIA §5.4.1) ───────────────────────────────────
+# A série trimestral é a DISTRIBUIÇÃO NO TEMPO do excedente do ano, medida com a
+# régua do ano. Se algum dia ela voltar a ser medida com a régua de cada
+# trimestre, a soma deixa de fechar e é aqui que isso aparece. Tolerância de um
+# centavo, que é ruído de arredondamento e não de método.
+_ev = dossie.get("evolucao")
+_par = (dossie.get("pareto_custo") or {}).get("dados", {}).get("excedente") or {}
+if _ev and _par:
+    _soma = sum(l["excedente_reais"] or 0 for l in _ev["linhas"])
+    checar("dossiê · trimestres somam o excedente do ano (régua congelada)",
+           abs(_soma - _par["total"]) <= 0.01, True)
+    checar("dossiê · trimestre sem barra só por falta de preço, nunca por piso",
+           all(l["avaliavel"] or l["motivo"] for l in _ev["linhas"]), True)
+    # o piso de volume vira RESSALVA, não portão: trimestre de volume baixo
+    # continua com custo apurado e com barra (METODOLOGIA §5.4.1)
+    checar("dossiê · volume baixo não esconde a barra do trimestre",
+           all(l["avaliavel"] for l in _ev["linhas"] if l["volume_baixo"]), True)
 checar("dossiê · em revisão só quem passa os três portões",
        all(l["sinalizado"] is False for l in dossie["procedimentos"]["linhas"]
            if l["excedente_itens"] is None), True)
 checar("dossiê · proveniência presente", "proveniencia" in dossie, True)
 codigo, corpo_404 = get("/api/cooperado/cooperado_inexistente")
 checar("dossiê · cooperado desconhecido -> 404", codigo, 404)
+
+print("\n8. TEXTO DE TELA  (LEXICO_PRODUTO.md, PADRÃO DE REDAÇÃO)")
+# As regras MECÂNICAS do padrão, cobradas onde elas se repetiram: rodapés de
+# método, subtítulos, leituras e notas. As regras de julgamento (uma frase um
+# fato, não explicar mecânica, voz impessoal) ficam com a revisão humana — mas
+# estas quatro não dependem de julgamento nenhum e por isso não deviam depender
+# de alguém lembrar delas.
+#
+# Chaves varridas: as que carregam FRASE. Rótulo de dado é outra coisa (não leva
+# ponto, pode começar em minúscula) e fica fora de propósito.
+# CHAVES QUE CARREGAM FRASE. `motivo`, `titulo_longo`, `resumo` e `traducao`
+# ficam FORA: eles são apostos telegráficos por desenho ("alerta de perfil
+# (pacientes homens)", "cooperados da área com atividade no período"), completam
+# um rótulo e não são sentenças. Cobrar maiúscula e ponto neles seria a prova
+# exigindo o contrário do que o produto decidiu.
+CHAVES_DE_FRASE = ("nota", "leitura", "frase", "detalhe", "resumo_detalhe",
+                   "base", "tendencia", "ajuda", "tooltip")
+# regra 1: a tela não se descreve; regra 9: estado de projeto não é atributo.
+# "provisório" ficou fora da lista: ele é legítimo onde qualifica a REGRA da
+# classificação ("Regra provisória da classificação v1.0, em validação
+# clínica"), que é governança declarada, e não o estado do projeto colado num
+# número. Varrer por ele reprovaria o texto certo.
+PROIBIDOS = ("o gráfico", "este gráfico", "esta série", "série limitada",
+             "este bloco", "nesta tela", "as barras", "a barra inteira",
+             "quarentena", "estimativa de teto")
+
+
+def _frases(no, caminho=""):
+    """Toda string de frase do payload, com o caminho até ela."""
+    if isinstance(no, dict):
+        for k, v in no.items():
+            if isinstance(v, str) and k in CHAVES_DE_FRASE:
+                yield f"{caminho}.{k}", v
+            else:
+                yield from _frases(v, f"{caminho}.{k}")
+    elif isinstance(no, list):
+        for i, v in enumerate(no):
+            yield from _frases(v, f"{caminho}[{i}]")
+
+
+_payloads = {"area": gin, "dossiê": dossie, "meta": meta}
+_faltas = {"travessão": [], "palavra proibida": []}
+for _nome, _p in _payloads.items():
+    for _cam, _txt in _frases(_p, _nome):
+        t = _txt.strip()
+        if not t:
+            continue
+        if "—" in t:
+            _faltas["travessão"].append((_cam, t[:70]))
+        baixo = t.lower()
+        for _pal in PROIBIDOS:
+            if _pal in baixo:
+                _faltas["palavra proibida"].append((_cam, f"{_pal!r} em {t[:60]}"))
+                break
+
+for _regra, _casos in _faltas.items():
+    checar(f"texto · {_regra}", len(_casos), 0)
+    for _cam, _ex in _casos[:6]:
+        print(f"         {_cam}: {_ex}")
+
+# ── TOOLTIP começa em maiúscula e termina em ponto ───────────────────────────
+# Aqui a regra 5 do padrão VALE sem ambiguidade, e é por isso que ela é cobrada
+# nestas chaves e não nas outras: o que entra num `title` é sempre uma frase de
+# explicação. Não há fragmento telegráfico entre elas.
+CHAVES_DE_TOOLTIP = ("titulo_longo", "ajuda", "par_titulo", "detalhe", "tooltip",
+                     "leitura_titulo", "resumo_detalhe")
+
+
+def _tooltips(no, caminho=""):
+    if isinstance(no, dict):
+        for k, v in no.items():
+            if isinstance(v, str) and k in CHAVES_DE_TOOLTIP:
+                yield f"{caminho}.{k}", v
+            else:
+                yield from _tooltips(v, f"{caminho}.{k}")
+    elif isinstance(no, list):
+        for i, v in enumerate(no):
+            yield from _tooltips(v, f"{caminho}[{i}]")
+
+
+_tt = []
+for _nome, _p in _payloads.items():
+    for _cam, _txt in _tooltips(_p, _nome):
+        t = _txt.strip()
+        if not t:
+            continue
+        if (t[0].isalpha() and not t[0].isupper()) or t[-1] not in ".?!":
+            _tt.append((_cam, t[:70]))
+checar("texto · tooltip com maiúscula e ponto", len(_tt), 0)
+for _cam, _ex in _tt[:6]:
+    print(f"         {_cam}: {_ex}")
+
+# ── o que esta prova NÃO cobre, e por quê ────────────────────────────────────
+# Maiúscula inicial e ponto final (regra 5 do padrão) foram tentados aqui e
+# saíram: o payload mistura, sob as MESMAS chaves, sentenças ("O custo por
+# consulta cai 6% de T1 a T4.") e fragmentos telegráficos que completam um
+# rótulo ("consultas eletivas (episódios de PS excluídos)", "mai/25–jul/25. …",
+# "solicitações excedentes distribuídas em 38 procedimentos"). De 74 apontamentos
+# medidos em set/2026, 3 de cada 4 eram fragmento legítimo. Uma prova que reprova
+# o texto certo ensina a ignorá-la.
+#
+# As regras que dependem de julgamento (1 quando sutil, 2, 3, 4, 5, 6, 7, 10)
+# são de revisão humana, e é por isso que estão ESCRITAS no LEXICO_PRODUTO.md:
+# para não serem redescobertas a cada frase.
 
 print("═" * 78)
 print("RESULTADO:", "API REPRODUZ O SMOKE E OS BLOCOS CONCORDAM" if not falhas

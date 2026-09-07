@@ -22,7 +22,10 @@
 'use strict';
 
 /** Chaves de apresentação na URL (as do motor ficam com lib/api.js). */
-const CHAVES = ['recorte', 'perfil', 'aba', 'ord', 'dir', 'q'];
+/* `q` é a busca da tabela de COOPERADOS e `qp` a de PROCEDIMENTOS. Duas chaves
+   porque são duas tabelas em abas diferentes: uma chave só faria o termo de uma
+   filtrar a outra ao trocar de aba. */
+const CHAVES = ['recorte', 'perfil', 'aba', 'ord', 'dir', 'q', 'qp'];
 
 /**
  * Cria o estado da vista, já lido da URL.

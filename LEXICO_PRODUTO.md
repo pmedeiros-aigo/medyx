@@ -29,28 +29,51 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 | Régua da análise / do valor | **Parâmetros da análise** / **Critérios de valoração** |
 | taxa de exames por consulta | **índice de solicitação por consulta** |
 | itens | **solicitações** (ou **eventos**) |
-| excedente | **variação excedente** (1ª menção: *variação de utilização acima da referência do grupo de pares*) |
+| excedente | **variação excedente** (1ª menção: *variação de utilização acima da referência da área*) |
 | oportunidade bruta/qualificada | **oportunidade identificada / qualificada** (manter) |
 | protocolo carimbado | **rotina na carteira** — sempre com o número ao lado: "74% da carteira vs 7% dos pares" |
 | padrão difuso | **variação difusa multiprocedimento** |
 | pede-e-executa / autorref | **autorreferenciamento** (termo do setor) |
 | suspeito / suspeito persistente | **caso qualificado** / **variação persistente** |
 | sinalizado | **em revisão** (estado) ou **acima do critério de revisão** |
-| gatilho | **critério de revisão** (P90 do grupo de pares) |
+| gatilho | **critério de revisão** (P90 da área) |
 | alvo | **referência de adequação** (mediana/P75/P90) |
 | piso de consultas | **volume mínimo para avaliação** |
-| norma | **referência do grupo de pares** |
-| peer group | **grupo de pares** (área de atuação) |
+| norma | **referência da área** ·  ver a nota abaixo da tabela |
+| peer group | **área de atuação** ·  "grupo de pares" foi aposentado |
 | confundidor | **fator de contexto verificado** |
+
+> ### "grupo de pares" saiu do produto (2026-09-06)
+>
+> O termo era o do léxico para *peer group*, mas na tela ele nomeava **duas coisas
+> diferentes**, às vezes na mesma frase do painel do procedimento:
+>
+> - a **área de atuação** inteira (63 comparáveis em Ginecologia);
+> - o subconjunto que **solicita aquele exame** e forma a referência dele (32).
+>
+> Além disso, o app já dizia "referência da área" em 24 lugares e "referência do
+> grupo de pares" só no painel: dois nomes para a mesma coisa.
+>
+> **A regra agora é uma só:**
+>
+> | conceito | como se escreve |
+> | --- | --- |
+> | o peer group (a área de atuação) | **área** / **área de atuação** |
+> | a norma calculada nele | **referência da área** |
+> | quem forma a referência de UM exame | **os cooperados da área que solicitam este exame**, sempre com o denominador: *"Referência apurada entre 32 dos 63 cooperados da área, os que solicitam este exame."* |
+>
+> O denominador não é enfeite: é a regra §1 do rigor estatístico. Um "32" solto
+> não diz se é a área inteira ou um punhado dela, e era assim que a frase
+> aparecia.
 | o custo da inação | **impacto recorrente estimado** (por trimestre) |
 | dossiê | **dossiê analítico** (manter — é profissional) |
 | ÁREA DE TESTE — placeholder | **AMBIENTE DE HOMOLOGAÇÃO · classificação preliminar** |
 | trilha de estados | **estados do caso**: *em análise → em tratativa → pertinência justificada → adequação em curso → mitigado* |
 | concentração alta na margem intensiva | **case-mix a investigar** |
 | poucos beneficiários recebem | **pouco volume** (com "menos de N beneficiários") |
-| grupo pequeno demais para percentil | **grupo de pares insuficiente para análise comparativa** |
+| grupo pequeno demais para percentil | **cooperados insuficientes na área para análise comparativa** |
 | zero formadores da norma | **sem referência: nenhum cooperado desta área forma a norma** |
-| sem área classificada | **sem grupo de pares — classificação de área de atuação pendente** |
+| sem área classificada | **sem área de atuação · classificação pendente** |
 | gatilho degradado pelo n | **critério ajustado ao tamanho do grupo** |
 | bootstrap abaixo do portão | **intervalo não calculável** |
 | norma do procedimento com poucos solicitantes | **referência não conclusiva** |
@@ -100,6 +123,53 @@ Implementado em `apresentacao.traduzir_percentil`. A frase nasce no Python; a te
 ## Tom dos textos fixos
 
 Frases curtas, voz institucional, verbo no processo. Exemplos calibrados:
-- ✗ "quem pede demais" → ✓ "variação de utilização acima da referência do grupo de pares"
+- ✗ "quem pede demais" → ✓ "variação de utilização acima da referência da área"
 - ✗ "o método descontando na sua frente" → ✓ "cada dedução é verificada e auditável"
+
+## PADRÃO DE REDAÇÃO DE TELA (set/2026) — vale para TODA string visível
+
+Esta seção existe porque o defeito se repetiu: notas de rodapé, subtítulos e
+ressalvas escritas em voz de quem construiu o bloco, não de quem o lê. Não é
+questão de gosto, e por isso as regras abaixo são verificáveis, uma a uma.
+
+**As dez regras.** Antes de qualquer string ir para a tela, ela passa por todas.
+
+1. **Escreva sobre o DADO, nunca sobre o app.** Proibido "o gráfico mostra",
+   "esta série", "este bloco", "as barras", "nesta tela". O leitor está vendo a
+   tela; ela não precisa se descrever.
+   ✗ "O gráfico mostra os trimestres completos da janela."
+   ✓ "Período coberto: abr/25 a mar/26."
+2. **Uma frase, um fato.** Duas afirmações não se emendam com "e", "então" ou
+   dois-pontos. Frases separadas.
+3. **Não explique mecânica interna.** O leitor precisa do fato e da consequência,
+   não do algoritmo. "Não completa um trimestre" é consequência; "o fatiamento
+   descarta o resto" é mecânica.
+4. **Declarativa e impessoal.** Sem "nós", sem "você", sem imperativo, sem
+   "note que", "vale lembrar", "é importante observar".
+5. **Maiúscula inicial e ponto final** em toda frase. Rótulo de dado (micro,
+   cabeçalho de coluna, chip, legenda) não é frase: sem ponto.
+6. **Número anda com unidade e base.** "30 dias", não "30". "3% do custo
+   excedente da área", não "3%".
+7. **Só o vocabulário da tabela de conversão acima.** Nunca um sinônimo novo
+   para um termo que já existe (referência, critério, comparáveis, excedente).
+8. **Sem travessão** (`—`), regra do CLAUDE.md. Use `·`, `,`, `:` ou parênteses.
+9. **Sem adjetivo de estado de projeto**: "provisório", "em quarentena",
+   "estimativa", "ainda não homologado", "por enquanto". O estado do projeto não
+   é característica do número.
+10. **Sem hedge sobre número exato**: "aproximadamente", "cerca de", "talvez",
+    quando o valor é calculado.
+
+**O teste.** Leia a frase em voz alta imaginando um diretor da operadora do
+outro lado da mesa. Se ela explicar como o software funciona, em vez de o que os
+dados dizem, ela falhou.
+
+**Onde isso é cobrado.** `smoke_api.py`, seção "TEXTO DE TELA", varre as strings
+de frase dos payloads e reprova as regras **1, 8 e 9**, que são mecânicas.
+
+As demais são de revisão humana, e isso é decisão, não preguiça: a regra 5
+(maiúscula e ponto) foi automatizada e removida, porque o payload mistura, sob a
+mesma chave, sentenças e fragmentos telegráficos que completam um rótulo. Três
+de cada quatro apontamentos eram texto certo, e uma prova que reprova o certo
+ensina a ignorá-la. Elas estão escritas aqui para não serem redescobertas a cada
+frase, que é o que vinha acontecendo.
 - ✗ "números não reportáveis" → ✓ "resultados preliminares — não destinados a deliberação"

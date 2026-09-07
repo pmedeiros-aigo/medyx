@@ -228,7 +228,7 @@ await abrirPagina({
     col.appendChild(topo);
 
     const conta = await buscar('/api/conta',
-                               { anunciarEm: col, rotulo: 'carregando a conta…' });
+                               { anunciarEm: col, rotulo: 'Carregando a conta' });
 
     if (conta.autenticado) comSessao(col, conta);
     else semSessao(col, conta);

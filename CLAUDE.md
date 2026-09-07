@@ -361,6 +361,10 @@ maternidade). Tratar como "sem evidência neste dataset", não como "não faz".
   destrói a distinção "ausência de par ≠ zero medido" (ajuste 4). O motivo específico
   viaja sempre ao lado (`traducao`, `motivo`, `title`). Conferência: nenhum endpoint
   pode devolver `—` no JSON. (jul/2026)
+- **Não escrever texto de tela sem passar pelo PADRÃO DE REDAÇÃO DE TELA**
+  (`LEXICO_PRODUTO.md`, seção própria): dez regras verificáveis, das quais as
+  quatro mecânicas são cobradas pelo `smoke_api.py`. A que mais falha: texto que
+  descreve o APP ("o gráfico mostra…", "esta série…") em vez do DADO
 - Não responder em inglês nas interfaces voltadas ao usuário
 - Não sugerir ou adicionar features sem consultar `CONTEXTO_NEGOCIO.md` e sem instrução explícita
 - Não violar as Leis analíticas acima

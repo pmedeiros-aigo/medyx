@@ -301,8 +301,9 @@ def posicao_vs_norma_procedimento(
               Regra: alvo <= gatilho.
         col_area, col_proc, col_taxa, col_vol: nomes das colunas.
 
-    Retorna: tabela longa com razao_vs_mediana, sinalizado, excedente_itens e o
-    gatilho/alvo usados (rastreabilidade).
+    Retorna: tabela longa com razao_vs_mediana (intensidade fixa),
+    razao_vs_alvo (contra a referência ativa, que é a que a tela mostra),
+    sinalizado, excedente_itens e o gatilho/alvo usados (rastreabilidade).
     """
     ordem = {"mediana": 0, "p75": 1, "p90": 2}
     assert gatilho in ("p75", "p90") and alvo in ordem
@@ -323,6 +324,15 @@ def posicao_vs_norma_procedimento(
     df["sinalizado"] = np.greater(df[col_taxa].to_numpy(dtype=float), _limiar)
     df["excedente_itens"] = (df[col_taxa] - df[alvo]).clip(lower=0) * df[col_vol]
     df["alvo_usado"] = alvo
+    # A MESMA razão, medida contra a REFERÊNCIA ATIVA (o alvo escolhido), e não
+    # contra a mediana. As duas coincidem no default (alvo = mediana), e é por
+    # isso que a diferença ficou invisível até a tela rodar em `referencia=p75`:
+    # a tabela do dossiê mostrava "referência 0,011" e, na coluna ao lado,
+    # "12,2×", que é a razão contra a mediana. Quem lê divide as duas colunas e
+    # não fecha. Toda superfície cujo rótulo diz "a referência" lê ESTA coluna;
+    # `razao_vs_mediana` fica para quem quer a intensidade fixa, que não se move
+    # quando o analista troca o alvo.
+    df["razao_vs_alvo"] = df[col_taxa] / df[alvo]
     return df.sort_values("excedente_itens", ascending=False)
 
 
@@ -415,6 +425,26 @@ def pipeline(fato, janela_ini, janela_fim, piso, n_minimo, area=None, gatilho=co
     }
 
 
+def precos_por_procedimento(contas_da_janela):
+    """Preço mediano por código: mediana de VALORTOTAL/QUANTIDADEEXECUTADA.
+
+    Saiu de dentro do `pipeline_execucao` (set/2026) quando a série trimestral
+    passou a precisar da MESMA tabela. Duas medianas calculadas em lugares
+    diferentes divergem no dia em que alguém mexer numa só, e aqui elas TÊM de
+    ser idênticas: a série do dossiê é uma decomposição do total da janela, e
+    decomposição que não soma o todo é erro de leitura garantido.
+
+    Mediana, e não média, porque a distribuição de valor unitário tem cauda
+    (pacote, urgência, tabela negociada) e a média seguiria o extremo.
+    """
+    v = contas_da_janela[(contas_da_janela["QUANTIDADEEXECUTADA"] > 0)
+                         & (contas_da_janela["VALORTOTAL"] > 0)].copy()
+    v["valor_unitario"] = v["VALORTOTAL"] / v["QUANTIDADEEXECUTADA"]
+    return (v.groupby("CODIGO")["valor_unitario"]
+            .agg(preco_mediano="median", n_execucoes="count").reset_index()
+            .rename(columns={"CODIGO": "CD_PROCEDIMENTO"}))
+
+
 def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
                       piso_execucoes, q_confundidor, mapa_executantes,
                       area=None, gatilho=config.GATILHO_DEFAULT, alvo=config.ALVO_DEFAULT, preco=None,
@@ -484,13 +514,7 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
 
     # preço: mediana de VALORTOTAL/QUANTIDADEEXECUTADA por código na janela
     if preco is None:
-        v = c[(c["QUANTIDADEEXECUTADA"] > 0) & (c["VALORTOTAL"] > 0)].copy()
-        v["valor_unitario"] = v["VALORTOTAL"] / v["QUANTIDADEEXECUTADA"]
-        preco = (
-            v.groupby("CODIGO")["valor_unitario"]
-            .agg(preco_mediano="median", n_execucoes="count").reset_index()
-            .rename(columns={"CODIGO": "CD_PROCEDIMENTO"})
-        )
+        preco = precos_por_procedimento(c)
 
     # CUSTO SOLICITADO por cooperado: TODO item que ele solicitou, valorado ao
     # preço mediano — não só os excedentes. Responde "quanto custa uma consulta
@@ -619,7 +643,8 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
 
 def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_DEFAULT, alvo=config.ALVO_DEFAULT,
                           area=None, min_janelas_avaliaveis=config.MIN_JANELAS_AVALIAVEIS,
-                          incluir_ps=config.INCLUIR_PS_DEFAULT, exclusoes_por_par=None):
+                          incluir_ps=config.INCLUIR_PS_DEFAULT, exclusoes_por_par=None,
+                          precos=None):
     """Consistência do sinal através de janelas disjuntas, com norma recalculada.
 
     Método:
@@ -673,7 +698,35 @@ def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_
         'por_cooperado': agregado para a fila, nº de procedimentos reportáveis,
             nº com persistencia == 1.0 e nº com persistencia >= 0.75.
     """
-    registros, indices = [], []
+    # ── A CESTA E A RÉGUA DO ANO ────────────────────────────────────────────
+    # Regra do projeto (METODOLOGIA §5.4): régua RECALCULADA para sinalizar,
+    # régua CONGELADA para acompanhar. O laço abaixo recalcula a norma em cada
+    # trimestre, e é dele que sai a mini-série de consistência: ali a pergunta é
+    # "ele foi sinalizado sob a régua do próprio período".
+    #
+    # O DINHEIRO não sai de lá. Ele é a decomposição do excedente do ANO, e por
+    # isso precisa da régua do ano: a cesta de pares sinalizados, o alvo e o
+    # preço são todos anuais, e o trimestre só distribui itens e consultas.
+    # Medir dinheiro com régua móvel faria o excedente cair quando a área
+    # inteira aumentasse o consumo, mostrando melhora onde não houve.
+    cesta = k_por_cooperado = None
+    if precos is not None and len(precos) and janelas:
+        anual = pipeline(fato, janelas[0][0], janelas[-1][1], piso, n_minimo,
+                         area, gatilho, alvo, incluir_ps=incluir_ps,
+                         exclusoes_por_par=exclusoes_por_par)
+        c = anual["posicao_proc"].merge(
+            precos[["CD_PROCEDIMENTO", "preco_mediano"]],
+            on="CD_PROCEDIMENTO", how="left")
+        c = filtrar_sinalizados(c, exigir_preco=True)
+        if len(c):
+            cesta = c[["ID_COOPERADO", "CD_PROCEDIMENTO", "preco_mediano"]].copy()
+            # o ALVO é a taxa contra a qual o excedente do ano foi medido; em R$,
+            # ele vira "quanto de dinheiro por consulta a referência prevê"
+            cesta["alvo_x_preco"] = c[alvo].astype(float) * c["preco_mediano"]
+            k_por_cooperado = (cesta.groupby("ID_COOPERADO")["alvo_x_preco"].sum()
+                               .rename("k_referencia").reset_index())
+
+    registros, indices, evolucao = [], [], []
     for k, (ini, fim) in enumerate(janelas, start=1):
         r = pipeline(fato, ini, fim, piso, n_minimo, area, gatilho, alvo,
                      incluir_ps=incluir_ps, exclusoes_por_par=exclusoes_por_par)
@@ -694,13 +747,79 @@ def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_
         # o ÍNDICE agregado do cooperado naquela janela, sob a norma daquela
         # janela. A grade acima diz SE ele foi sinalizado; esta diz QUANTO —
         # sem ela a série é binária e não tem direção.
-        pos = (r["posicao"][["ID_COOPERADO", "taxa_exames_por_consulta", "avaliavel"]]
+        pos = (r["posicao"][["ID_COOPERADO", "taxa_exames_por_consulta", "avaliavel",
+                             "consultas_totais", "total_itens"]]
                .rename(columns={"taxa_exames_por_consulta": "taxa"}).copy())
         pos["janela"] = k
+        # o PISO daquele trimestre viaja junto: quem cai abaixo dele não é
+        # medido ali, e a tela precisa dizer abaixo de QUÊ, não só que não mediu
+        pos["piso"] = r["piso_aplicado"]
+        # PACIENTES DISTINTOS do trimestre: é o outro denominador do período, o
+        # que separa "atendeu mais gente" de "pediu mais para a mesma gente".
+        # Contagem, nunca identidade (ver `pacientes_distintos`).
+        pac = pacientes_distintos(fato, ini, fim, incluir_ps=incluir_ps)
+        pos["pacientes"] = pos["ID_COOPERADO"].map(pac)
         indices.append(pos)
+
+        # ── EVOLUÇÃO: o R$ do trimestre, quando há preço ────────────────────
+        # Agregado AQUI, dentro do laço, e não devolvido cru: a grade
+        # (cooperado × procedimento × janela) valorada é grande, e o que a tela
+        # consome é uma linha por trimestre.
+        #
+        # O PREÇO É O DA JANELA INTEIRA, não o do trimestre. De propósito: com
+        # preço por trimestre, uma barra maior poderia ser reajuste de tabela em
+        # vez de mais solicitação, e a série existe para responder volume. Preço
+        # constante isola a variação que a tela afirma estar medindo.
+        if precos is not None and len(precos):
+            pp = r["posicao_proc"].merge(
+                precos[["CD_PROCEDIMENTO", "preco_mediano"]],
+                on="CD_PROCEDIMENTO", how="left")
+            pp = pp[pp["preco_mediano"].notna()]
+            if len(pp):
+                ev = (pp.assign(custo=pp["n_solicitacoes"] * pp["preco_mediano"])
+                      .groupby("ID_COOPERADO")
+                      .agg(custo=("custo", "sum")).reset_index())
+                # o VALOR SOLICITADO no trimestre, restrito à cesta do ano. É a
+                # primeira metade de `n_tri − alvo × consultas_tri`; a segunda
+                # entra depois do laço, porque depende das consultas do
+                # trimestre e da constante anual do cooperado.
+                if cesta is not None:
+                    vt = (pp.merge(cesta, on=["ID_COOPERADO", "CD_PROCEDIMENTO"],
+                                   how="inner", suffixes=("", "_c")))
+                    if len(vt):
+                        vt = (vt.assign(v=vt["n_solicitacoes"] * vt["preco_mediano"])
+                              .groupby("ID_COOPERADO")["v"].sum()
+                              .rename("valor_cesta").reset_index())
+                        ev = ev.merge(vt, on="ID_COOPERADO", how="left")
+                ev["janela"] = k
+                evolucao.append(ev)
 
     todas = pd.concat(registros, ignore_index=True)
     por_janela_cooperado = pd.concat(indices, ignore_index=True)
+    custo_por_janela = (pd.concat(evolucao, ignore_index=True) if evolucao
+                        else pd.DataFrame(columns=["ID_COOPERADO", "custo",
+                                                   "excedente_reais", "janela"]))
+    if len(custo_por_janela) and k_por_cooperado is not None:
+        # excedente_tri = Σ n_tri × preço  −  consultas_tri × Σ (alvo × preço)
+        #
+        # SEM CLIP. Trimestre em que ele ficou abaixo da referência do ano dá
+        # negativo, e é isso que faz a soma dos quatro fechar EXATAMENTE com o
+        # excedente do ano: os dois lados são lineares em itens e consultas, e
+        # clipar por trimestre quebraria a identidade. O negativo também é
+        # leitura: naquele trimestre ele pediu menos do que a referência previa.
+        cj = custo_por_janela.merge(k_por_cooperado, on="ID_COOPERADO", how="left")
+        cj = cj.merge(por_janela_cooperado[["ID_COOPERADO", "janela",
+                                            "consultas_totais"]],
+                      on=["ID_COOPERADO", "janela"], how="left")
+        cj["valor_cesta"] = cj.get("valor_cesta", 0.0)
+        cj["excedente_reais"] = (cj["valor_cesta"].fillna(0.0)
+                                 - cj["consultas_totais"].fillna(0.0)
+                                 * cj["k_referencia"].fillna(0.0))
+        # quem não tem cesta (nenhum par sinalizado no ano) não tem excedente a
+        # distribuir: zero é a resposta certa, e não um negativo vindo do K
+        # ausente na junção
+        cj.loc[cj["k_referencia"].isna(), "excedente_reais"] = 0.0
+        custo_por_janela = cj
     por_procedimento = (
         todas.groupby(["ID_COOPERADO", "CD_PROCEDIMENTO"])
         .agg(n_janelas_avaliaveis=("janela", "nunique"),
@@ -727,8 +846,128 @@ def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_
     )
     return {"por_janela": todas,
             "por_janela_cooperado": por_janela_cooperado,
+            # uma linha por (cooperado, janela): custo valorado e excedente em
+            # R$ do trimestre. Vazio quando `precos` não foi passado.
+            "custo_por_janela": custo_por_janela,
             "por_procedimento": por_procedimento, "por_cooperado": por_cooperado,
             "base": carimbo_base(incluir_ps)}
+
+
+def composicao_da_carteira(fato, perfil, janela_ini, janela_fim, area,
+                           cooperado=None, incluir_ps=config.INCLUIR_PS_DEFAULT,
+                           faixas=config.FAIXAS_ETARIAS):
+    """Composição etária dos beneficiários atendidos na janela.
+
+    Sem `cooperado`, descreve a ÁREA inteira; com ele, a carteira de um. As duas
+    saem da MESMA função e da mesma janela porque a leitura é a comparação entre
+    elas, e duas implementações divergiriam no dia em que alguém mexesse numa só.
+
+    ── o que este número é, e o que ele não é ─────────────────────────────────
+    É FATOR DE CONTEXTO, não medida de desempenho (METODOLOGIA §7.3). Carteira
+    mais velha eleva a frequência ESPERADA de rastreio, e é isso que a comparação
+    com a área permite perguntar antes de concluir. Ele não entra em cálculo
+    nenhum: nenhuma taxa, nenhum excedente e nenhuma norma leem esta saída.
+
+    O que ele explicitamente NÃO autoriza é distribuir custo por faixa. Para
+    isso seria preciso a idade do beneficiário na DATA de cada solicitação, e
+    ratear o excedente pela composição da carteira produziria um número inventado
+    com aparência de medida — sobre um médico.
+
+    ── denominador ───────────────────────────────────────────────────────────
+    BENEFICIÁRIO DISTINTO, não solicitação: a pergunta é "quem ele atende", e
+    contar por solicitação daria peso maior a quem pede mais exames, que é
+    justamente a variável sob investigação (rigor §10, razão de totais).
+
+    A cobertura é apurada e devolvida: a idade vem das contas e não alcança todo
+    mundo. As frações são sobre os COBERTOS, e a tela declara quantos são.
+
+    Retorna: dict com n_beneficiarios, n_com_idade, cobertura, idade_mediana e
+    faixas (rótulo, n, fracao). None quando não há beneficiário na janela.
+    """
+    f = fato[(fato["DATA_REQUISICAO"] >= janela_ini)
+             & (fato["DATA_REQUISICAO"] <= janela_fim)]
+    f = f[f["AREA_ATUACAO"] == area]
+    f = filtrar_ps(f, incluir_ps)
+    if cooperado is not None:
+        f = f[f["ID_COOPERADO"] == cooperado]
+    ids = f["ID_BENEFICIARIO"].unique()
+    if not len(ids):
+        return None
+
+    idades = (pd.DataFrame({"ID_BENEFICIARIO": ids})
+              .merge(perfil, on="ID_BENEFICIARIO", how="left")["idade"])
+    com = idades.dropna()
+    n, n_com = int(len(ids)), int(len(com))
+    linhas = []
+    for lo, hi, rotulo in faixas:
+        na_faixa = int(((com >= lo) & (com <= hi)).sum())
+        linhas.append({"rotulo": rotulo, "de": lo, "ate": hi, "n": na_faixa,
+                       "fracao": (na_faixa / n_com) if n_com else None})
+    return {
+        "n_beneficiarios": n,
+        "n_com_idade": n_com,
+        "cobertura": (n_com / n) if n else 0.0,
+        "idade_mediana": float(com.median()) if n_com else None,
+        "faixas": linhas,
+    }
+
+
+def solicitacoes_por_faixa(fato, perfil, janela_ini, janela_fim, area, cd,
+                           cooperado, incluir_ps=config.INCLUIR_PS_DEFAULT,
+                           faixas=config.FAIXAS_ETARIAS):
+    """Quantas solicitações DESTE exame o cooperado fez em cada faixa etária, e
+    como a área reparte as dela.
+
+    ── por que a contagem viaja com a fatia ──────────────────────────────────
+    Porque contagem de indivíduo não tem contrapartida no grupo: a área tem 63
+    cooperados, e "281 dele contra 1.108 da área" compararia um médico com uma
+    especialidade inteira. O que compara é a REPARTIÇÃO — 44% das solicitações
+    dele contra 28% das da área na mesma faixa —, e o léxico não publica número
+    de indivíduo sem referência ao lado (princípio 6).
+
+    ── atribuição, não rateio ────────────────────────────────────────────────
+    Cada solicitação carrega o beneficiário, e cada beneficiário carrega a idade
+    (dim_beneficiarios, cobertura plena). A faixa sai da idade de quem recebeu o
+    exame, uma a uma. Nada é distribuído proporcionalmente à composição da
+    carteira, que produziria um número inventado com aparência de medida.
+
+    NÃO ENTRA EM CÁLCULO. É lente: diz para quem ele pede, e a comparação com a
+    área diz se a repartição dele destoa. Nenhuma taxa, norma ou excedente lê
+    esta saída.
+
+    Retorna: dict com total, total_area e faixas (rótulo, n, fracao,
+    fracao_area). None quando o par não tem solicitação na janela.
+    """
+    f = fato[(fato["DATA_REQUISICAO"] >= janela_ini)
+             & (fato["DATA_REQUISICAO"] <= janela_fim)]
+    f = filtrar_ps(f[f["AREA_ATUACAO"] == area], incluir_ps)
+    f = f[f["CD_PROCEDIMENTO"] == cd]
+    if not len(f):
+        return None
+    f = f.merge(perfil[["ID_BENEFICIARIO", "idade"]], on="ID_BENEFICIARIO",
+                how="left")
+
+    def _por_faixa(df):
+        idades = df["idade"].to_numpy(dtype="float64")
+        qt = df["QT_EFETIVO"].to_numpy(dtype="float64")
+        return [float(qt[(idades >= lo) & (idades <= hi)].sum())
+                for lo, hi, _ in faixas]
+
+    dele = f[f["ID_COOPERADO"] == cooperado]
+    if not len(dele):
+        return None
+    n_dele, n_area = _por_faixa(dele), _por_faixa(f)
+    total, total_area = sum(n_dele), sum(n_area)
+    if not total:
+        return None
+    return {
+        "total": total, "total_area": total_area,
+        "faixas": [
+            {"rotulo": rot, "n": n,
+             "fracao": (n / total) if total else None,
+             "fracao_area": (a / total_area) if total_area else None}
+            for (_, _, rot), n, a in zip(faixas, n_dele, n_area)],
+    }
 
 
 def concentracao_por_beneficiario(fato, janela_ini, janela_fim, piso, n_minimo,

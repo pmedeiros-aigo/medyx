@@ -56,14 +56,42 @@ export function rotaAtual() {
   return { tela: null };
 }
 
-/** Uma URL de tela com a régua atual preservada. A régua acompanha SEMPRE:
- *  trocar de tela não pode devolver o analista ao padrão sem ele ter pedido. */
-export function comRegua(caminho) {
+/**
+ * Uma URL de tela com a régua atual preservada. A régua acompanha SEMPRE:
+ * trocar de tela não pode devolver o analista ao padrão sem ele ter pedido.
+ *
+ * ── por que ela também monta os parâmetros do destino ───────────────────────
+ * Porque quem precisou de um parâmetro a mais montou a query à mão, e o
+ * resultado foi um endereço com DOIS `?`: o link "ver na área de atuação" saía
+ * como `/area/x?aba=procedimentos?criterio=p75`. O navegador lia `aba` como
+ * "procedimentos?criterio=p75", nenhuma aba casava (tela em branco) e o
+ * critério sumia em silêncio, com a tela recalculando no padrão.
+ *
+ * Uma função, um lugar que junta query. `extras` é como se acrescenta
+ * parâmetro; valor `null` ou vazio REMOVE a chave, para o chamador poder
+ * limpar sem montar string. E se o caminho vier com query mesmo assim, ela é
+ * absorvida em vez de concatenada — a função não tem como ser usada errado.
+ *
+ * @param {string} caminho  caminho da tela (query aqui é aceita, mas dispensável)
+ * @param {Record<string, string|number|null|undefined>} [extras]  parâmetros do destino
+ * @returns {string}
+ */
+export function comRegua(caminho, extras = null) {
+  const [base, queryDoCaminho] = String(caminho).split('?');
   const q = new URLSearchParams(location.search);
   /* `ord`, `dir`, `recorte`, `perfil` e `aba` são estado de apresentação da
      tela de origem e não significam nada na de destino. */
   for (const chave of ['ord', 'dir', 'recorte', 'perfil', 'aba']) q.delete(chave);
   q.delete('area');   // a área agora é caminho, não query
+  /* O que o DESTINO pede entra depois de limpar a origem: é assim que `aba`,
+     apagada acima como estado de origem, sobrevive quando é pedida de propósito. */
+  for (const [chave, valor] of new URLSearchParams(queryDoCaminho ?? '')) {
+    q.set(chave, valor);
+  }
+  for (const [chave, valor] of Object.entries(extras ?? {})) {
+    if (valor == null || valor === '') q.delete(chave);
+    else q.set(chave, String(valor));
+  }
   const busca = q.toString();
-  return busca ? `${caminho}?${busca}` : caminho;
+  return busca ? `${base}?${busca}` : base;
 }

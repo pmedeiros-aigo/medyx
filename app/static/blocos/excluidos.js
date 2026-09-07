@@ -1,52 +1,67 @@
 /* excluidos.js — quem não entra na construção da referência, e por quê.
  *
- * Abre pela ação da estatística "Comparáveis" ("ver os 6 excluídos"). Substitui
- * a leitura que a barra de composição dava: ela mostrava a PROPORÇÃO em três
- * segmentos, mas o motivo de cada exclusão nunca coube nela, e o motivo é o que
- * se contesta. A proporção agora está no próprio número (63 de 64).
+ * Abre pela ação da estatística "Comparáveis" ("ver os 6 fora da referência").
+ * Substitui a leitura que a barra de composição dava: ela mostrava a PROPORÇÃO
+ * em três segmentos, mas o motivo de cada exclusão nunca coube nela, e o motivo
+ * é o que se contesta. A proporção agora está no próprio número (63 de 64).
  *
- * Regra do léxico que este painel existe para cumprir: exclusão SEM MOTIVO não
- * é publicável. Toda linha aqui traz o motivo, a natureza (definitiva ou regra
- * provisória em validação) e o detalhe inteiro.
+ * ── o que este painel mostra, e o que ele deixou de mostrar (2026-09-05) ────
+ * Só o cooperado e as consultas dele na janela. Saíram, a pedido do usuário, a
+ * natureza da exclusão ("definitiva · por desenho da análise" / "provisória ·
+ * regra em validação"), a marca de "triagem clínica pendente" e o motivo por
+ * extenso — que na prática repetia a natureza ("Regra provisória da
+ * classificação v1.0, em validação clínica.").
+ *
+ * A regra do léxico ("exclusão SEM MOTIVO não é publicável") continua cumprida,
+ * em outra superfície: a linha do cooperado na tabela carrega a etiqueta "não
+ * forma a referência" com motivo e natureza no `title` (`tabela.js`,
+ * `celulaIdentidade`). O motivo não sumiu do produto, saiu da LISTA — que é
+ * uma resposta de conferência ("quem são os 6?"), e seis parágrafos de método
+ * empilhados respondiam outra pergunta.
+ *
+ * Nada foi recalculado: `motivos`, `natureza`, `natureza_rotulo` e
+ * `revisao_pendente` seguem no payload, à espera de quem os queira.
  *
  * ── fronteira visual ────────────────────────────────────────────────────────
- * Nenhuma classe nova: `.modal` + a família `.dlg-*` são as mesmas do diálogo de
- * critérios, e `.tag`/`.tag-caveat` são as etiquetas semânticas do contrato. O
- * `.scrim` fecha por clique fora, igual ao resto do sistema.
+ * Geometria de GAVETA, não de modal centrado: é uma lista que se lê de cima a
+ * baixo e pode passar de uma tela. Reusa `.painel-lateral` / `.pnl-hd` /
+ * `.pnl-corpo` / `.painel-x` do painel de procedimento (DIRETRIZES §5), com a
+ * variante `.pnl-modal` para o que muda de verdade: aqui há cortina, porque
+ * este painel não é para trabalhar ao lado da tabela, é para ler e fechar.
  */
 'use strict';
 
 import { el } from '../lib/dom.js';
+import { TELAS, comRegua } from '../lib/rotas.js';
 
 
-/** Uma linha: quem, o volume que tem, e o motivo com a natureza ao lado. */
-function linha(x) {
-  const l = el('div', 'dlg-row');
-  const lb = el('div', 'dlg-lb');
-  lb.appendChild(el('span', 'dlg-n', x.id));
+/** Uma entrada: quem, o volume que ele tem na janela, e a porta do dossiê. */
+function entrada(x) {
+  const l = el('div', 'pnl-ent');
+
+  const hd = el('div', 'row row-between');
+  const txt = el('div', 'stack g4');
+  txt.appendChild(el('span', 'mono', x.id));
   if (x.consultas_fmt) {
-    lb.appendChild(el('span', 'dlg-u', `${x.consultas_fmt} consultas na janela`));
+    txt.appendChild(el('span', 'dlg-u', `${x.consultas_fmt} consultas na janela`));
   }
-  /* O detalhe inteiro, não o resumo: aqui há espaço, e é este texto que separa
-     "exclusão por desenho da análise" de "regra provisória que pode estar
-     errada" — a distinção que decide se alguém contesta a classificação. */
-  const detalhes = (x.motivos ?? []).map((m) => m.detalhe).filter(Boolean).join(' ');
-  if (detalhes) lb.appendChild(el('span', 'dlg-h', detalhes));
-  l.appendChild(lb);
+  hd.appendChild(txt);
 
-  const ct = el('div', 'dlg-ct');
-  const marca = el('div', 'stack g4');
-  /* Natureza PROVISÓRIA leva o tratamento de ressalva; definitiva é etiqueta
-     neutra. Não é gravidade: é se há ou não o que corrigir na classificação. */
-  const etiqueta = el('span',
-    x.natureza === 'definitiva' ? 'tag' : 'tag tag-caveat', x.motivo);
-  if (x.natureza_rotulo) etiqueta.title = x.natureza_rotulo;
-  marca.appendChild(etiqueta);
-  if (x.revisao_pendente) {
-    marca.appendChild(el('span', 'micro', 'triagem clínica pendente'));
-  }
-  ct.appendChild(marca);
-  l.appendChild(ct);
+  /* MESMO chevron da última coluna da tabela, e pelo mesmo motivo: quem lê
+     "este cooperado não forma a referência" pergunta em seguida "por quê", e a
+     resposta está no dossiê. Sem ele, a saída daqui era fechar a gaveta,
+     procurar o cooperado na tabela e clicar lá.
+     A régua viaja no link (`comRegua`), como em toda navegação do app: trocar
+     de tela não devolve o analista ao padrão sem ele ter pedido. */
+  const a = document.createElement('a');
+  a.className = 'chev';
+  a.href = comRegua(TELAS.cooperado.caminho(x.id));
+  a.textContent = '\u203a';
+  a.title = 'Abrir o dossiê analítico deste cooperado.';
+  a.setAttribute('aria-label', `abrir dossiê analítico de ${x.id}`);
+  hd.appendChild(a);
+
+  l.appendChild(hd);
   return l;
 }
 
@@ -61,37 +76,37 @@ export function montarExcluidos(destino, composicao) {
   const lista = composicao?.excluidos ?? [];
 
   const scrim = el('span', 'scrim scrim-dim');
-  scrim.style.display = 'none';
-  const modal = el('div', 'modal');
-  modal.setAttribute('role', 'dialog');
-  modal.setAttribute('aria-modal', 'true');
-  modal.setAttribute('aria-label', 'Excluídos da construção da referência');
+  const painel = el('aside', 'painel-lateral pnl-modal');
+  painel.setAttribute('role', 'dialog');
+  painel.setAttribute('aria-modal', 'true');
+  painel.setAttribute('aria-label', 'Fora da referência');
 
-  const topo = el('div', 'dlg-hd');
+  const topo = el('div', 'row row-between pnl-hd');
   const t = el('div', 'stack g4');
-  t.appendChild(el('span', 'dlg-t', 'Excluídos da construção da referência'));
-  const sub = [
-    `${lista.length} de ${composicao?.total ?? lista.length} cooperados da área`,
-    composicao?.nota,
-  ].filter(Boolean).join(' · ');
-  t.appendChild(el('span', 'dlg-s', sub));
-  const fechar = el('span', 'dlg-x', '✕');
-  fechar.tabIndex = 0;
-  fechar.setAttribute('role', 'button');
+  t.appendChild(el('span', 'dlg-t', `${lista.length} fora da referência`));
+  /* A frase que impede a leitura errada: estar fora da CONSTRUÇÃO da referência
+     não é estar fora da análise. Eles continuam medidos contra ela. */
+  t.appendChild(el('span', 'dlg-s',
+    'Seguem medidos contra a referência da área; apenas não a definem.'));
+  const fechar = el('button', 'painel-x', '✕');
+  fechar.type = 'button';
   fechar.setAttribute('aria-label', 'Fechar');
+  fechar.title = 'Fechar';
   topo.append(t, fechar);
 
-  const corpo = el('div', 'dlg-bd');
-  for (const x of lista) corpo.appendChild(linha(x));
+  const corpo = el('div', 'pnl-corpo');
+  for (const x of lista) corpo.appendChild(entrada(x));
 
-  modal.append(topo, corpo);
-  destino.append(scrim, modal);
+  painel.append(topo, corpo);
+  destino.append(scrim, painel);
 
   let abridor = null;
 
+  /* Quem desenha é o CSS: aqui só se alterna classe e o atributo `hidden`, que
+     o contrato já trata (`.painel-lateral[hidden]`, `.scrim.on`). */
   function mostrar(visivel) {
-    scrim.style.display = visivel ? 'block' : 'none';
-    modal.style.display = visivel ? 'block' : 'none';
+    scrim.classList.toggle('on', visivel);
+    painel.hidden = !visivel;
     if (visivel) { abridor = document.activeElement; fechar.focus(); }
     else abridor?.focus?.();
   }
@@ -100,13 +115,8 @@ export function montarExcluidos(destino, composicao) {
   const sair = () => mostrar(false);
   scrim.addEventListener('click', sair);
   fechar.addEventListener('click', sair);
-  fechar.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Enter' && ev.key !== ' ') return;
-    ev.preventDefault();
-    sair();
-  });
   document.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Escape' && modal.style.display === 'block') sair();
+    if (ev.key === 'Escape' && !painel.hidden) sair();
   });
 
   return { abrir: () => mostrar(true) };

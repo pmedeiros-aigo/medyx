@@ -219,7 +219,31 @@
 
 *{margin:0;padding:0;box-sizing:border-box}
 html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
-body{background:#fff;color:var(--g-900);font-family:var(--font);font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+body{background:var(--canvas);color:var(--g-900);font-family:var(--font);font-size:var(--fs-md);line-height:1.45;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+
+/* ── BARRA DE ROLAGEM ───────────────────────────────────────────────────────
+   Uma só no app inteiro: página, tabela, Pareto, painel lateral e popover.
+   Haste fina e arredondada sobre trilho transparente, sem setas — o desenho é
+   o do shadcn, que por sua vez é a barra do Radix.
+
+   O truque da largura é a borda transparente com `background-clip:padding-box`:
+   a calha tem 10px (área confortável para o cursor), mas a haste pintada tem 4,
+   com respiro dos dois lados. Sem isso, ou a haste fica grossa, ou a área de
+   arrasto fica fina demais para acertar.
+
+   Firefox usa `scrollbar-width`/`scrollbar-color`, que são HERDADOS: declarados
+   na raiz, valem para todo elemento com rolagem própria. O WebKit usa os
+   pseudo-elementos, que são globais. Os dois lados leem os mesmos tokens, e é
+   por isso que a barra acompanha o tema sem uma linha a mais. */
+:root{scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:999px;
+  border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover);background-clip:padding-box}
+/* o quadradinho onde as duas barras se encontram: sem isto ele fica cinza
+   sólido no canto da tabela, que é o detalhe que mais denuncia barra nativa */
+::-webkit-scrollbar-corner{background:transparent}
 a{color:var(--acc);text-decoration:none}
 a:hover{color:var(--acc-strong);text-decoration:underline}
 
@@ -245,53 +269,53 @@ a:hover{color:var(--acc-strong);text-decoration:underline}
 .mt-auto{margin-top:auto}
 
 /* ---------- tipografia ---------- */
-h1{font-size:34px;line-height:1.12;font-weight:600;letter-spacing:-.02em;color:var(--g-900)}
+h1{font-size:var(--fs-3xl);line-height:1.12;font-weight:600;letter-spacing:-.02em;color:var(--g-900)}
 /* CLEAN V3: o nome da ÁREA é a âncora da tela — a primeira coisa que responde
    "sobre quem estou lendo". Em 20px ele se confundia com os títulos de bloco
    (14px, 600) e a hierarquia da página tinha um degrau só. 26px com tracking
    negativo é o porte de título de página do sistema. */
-h2{font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.2;color:var(--g-900)}
+h2{font-size:var(--fs-3xl);font-weight:600;letter-spacing:-.02em;line-height:1.2;color:var(--g-900)}
 /* Título de SEÇÃO. Não existia: o app só tinha h2, porque toda subdivisão vinha
    embrulhada num cartão e o título era o `.tbl-hd .t`. Onde a seção dispensa
    moldura, ela ainda precisa de nome. Mesmo tamanho e peso do título de bloco,
    para os dois lerem como o mesmo nível de hierarquia. */
-h3{font-size:14px;font-weight:600;color:var(--g-900)}
-.lead{font-size:15px;color:var(--g-600);max-width:62ch;text-wrap:pretty}
-.lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500)}
-.sub{font-size:12.5px;color:var(--g-500)}
-.note{font-size:11.5px;color:var(--g-500);line-height:1.6}
+h3{font-size:var(--fs-lg);font-weight:600;color:var(--g-900)}
+.lead{font-size:var(--fs-xl);color:var(--g-600);max-width:62ch;text-wrap:pretty}
+.lbl{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500)}
+.sub{font-size:var(--fs-md);color:var(--g-500)}
+.note{font-size:var(--fs-sm);color:var(--g-500);line-height:1.6}
 .note-t{border-top:1px solid var(--line-soft);padding-top:12px}
-.micro{font-size:11px;color:var(--g-400)}
+.micro{font-size:var(--fs-xs);color:var(--g-400)}
 /* CLEAN V3: número é MONO, não só tabular. A tabela e os KPIs são comparação
    de dígitos, e largura fixa é o que faz a coluna alinhar sozinha. */
-.num{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:400}
+.num{font-variant-numeric:tabular-nums;font-weight:400}
 .rt{text-align:right}
 .ink{color:var(--g-900)}
 .mute{color:var(--g-400)}
-.big{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--g-900);font-variant-numeric:tabular-nums}
-.huge{font-size:40px;font-weight:600;letter-spacing:-.03em;line-height:1;color:var(--g-900);font-variant-numeric:tabular-nums}
-.rule{font-size:12.5px;color:var(--g-500);max-width:96ch;text-wrap:pretty;border-left:1px solid var(--g-200);padding-left:14px}
+.big{font-size:var(--fs-3xl);font-weight:600;letter-spacing:-.02em;color:var(--g-900);font-variant-numeric:tabular-nums}
+.huge{font-size:var(--fs-3xl);font-weight:600;letter-spacing:-.03em;line-height:1;color:var(--g-900);font-variant-numeric:tabular-nums}
+.rule{font-size:var(--fs-md);color:var(--g-500);max-width:96ch;text-wrap:pretty;border-left:1px solid var(--g-200);padding-left:14px}
 
 /* ---------- seção ---------- */
 .sec{display:flex;flex-direction:column;gap:20px}
 .sec-hd{display:flex;align-items:baseline;gap:16px;border-bottom:1px solid var(--line);padding-bottom:10px}
-.sec-n{font-size:11px;font-weight:600;color:var(--g-400);font-variant-numeric:tabular-nums}
+.sec-n{font-size:var(--fs-xs);font-weight:500;color:var(--g-400);font-variant-numeric:tabular-nums}
 .site-hd{display:flex;justify-content:space-between;align-items:flex-end;gap:48px;padding-bottom:24px;border-bottom:1px solid var(--g-300)}
-.stamp{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--warn-line);background:var(--warn-soft);color:var(--warn);border-radius:var(--r-sm);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.stamp{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--warn-line);background:var(--warn-soft);color:var(--warn);border-radius:var(--r-sm);font-size:var(--fs-xs);font-weight:500;letter-spacing:.04em;text-transform:uppercase}
 .dot-6{width:6px;height:6px;border-radius:50%;background:var(--warn-mark)}
-.brandline{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--g-500);font-weight:600}
-.meta-r{display:flex;flex-direction:column;gap:6px;align-items:flex-end;font-size:11.5px;color:var(--g-500);white-space:nowrap;font-variant-numeric:tabular-nums}
+.brandline{font-size:var(--fs-xs);letter-spacing:.14em;text-transform:uppercase;color:var(--g-500);font-weight:500}
+.meta-r{display:flex;flex-direction:column;gap:6px;align-items:flex-end;font-size:var(--fs-sm);color:var(--g-500);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* ---------- superfícies ---------- */
-.card{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);padding:20px 22px;display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card);padding:20px 22px;display:flex;flex-direction:column;gap:16px}
 .card-flat{padding:0;gap:0;overflow:hidden}
 .card-sm{padding:16px 18px;gap:6px}
-.card-ghost{background:#fff;border:1px dashed var(--g-300);border-radius:var(--r-md);padding:22px 24px;display:flex;flex-direction:column;gap:8px}
+.card-ghost{background:var(--surface);border:1px dashed var(--g-300);border-radius:var(--r-md);padding:22px 24px;display:flex;flex-direction:column;gap:8px}
 .card-warn{border-left:3px solid var(--warn-mark)}
 .recess{background:var(--g-25);border:1px solid var(--line-soft);border-radius:var(--r-md)}
 .elev{box-shadow:var(--sh-1)}
-.card-ft{padding:12px 16px;border-top:1px solid var(--line-soft);background:var(--g-25);font-size:11px;color:var(--g-500);line-height:1.6;font-variant-numeric:tabular-nums}
-.v1{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500);border:1px solid var(--g-200);background:var(--g-50);border-radius:var(--r-sm);padding:2px 6px;white-space:nowrap}
+.card-ft{padding:12px 16px;border-top:1px solid var(--line-soft);background:var(--g-25);font-size:var(--fs-xs);color:var(--g-500);line-height:1.6;font-variant-numeric:tabular-nums}
+.v1{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500);border:1px solid var(--g-200);background:var(--g-50);border-radius:var(--r-sm);padding:2px 6px;white-space:nowrap}
 
 /* ---------- marca ---------- */
 .mark{display:block;fill:var(--g-900)}
@@ -302,42 +326,42 @@ h3{font-size:14px;font-weight:600;color:var(--g-900)}
 .appl-dark{background:var(--g-900)}
 .appl-bad{background:var(--acc)}
 .appl-bad svg{opacity:.4}
-.appl-bad span{position:absolute;bottom:5px;right:7px;font-size:9.5px;color:rgba(255,255,255,.75)}
+.appl-bad span{position:absolute;bottom:5px;right:7px;font-size:var(--fs-xs);color:rgba(255,255,255,.75)}
 
 /* ---------- paleta ---------- */
 .ramp{display:grid;grid-template-columns:repeat(12,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
 .ramp span{height:76px}
-.ramp-lbl{display:grid;grid-template-columns:repeat(12,1fr);gap:1px;font-size:10.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
-.swatch{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
+.ramp-lbl{display:grid;grid-template-columns:repeat(12,1fr);gap:1px;font-size:var(--fs-xs);color:var(--g-500);font-variant-numeric:tabular-nums}
+.swatch{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden}
 .swatch>.chip{height:64px}
 .swatch>.body{padding:12px 14px;display:flex;flex-direction:column;gap:3px}
-.swatch .t{font-size:13px;font-weight:600}
-.swatch .d{font-size:11.5px;color:var(--g-500);line-height:1.5}
-.swatch .k{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums;margin-top:2px}
+.swatch .t{font-size:var(--fs-md);font-weight:500}
+.swatch .d{font-size:var(--fs-sm);color:var(--g-500);line-height:1.5}
+.swatch .k{font-size:var(--fs-xs);color:var(--g-400);font-variant-numeric:tabular-nums;margin-top:2px}
 
 /* ---------- escala tipo / espaço ---------- */
 .type-row{display:flex;align-items:baseline;gap:20px}
-.type-key{width:104px;flex:none;font-size:10.5px;color:var(--g-400);letter-spacing:.06em;text-transform:uppercase}
+.type-key{width:104px;flex:none;font-size:var(--fs-xs);color:var(--g-400);letter-spacing:.06em;text-transform:uppercase}
 .sp-row{display:flex;align-items:center;gap:12px}
-.sp-key{width:52px;font-size:11.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.sp-key{width:52px;font-size:var(--fs-sm);color:var(--g-500);font-variant-numeric:tabular-nums}
 .sp-bar{height:10px;background:var(--acc)}
 .sp-bar.soft{background:var(--acc-line)}
 .gridview{display:grid;grid-template-columns:repeat(12,1fr);gap:8px;height:96px}
 .gridview span{background:var(--g-100);border-top:2px solid var(--g-200)}
-.surf{flex:1;height:64px;display:flex;align-items:flex-end;padding:8px;font-size:10.5px;color:var(--g-500);background:#fff;border:1px solid var(--line);border-radius:var(--r-md)}
+.surf{flex:1;height:64px;display:flex;align-items:flex-end;padding:8px;font-size:var(--fs-xs);color:var(--g-500);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md)}
 
 /* ---------- banner ---------- */
 .banner{display:flex;align-items:flex-start;gap:14px;background:var(--warn-soft);border:1px solid var(--warn-line);border-left:3px solid var(--warn-mark);border-radius:var(--r-md);padding:14px 18px}
 .banner .dot{width:7px;height:7px;border-radius:50%;background:var(--warn-mark);margin-top:6px;flex:none}
-.banner .t{font-size:13px;font-weight:600;color:var(--warn)}
-.banner .d{font-size:12.5px;color:var(--g-600);max-width:110ch}
-.banner a{margin-left:auto;font-size:12.5px;font-weight:500;color:var(--warn);white-space:nowrap;align-self:center}
+.banner .t{font-size:var(--fs-md);font-weight:500;color:var(--warn)}
+.banner .d{font-size:var(--fs-md);color:var(--g-600);max-width:110ch}
+.banner a{margin-left:auto;font-size:var(--fs-md);font-weight:500;color:var(--warn);white-space:nowrap;align-self:center}
 .banner-err{background:var(--crit-soft);border-color:var(--crit-line);border-left-color:var(--crit)}
 .banner-err .dot{background:var(--crit)}
 .banner-err .t{color:var(--crit)}
 
 /* ---------- etiquetas ---------- */
-.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;border-radius:var(--r-sm);padding:2px 7px;white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-xs);border-radius:var(--r-sm);padding:2px 7px;white-space:nowrap}
 .tag-attr{color:var(--g-600);background:var(--g-100)}                                   /* atributo neutro */
 .tag-read{color:var(--g-800);background:var(--read-above-soft);border:1px solid var(--warn-line);font-weight:500;font-variant-numeric:tabular-nums} /* leitura de concentração */
 .tag-read .mk{width:6px;height:6px;border-radius:50%;background:var(--read-above)}
@@ -345,20 +369,30 @@ h3{font-size:14px;font-weight:600;color:var(--g-900)}
 .tag-ctx .mk{width:6px;height:6px;border-radius:50%;background:var(--acc)}
 .tag-caveat{color:var(--caveat-ink);background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);font-weight:500}
 .tag-off{color:var(--g-500);background:var(--g-50);border:1px solid var(--line-soft)}
-.pill{font-size:11.5px;padding:4px 9px;border:1px solid var(--g-200);color:var(--g-600);border-radius:999px}
-.pill-on{border-color:var(--g-800);background:var(--g-800);color:#fff}
+/* FATOR DE CONTEXTO: contorno TRACEJADO, que neste contrato significa ressalva
+   de método e não medida (`--caveat-border-style`, os quadrados sem trimestre
+   medido, a caixa de ressalva) — que é exatamente o que um fator de contexto é:
+   ele não mede nada, diz com que lente ler o que foi medido.
+   Fundo de superfície porque ele vive na faixa de apoio, e mais alto que os
+   demais chips porque carrega uma frase com dois números, não um atributo. */
+.tag-fator{height:26px;padding:0 10px;gap:7px;font-size:var(--fs-sm);
+  color:var(--g-600);background:var(--surface);
+  border:1px var(--caveat-border-style) var(--line)}
+.tag-fator .mk{width:5px;height:5px;flex:none;border-radius:50%;background:var(--exc)}
+.pill{font-size:var(--fs-sm);padding:4px 9px;border:1px solid var(--g-200);color:var(--g-600);border-radius:999px}
+.pill-on{border-color:var(--g-800);background:var(--g-800);color:var(--ink-inv)}
 .pill-ok{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc-strong)}
 .pill:hover{border-color:var(--g-400);cursor:pointer}
 .pill-on:hover{border-color:var(--g-800)}
-.chipbtn{display:inline-flex;align-items:center;min-height:28px;padding:5px 11px;border:1px solid var(--g-200);border-radius:var(--r-sm);font-size:12px;color:var(--g-700);white-space:nowrap;background:#fff}
+.chipbtn{display:inline-flex;align-items:center;min-height:28px;padding:5px 11px;border:1px solid var(--g-200);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--g-700);white-space:nowrap;background:var(--surface)}
 .chipbtn:hover{border-color:var(--g-400);cursor:pointer}
 .chipbtn-acc{border-color:var(--acc);color:var(--acc-strong);background:var(--acc-soft)}
 .provtag{border:1px solid var(--line);border-radius:var(--r-sm);padding:3px 8px}
 .provtag-warn{border-color:var(--warn-line);background:var(--warn-soft);color:var(--warn)}
-.arrow{color:var(--g-300);font-size:11px}
+.arrow{color:var(--g-300);font-size:var(--fs-xs)}
 
 /* ---------- controles ---------- */
-.field{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--g-200);border-radius:var(--r-sm);padding:8px 10px;font-size:13px;background:var(--g-25)}
+.field{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--g-200);border-radius:var(--r-sm);padding:8px 10px;font-size:var(--fs-md);background:var(--g-25)}
 .field:hover{border-color:var(--g-300);cursor:pointer}
 .field-on{border-color:var(--acc);background:var(--acc-soft);color:var(--acc-strong);font-weight:500}
 .field-on:hover{border-color:var(--acc)}
@@ -368,28 +402,28 @@ h3{font-size:14px;font-weight:600;color:var(--g-900)}
    shadcn). O ativo em preenchimento escuro fazia de um controle de leitura o
    elemento mais pesado da tela. */
 .seg{display:flex;gap:2px;padding:2px;border:0;background:var(--g-100);border-radius:var(--r-sm)}
-.seg>span,.seg>label{flex:1;text-align:center;padding:5px 0;font-size:12px;color:var(--g-600);border:0;border-radius:calc(var(--r-sm) - 2px);cursor:pointer}
+.seg>span,.seg>label{flex:1;text-align:center;padding:5px 0;font-size:var(--fs-sm);color:var(--g-600);border:0;border-radius:calc(var(--r-sm) - 2px);cursor:pointer}
 .seg>span:hover,.seg>label:hover{color:var(--g-900)}
-.seg>span.on,.seg>label.on{font-weight:500;background:#fff;color:var(--g-900);box-shadow:var(--sh-1)}
-.seg>span.on:hover,.seg>label.on:hover{background:#fff}
-.ctl-hd{display:flex;justify-content:space-between;font-size:11.5px;color:var(--g-500)}
+.seg>span.on,.seg>label.on{font-weight:500;background:var(--surface);color:var(--g-900);box-shadow:var(--sh-1)}
+.seg>span.on:hover,.seg>label.on:hover{background:var(--surface)}
+.ctl-hd{display:flex;justify-content:space-between;font-size:var(--fs-sm);color:var(--g-500)}
 .ctl-hd b{font-weight:400;color:var(--g-800);font-variant-numeric:tabular-nums}
-.stepper{display:flex;align-items:center;justify-content:space-between;height:32px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;padding:0 5px 0 12px;font-family:var(--font-num);font-size:12px}
+.stepper{display:flex;align-items:center;justify-content:space-between;height:32px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);padding:0 5px 0 12px;font-size:var(--fs-sm)}
 .stepper .btns{display:flex;gap:4px}
-.stepper .btns span,.stepper .btns label{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid var(--g-200);border-radius:var(--r-sm);font-size:12px;color:var(--g-600);cursor:pointer}
+.stepper .btns span,.stepper .btns label{width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid var(--g-200);border-radius:var(--r-sm);font-size:var(--fs-sm);color:var(--g-600);cursor:pointer}
 .stepper .btns span:hover,.stepper .btns label:hover{border-color:var(--g-400)}
 .stepper .btns label:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .slider{height:3px;background:var(--g-150);border-radius:2px;position:relative}
 .slider .fill{position:absolute;left:0;top:0;bottom:0;background:var(--acc);border-radius:2px}
-.slider .knob{position:absolute;top:-4px;width:11px;height:11px;border-radius:50%;background:#fff;border:1px solid var(--acc);margin-left:-5px}
+.slider .knob{position:absolute;top:-4px;width:11px;height:11px;border-radius:50%;background:var(--surface);border:1px solid var(--acc);margin-left:-5px}
 .disabled{opacity:.55;pointer-events:none}
-.lock{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--g-400)}
+.lock{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--g-400)}
 
 /* abas */
 .tabs{display:flex;gap:0;border-bottom:1px solid var(--line)}
-.tabs>span{padding:9px 14px;font-size:13px;color:var(--g-500);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs>span{padding:9px 14px;font-size:var(--fs-md);color:var(--g-500);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tabs>span:hover{color:var(--g-800);cursor:pointer}
-.tabs>span.on{color:var(--g-900);font-weight:600;border-bottom-color:var(--g-900)}
+.tabs>span.on{color:var(--g-900);font-weight:500;border-bottom-color:var(--g-900)}
 .tabs>span.off{color:var(--g-300);cursor:not-allowed}
 .tabs>span.off:hover{color:var(--g-300)}
 .tabs .cnt{font-variant-numeric:tabular-nums;color:var(--g-400);font-weight:400;margin-left:6px}
@@ -403,7 +437,7 @@ h3{font-size:14px;font-weight:600;color:var(--g-900)}
    inteira", e a ausência de destaque é a leitura correta dele. */
 .compbar{position:relative;display:flex;height:26px;border:1px solid var(--line);border-radius:var(--r-sm)}
 .compbar input{position:absolute;opacity:0;pointer-events:none}
-.compbar label{position:relative;display:flex;align-items:center;justify-content:center;font-size:11px;font-variant-numeric:tabular-nums;color:#fff;cursor:pointer;border-right:1px solid #fff;transition:opacity .12s ease}
+.compbar label{position:relative;display:flex;align-items:center;justify-content:center;font-size:var(--fs-xs);font-variant-numeric:tabular-nums;color:var(--ink-inv);cursor:pointer;border-right:1px solid var(--surface);transition:opacity .12s ease}
 .compbar label:first-of-type{border-top-left-radius:calc(var(--r-sm) - 1px);border-bottom-left-radius:calc(var(--r-sm) - 1px)}
 .compbar label:last-child{border-right:0;border-top-right-radius:calc(var(--r-sm) - 1px);border-bottom-right-radius:calc(var(--r-sm) - 1px)}
 .cb-a{background:var(--acc)}
@@ -440,7 +474,7 @@ h3{font-size:14px;font-weight:600;color:var(--g-900)}
 .compbar-ro label{cursor:default}
 .compbar-ro label:hover{opacity:inherit}
 
-.complegend{display:flex;flex-wrap:wrap;gap:18px;font-size:11.5px;color:var(--g-600)}
+.complegend{display:flex;flex-wrap:wrap;gap:18px;font-size:var(--fs-sm);color:var(--g-600)}
 .complegend i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px;vertical-align:-1px}
 
 /* faixa de estatísticas sem moldura */
@@ -452,24 +486,43 @@ h3{font-size:14px;font-weight:600;color:var(--g-900)}
    componente isolado); REPLICAR NO DESIGN como componente do guia.
    Quatro colunas mesmo com 3 KPIs: é a largura que o Design desenhou, e
    esticar três para a linha inteira mudaria o ritmo da página. */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:24px}
-.kpi{display:flex;flex-direction:column;gap:6px}
-.kpi .k{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400)}
-.kpi .v{font-family:var(--font-num);font-size:28px;font-weight:500;letter-spacing:-.01em;line-height:1;color:var(--g-900)}
-.kpi .h{font-size:11px;color:var(--g-400)}
+/* SET/2026 · o KPI virou CARTAO. Os dois artboards novos ("Medyx Dossie
+   Cooperado" e "Medyx Area de Atuacao") o desenham com moldura, e desenham a
+   MESMA coisa com medidas de um fio de diferenca (212 vs 232 de coluna, 20/22
+   vs 22/24 de respiro, 28 vs 30 de numero). Isso e' o mesmo componente
+   desenhado duas vezes, nao duas intencoes: pela DIRETRIZES §5 vale um so, e
+   os valores adotados sao os da Area, que e' a tela com mais KPIs na linha.
+   O rotulo perdeu o VERSALETE: caixa alta e' enfase, e num cartao a moldura ja
+   separa o rotulo do resto. Sobrava so o custo de leitura. */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(212px,1fr));gap:16px}
+.kpi{display:flex;flex-direction:column;gap:6px;padding:20px 22px;
+     background:var(--surface);border:1px solid var(--line);
+     border-radius:var(--r-card);box-shadow:var(--sh-card)}
+.kpi .k{font-size:var(--fs-md);color:var(--g-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* NUMERO EM GEIST, NAO EM MONO (set/2026). O tokens.css dizia "Geist Mono em
+   TODO numero"; o CLAUDE.md do Design, posterior, corrige: mono e' so' para
+   IDENTIFICADOR (codigo TUSS, cooperado_NN), e numero de leitura vai em Geist
+   com tabular-nums. O alinhamento de coluna, que era a razao do mono, o
+   tabular-nums entrega igual, sem o peso datilografico num numero grande. */
+.kpi .v{font-size:var(--fs-3xl);font-weight:600;letter-spacing:-.03em;line-height:1.1;
+        font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--g-900)}
+.kpi .h{font-size:var(--fs-md);color:var(--g-500);align-self:flex-start}
 /* o apoio que carrega explicação ganha o pontilhado de "tem hover", como o
    "em quarentena" da página do Design */
-.kpi .h.tem-hover{border-bottom:1px dotted var(--g-300);cursor:help;align-self:flex-start}
+/* o artboard troca a borda inferior por text-decoration pontilhada: sublinha a
+   PALAVRA, nao a caixa, entao nao cria uma regua sob um apoio de duas linhas */
+.kpi .h.tem-hover{text-decoration:underline;text-decoration-style:dotted;
+                  text-decoration-color:var(--line);text-underline-offset:3px;cursor:help}
 
 .stats{display:flex;align-items:stretch}
 /* Sem divisores verticais (Clean v3): quatro colunas com respiro já se leem
    como quatro; o traço entre elas era mais uma régua para nada. */
 .stats{gap:32px}
 .stats>div{display:flex;flex-direction:column;gap:4px;border-left:0;padding:0}
-.stats .k{font-size:11.5px;color:var(--g-500)}
-.stats .v{font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--g-900);font-variant-numeric:tabular-nums;white-space:nowrap}
-.stats .v.rng{font-size:17px}
-.stats .h{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums}
+.stats .k{font-size:var(--fs-sm);color:var(--g-500)}
+.stats .v{font-size:var(--fs-2xl);font-weight:600;letter-spacing:-.02em;color:var(--g-900);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stats .v.rng{font-size:var(--fs-xl)}
+.stats .h{font-size:var(--fs-xs);color:var(--g-400);font-variant-numeric:tabular-nums}
 
 /* mini-série de consistência */
 /* SÉRIE DE TRIMESTRES — um quadrado por trimestre, todos do mesmo tamanho.
@@ -479,16 +532,22 @@ h3{font-size:14px;font-weight:600;color:var(--g-900)}
    não foi avaliável (ausência de medida, que não é o mesmo que "não passou").
    CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
 .spark{display:flex;align-items:center;gap:3px;height:26px}
-.spark i{width:10px;height:10px;display:block;border-radius:2px;background:var(--g-150);border:1px solid var(--g-200)}
-.spark i.on{background:var(--g-700);border-color:var(--g-700)}
+/* 9px sem contorno, como no Claude Design: o quadrado vazio é um sulco no
+   fundo, não uma caixinha desenhada. O preenchido é a tinta institucional
+   (--acc), e não mais um cinza escuro: aqui ela não concorre com o dado, ela É
+   o dado ("passou o critério neste trimestre").
+   `na` continua tracejado, e continua sendo NOSSO: o design não tem esse
+   estado, e ausência de medida não pode ser pintada como "não passou". */
+.spark i{width:9px;height:9px;display:block;border-radius:2px;background:var(--line-soft);border:1px solid transparent}
+.spark i.on{background:var(--exc);border-color:var(--exc)}
 .spark i.na{background:transparent;border-style:dashed;border-color:var(--g-300)}
 .sparkwrap{display:flex;align-items:center;gap:10px}
 /* o "3 de 4 trimestres" ao lado das barras não quebra linha: a coluna é estreita
    e a frase é curta o bastante para caber inteira */
 .sparkwrap .cell-sub{white-space:nowrap}
-.sparkq{display:flex;gap:4px;font-size:9.5px;color:var(--g-400);font-variant-numeric:tabular-nums}
+.sparkq{display:flex;gap:4px;font-size:var(--fs-xs);color:var(--g-400);font-variant-numeric:tabular-nums}
 .sparkq span{width:14px;text-align:center}
-.dir{font-size:12px;font-variant-numeric:tabular-nums;color:var(--g-600);white-space:nowrap}
+.dir{font-size:var(--fs-sm);font-variant-numeric:tabular-nums;color:var(--g-600);white-space:nowrap}
 .dir-up{color:var(--crit)}
 .dir-flat{color:var(--g-500)}
 .dir-down{color:var(--acc)}
@@ -496,6 +555,9 @@ h3{font-size:14px;font-weight:600;color:var(--g-900)}
 /* ---------- tabela ---------- */
 table{border-collapse:collapse;width:100%}
 th,td{text-align:left;padding:var(--row-pad);border-bottom:1px solid var(--line-soft);vertical-align:middle}
+/* 12,5px e numeral tabular na célula: a coluna de R$ e a de contagem só se leem
+   de cima a baixo se os dígitos tiverem a mesma largura. */
+td{font-size:var(--fs-md);font-variant-numeric:tabular-nums}
 /* CABEÇALHO DE TABELA — sincronizado com a página "Área de Atuação" do Claude
    Design em 2026-08-20. Era 10,5px em CAIXA ALTA com `letter-spacing:.08em` e
    peso 600; o Design nunca teve isso: 12px, capitalização normal, peso 500.
@@ -505,7 +567,7 @@ th,td{text-align:left;padding:var(--row-pad);border-bottom:1px solid var(--line-
    silhueta da palavra — em "VARIAÇÃO EXCEDENTE" o olho soletra. E o peso 600
    com fundo próprio dava ao cabeçalho o contraste de um dado, competindo com
    os números logo abaixo, que são o conteúdo. */
-th{font-size:12px;font-weight:500;color:var(--g-500);background:var(--g-25);border-bottom:1px solid var(--line);padding:8px 12px;white-space:nowrap}
+th{font-size:var(--fs-sm);font-weight:500;color:var(--g-500);background:var(--surface-2);border-bottom:1px solid var(--line);padding:0 12px;height:var(--row-h);white-space:nowrap}
 tbody tr:hover td{background:var(--row-hover)}
 /* A linha selecionada muda só o FUNDO. A canaleta da esquerda é território
    exclusivo do indicador de posição (`tr.acima`): dois traços de 2 e 3px lado a
@@ -532,9 +594,9 @@ th.sub-h{border-top:0}
 /* CLEAN V3: cartão branco sobre canvas suave, borda leve e sombra baixa —
    o "flutuante" do shadcn. A borda forte virou borda suave: com a sombra e o
    contraste de fundo, o traço grosso só somava ruído. */
-.tbl{background:#fff;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-1)}
-.tbl>:first-child{border-top-left-radius:calc(var(--r-md) - 1px);border-top-right-radius:calc(var(--r-md) - 1px)}
-.tbl>:last-child{border-bottom-left-radius:calc(var(--r-md) - 1px);border-bottom-right-radius:calc(var(--r-md) - 1px)}
+.tbl{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-card)}
+.tbl>:first-child{border-top-left-radius:calc(var(--r-card) - 1px);border-top-right-radius:calc(var(--r-card) - 1px)}
+.tbl>:last-child{border-bottom-left-radius:calc(var(--r-card) - 1px);border-bottom-right-radius:calc(var(--r-card) - 1px)}
 .tbl-scroll{overflow-x:auto}
 
 /* ---- altura da área rolável ---------------------------------------------
@@ -550,23 +612,26 @@ th.sub-h{border-top:0}
    conteúdo, e com quatro cartões na página eram quatro linhas horizontais que
    não diziam nada. */
 .tbl-hd{display:flex;justify-content:space-between;align-items:baseline;padding:14px 16px 10px;border-bottom:0}
-.tbl-hd .t{font-size:14px;font-weight:600}
+.tbl-hd .t{font-size:var(--fs-lg);font-weight:600}
 /* faixa interna: composição, legenda ou filtro que pertence À TABELA e por isso
    entra na moldura, entre o cabeçalho e o <thead>. É o respiro que faltava para
    trazer a barra de composição para dentro. */
-.tbl-band{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-bottom:0;background:#fff}
+.tbl-band{display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-bottom:0;background:var(--surface)}
 .tbl-band .compbar{margin-bottom:6px}
-.tbl-band .complegend{gap:14px;font-size:11px}
-.tbl-ft{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:1px solid var(--line-soft);background:transparent;font-size:11.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.tbl-band .complegend{gap:14px;font-size:var(--fs-xs)}
+/* O rodapé é FAIXA, não continuação do conteúdo: cinza de apoio, igual ao
+   cabeçalho de colunas. Era transparente, e a ressalva de método flutuava sobre
+   o branco como se fosse a última linha do dado. */
+.tbl-ft{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:1px solid var(--line-soft);background:var(--surface-2);font-size:var(--fs-sm);color:var(--g-500);font-variant-numeric:tabular-nums}
 .cell-name{white-space:nowrap;font-weight:500}
-.cell-sub{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums;font-weight:400}
+.cell-sub{font-size:var(--fs-xs);color:var(--g-400);font-variant-numeric:tabular-nums;font-weight:400}
 /* Sub-linha da célula de identidade quando ela carrega ETIQUETAS.
    `.cell-name` é nowrap para o nome não quebrar, e a sub-linha herdava isso: as
    etiquetas não quebravam, saíam da coluna e passavam por cima das colunas de
    valor. Aqui ela volta a quebrar e a OCUPAR espaço, empurrando a altura da
    linha em vez de flutuar sobre o resto. */
 .cell-name .cell-sub{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;white-space:normal}
-.linklike{white-space:nowrap;font-size:12.5px;font-weight:500}
+.linklike{white-space:nowrap;font-size:var(--fs-md);font-weight:500}
 
 /* ---------- cabeçalho ordenável --------------------------------------------
    Três estados por coluna: sem ordenação, decrescente, crescente. O indicador
@@ -580,14 +645,14 @@ th.sub-h{border-top:0}
    Nada aqui pode escapar da caixa: o th é sticky dentro de .tbl-scroll, e é por
    isso que a bolha do .help é proibida aqui. Seta é glifo no fluxo, não popover. */
 th.ord{cursor:pointer;user-select:none}
-th.ord:hover{color:var(--g-800);background:var(--g-50)}
+th.ord:hover{color:var(--g-800);background:var(--hover)}
 th.ord:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 th.ord.on{color:var(--g-900)}
 /* O espaço da seta é reservado em TODO cabeçalho ordenável e só fica visível na
    coluna ativa. Aparecer e sumir mudava a largura intrínseca do `th` e, com
    layout automático, a tabela inteira se redistribuía a cada clique. Largura
    fixa também iguala ▲ e ▼, que não têm o mesmo avanço em toda fonte. */
-th.ord .dir{display:inline-block;width:9px;margin-left:5px;text-align:center;font-size:9px;color:var(--g-900);vertical-align:1px;opacity:0}
+th.ord .dir{display:inline-block;width:9px;margin-left:5px;text-align:center;font-size:var(--fs-xs);color:var(--g-900);vertical-align:1px;opacity:0}
 th.ord.on .dir{opacity:1}
 
 /* Linha inteira clicável foi TENTADA e removida (jul/2026): impede seleção de
@@ -681,13 +746,16 @@ th.ord.on .dir{opacity:1}
    max-width 1280, padding 48). Aplicado a um `th`, transformava a célula em
    contêiner flex e desmontava a linha do cabeçalho. */
 th.quebra{white-space:normal}
-/* Rótulo de coluna encosta EMBAIXO. Com `middle`, um cabeçalho que quebra em
-   duas linhas centraliza como bloco e sua primeira linha sobe acima dos
-   vizinhos de uma linha só — a tabela parece desalinhada sem estar.
-   CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
-th{vertical-align:bottom}
+/* Rótulo de coluna CENTRALIZADO na faixa (2026-09-05, alinhando ao Claude
+   Design, que centra o rótulo dentro dos 38px do cabeçalho).
+   Revoga a correção de 2026-08-20, que encostava o rótulo embaixo para que um
+   cabeçalho de duas linhas não subisse acima dos vizinhos de uma linha só. O
+   argumento continua verdadeiro e deixou de importar: com a faixa de altura
+   fixa, é ela que dá o alinhamento, e `bottom` passou a colar o rótulo na régua
+   de baixo — que é justamente onde o cabeçalho não deve tocar. */
+th{vertical-align:middle}
 .ruler-cell .ruler{flex:1}
-.pctl{font-size:11.5px;font-variant-numeric:tabular-nums;width:32px;text-align:right;color:var(--g-500)}
+.pctl{font-size:var(--fs-sm);font-variant-numeric:tabular-nums;width:32px;text-align:right;color:var(--g-500)}
 .pctl-warn{color:var(--warn)}
 .pctl-crit{color:var(--crit);font-weight:500}
 
@@ -722,7 +790,7 @@ th{vertical-align:bottom}
 .plot .refline{position:absolute;top:14px;height:58px;bottom:auto;width:0;opacity:var(--ch-ref-op);z-index:1}
 .plot .refline.median{background:none;border-left:var(--ch-ref-w) dashed var(--g-900)}
 .plot .refline.criterion{border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--crit)}
-.plot .reflbl{position:absolute;top:0;transform:translateX(-50%);padding:0 4px;background:#fff;font-family:var(--font-num);font-size:var(--ch-label-fs);font-weight:400;letter-spacing:.02em;white-space:nowrap;z-index:2}
+.plot .reflbl{position:absolute;top:0;transform:translateX(-50%);padding:0 4px;background:var(--surface);font-size:var(--ch-label-fs);font-weight:400;letter-spacing:.02em;white-space:nowrap;z-index:2}
 .plot .reflbl.median{color:var(--g-900)}
 .plot .reflbl.criterion{color:var(--crit)}
 /* O ponto NEUTRO. Opacidade de .5 para .65 em 2026-08-19: em .5 o cinza saía
@@ -770,7 +838,7 @@ th{vertical-align:bottom}
 /* a barra da legenda mostra a rampa inteira, com os valores nas pontas */
 .legend .rampa{display:inline-flex;align-items:center;gap:6px}
 .legend .rampa-barra{width:76px;height:8px;border-radius:999px;background:linear-gradient(90deg,var(--g-400),var(--read-above),var(--crit))}
-.legend .rampa b{font-family:var(--font-num);font-size:10.5px;font-weight:400;color:var(--g-400)}
+.legend .rampa b{font-size:var(--fs-xs);font-weight:400;color:var(--g-400)}
 /* separador entre as marcas: sem ele os três R$ se leem como um número só */
 .legend .rampa b + b::before{content:'·';margin-right:6px;color:var(--g-300)}
 .axisline{position:absolute;left:0;right:0;bottom:16px;height:var(--ch-axis-w);background:var(--line)}
@@ -778,8 +846,8 @@ th{vertical-align:bottom}
    de excesso da distribuição) a marca da ponta direita quebrava em duas linhas
    ('R$' em cima, '414,85' embaixo) e passava a ler como duas marcas. A folga
    para o transbordo é a do `--ch-pad-x` mais o respiro da `.tbl-band`. */
-.axislbl{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap;font-family:var(--font-num);font-size:var(--ch-axis-fs);color:var(--g-400)}
-.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--g-500)}
+.axislbl{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap;font-size:var(--ch-axis-fs);color:var(--g-400)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:var(--fs-xs);color:var(--g-500)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
 .legend i.neutral{background:var(--g-400);opacity:.5}
@@ -788,10 +856,10 @@ th{vertical-align:bottom}
 .legend i.band{width:14px;border-radius:2px;background:var(--ch-iqr-fill);border:1px solid var(--ch-iqr-line)}
 .legend i.caveat{width:14px;border-radius:2px;background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line)}
 .barrow{display:grid;grid-template-columns:1fr 56px;gap:12px;align-items:center}
-.barrow .t{font-size:12.5px}
+.barrow .t{font-size:var(--fs-md)}
 .track{height:var(--ch-bar-h);background:var(--ch-bar-track);border-radius:3px}
 .track span{display:block;height:100%;background:var(--acc);border-radius:3px}
-.barval{font-size:12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--g-700)}
+.barval{font-size:var(--fs-sm);text-align:right;font-variant-numeric:tabular-nums;color:var(--g-700)}
 
 /* ---------- estados de dado ---------- */
 @keyframes skelmove{0%{background-position:100% 0}100%{background-position:-100% 0}}
@@ -801,26 +869,31 @@ th{vertical-align:bottom}
 .skel-plot{position:relative;height:var(--ch-h-sm);border-bottom:var(--ch-axis-w) solid var(--ch-axis);margin:0 var(--ch-pad-x)}
 .skel-plot .band{position:absolute;left:26%;width:26%;top:20px;bottom:0;background:var(--g-50);border-left:1px dashed var(--g-200);border-right:1px dashed var(--g-200)}
 .skel-plot .dot{position:absolute;width:var(--ch-dot);height:var(--ch-dot);border-radius:50%;background:var(--g-150)}
-.loading-note{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--g-500)}
+.loading-note{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-sm);color:var(--g-500)}
 @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
 .loading-note i{width:6px;height:6px;border-radius:50%;background:var(--g-400);animation:pulse 1.2s ease-in-out infinite}
 .nores{display:flex;flex-direction:column;gap:4px;font-variant-numeric:tabular-nums}
-.nores .v{font-size:22px;font-weight:600;color:var(--g-300);letter-spacing:-.02em}
+.nores .v{font-size:var(--fs-2xl);font-weight:600;color:var(--g-300);letter-spacing:-.02em}
 .caveat-box{background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-md);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
-.caveat-box .t{font-size:12.5px;font-weight:600;color:var(--caveat-ink)}
-.caveat-box .d{font-size:12px;color:var(--g-600);line-height:1.55}
+.caveat-box .t{font-size:var(--fs-md);font-weight:500;color:var(--caveat-ink)}
+.caveat-box .d{font-size:var(--fs-sm);color:var(--g-600);line-height:1.55}
 
 /* ---------- mapa de cor ---------- */
 .mapswatch{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
 .mapswatch i{width:16px;height:16px;border-radius:50%;display:inline-block;flex:none}
 .mapswatch i.sq{border-radius:3px}
-.mono{font-family:'SFMono-Regular',Menlo,Consolas,monospace;font-size:11.5px;color:var(--g-700)}
+/* `.mono` marca IDENTIFICADOR (código TUSS, cooperado_NN), e por isso é o
+   único lugar da folha que ainda chama a família mono por classe. A pilha
+   'SFMono-Regular',Menlo,Consolas que morava aqui era uma terceira família,
+   fora do contrato: em máquina sem Geist Mono o app tinha duas monoespaçadas
+   diferentes na mesma tela. */
+.mono{font-family:var(--font-num);font-size:var(--fs-sm);color:var(--g-700)}
 .fmt-ex{font-variant-numeric:tabular-nums;font-weight:500;color:var(--g-900)}
 
 /* tooltip de ponto (CSS puro) */
-.plot .pt .tip{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:#fff;border-radius:var(--r-sm);padding:7px 10px;box-shadow:var(--sh-1);white-space:nowrap;z-index:3}
-.plot .pt .tip b{display:block;font-size:11.5px;font-weight:500;font-variant-numeric:tabular-nums}
-.plot .pt .tip em{display:block;font-style:normal;font-size:10.5px;color:var(--g-300)}
+.plot .pt .tip{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:var(--ink-inv);border-radius:var(--r-sm);padding:7px 10px;box-shadow:var(--sh-1);white-space:nowrap;z-index:3}
+.plot .pt .tip b{display:block;font-size:var(--fs-sm);font-weight:500;font-variant-numeric:tabular-nums}
+.plot .pt .tip em{display:block;font-style:normal;font-size:var(--fs-xs);color:var(--g-300)}
 .plot .pt:hover .tip{opacity:1}
 .compbar{position:relative}
 
@@ -846,24 +919,29 @@ th{vertical-align:bottom}
    ler sob régua trocada sem saber é o erro que a faixa existe para evitar. */
 .critbar{position:sticky;top:var(--shell-top-h);z-index:4;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;padding:12px var(--content-pad);background:var(--canvas);border-bottom:0}
 .fil{display:flex;flex-direction:column;gap:6px}
-.fil-lbl{font-size:11px;font-weight:500;color:var(--g-500)}
-.critbar .sel-trig{height:32px;min-width:220px;font-size:12px;padding:0 12px;border-radius:var(--r-sm)}
-.critbar .critact{margin-left:auto;display:flex;align-items:center;gap:8px}
+.fil-lbl{font-size:var(--fs-xs);font-weight:500;color:var(--g-500)}
+.critbar .sel-trig{height:32px;min-width:220px;font-size:var(--fs-sm);padding:0 12px;border-radius:var(--r-sm)}
+.critbar .critact{margin-left:8px;display:flex;align-items:center;gap:8px}
 /* o botão da régua carrega o resumo: rótulo em ink, valores em cinza */
-.btn-crit{height:32px;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.critbar .btn-crit{height:32px;display:flex;align-items:center;gap:8px;white-space:nowrap;
+  /* tracejado: a régua NÃO é filtro. Os três à esquerda mudam quem está em
+     cena; este declara a regra em vigor, e o contorno aberto marca a diferença
+     antes da leitura do rótulo. */
+  border-style:dashed}
 .btn-crit svg{stroke:var(--g-600);flex:none}
-.btn-crit .critset{font-weight:400;color:var(--g-400);font-family:var(--font-num);font-size:11.5px}
+.btn-crit .critset{font-weight:400;color:var(--g-400);font-family:var(--font-num);font-size:var(--fs-sm)}
 /* Junto da barra superior a faixa forma UM cabeçalho de duas linhas, não duas
    barras: a divisória interna sai e só o bloco inteiro fecha com uma linha. */
 .crithead{background:var(--canvas);border-bottom:0}
-/* A linha fica sob a MIGALHA e só sob ela: é o corte entre "onde estou" e o
-   campo de trabalho. A faixa de filtros, logo abaixo, continua sem régua —
-   duas linhas paralelas a 52px uma da outra viravam uma cerca. */
-.crithead .critbar{border-bottom:0}
+/* A linha fecha o CABEÇALHO INTEIRO, não a migalha: migalha e filtros são o
+   mesmo bloco ("onde estou, sob que recorte"), e o corte para o campo de
+   trabalho vem depois dos dois. Antes a linha ficava entre eles e os filtros
+   liam como se pertencessem ao conteúdo. (set/2026) */
+.crithead .critbar{border-bottom:1px solid var(--line)}
 .critset{display:flex;flex-wrap:nowrap;align-items:flex-start;gap:0 26px;min-width:0}
 .critchip{display:flex;flex-direction:column;gap:2px;white-space:nowrap}
-.critname{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400)}
-.critval{font-size:12.5px;color:var(--g-900);font-variant-numeric:tabular-nums}
+.critname{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400)}
+.critval{font-size:var(--fs-md);color:var(--g-900);font-variant-numeric:tabular-nums}
 .critact{display:flex;align-items:center;gap:12px;margin-left:auto;flex:none}
 
 /* Fora do padrão institucional: o valor recebe o mesmo tratamento de
@@ -873,14 +951,14 @@ th{vertical-align:bottom}
 /* sem permissão de alteração: a faixa permanece idêntica, some a ação e entra
    quem responde pela régua. Nunca botão desabilitado — desabilitado sugere que
    basta insistir. */
-.crit-owner{font-size:11.5px;color:var(--g-500);white-space:nowrap}
+.crit-owner{font-size:var(--fs-sm);color:var(--g-500);white-space:nowrap}
 /* contagem e retorno só existem depois de aplicar */
 .critact .crit-mod,.critact .crit-rst{display:none}
 .critact.has-mod .crit-mod,.critact.has-mod .crit-rst{display:inline}
 
 /* diálogo de critérios — reaproveita .modal/.dlg-* do sistema */
 .modal-crit{width:560px}
-.dlg-grp{grid-column:1/-1;padding:4px 0 0;font-size:11px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--g-400);background:transparent;border-bottom:0}
+.dlg-grp{grid-column:1/-1;padding:4px 0 0;font-size:var(--fs-xs);font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--g-400);background:transparent;border-bottom:0}
 /* Um único mecanismo de segmentado no diálogo: o radio mora dentro da própria
    barra e o rótulo vizinho responde por `input:checked`. Todas as linhas passam
    a ter marcação idêntica. */
@@ -890,8 +968,8 @@ th{vertical-align:bottom}
 /* O escolhido é a pastilha BRANCA sobre o trilho cinza (Clean v3). Era
    preenchimento quase preto: num diálogo de seis controles, seis retângulos
    escuros roubavam a leitura do que estava sendo decidido. */
-.seg input:checked+.seg-o{background:#fff;color:var(--g-900);font-weight:500;box-shadow:var(--sh-1)}
-.seg input:checked+.seg-o:hover{background:#fff}
+.seg input:checked+.seg-o{background:var(--surface);color:var(--g-900);font-weight:500;box-shadow:var(--sh-1)}
+.seg input:checked+.seg-o:hover{background:var(--surface)}
 /* opção indisponível: existe para mostrar o domínio do parâmetro, não para ser
    escolhida. Não é <label>, então precisa da regra por classe. */
 .seg .seg-o.na{color:var(--g-300);background:transparent;cursor:not-allowed;font-weight:400}
@@ -953,41 +1031,42 @@ th{vertical-align:bottom}
 .shell-brand .mk{width:28px;height:28px;border-radius:var(--r-sm);background:var(--acc);display:flex;align-items:center;justify-content:center;flex:none}
 .shell-brand .mk svg{display:block}
 .shell-brand .nm{display:flex;flex-direction:column;line-height:1.25;min-width:0}
-.shell-brand .nm b{font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--g-900)}
-.shell-brand .nm span{font-size:11px;color:var(--g-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shell-brand .nm b{font-size:var(--fs-md);font-weight:500;color:var(--g-900)}
+.shell-brand .nm span{font-size:var(--fs-xs);color:var(--g-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 .nav{flex:1;padding:12px;display:flex;flex-direction:column;gap:2px}
-.nav-lbl{font-size:11px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--g-400);padding:4px 8px 8px}
-.navitem{display:flex;align-items:center;gap:8px;padding:8px;font-size:13px;color:var(--g-700);border-radius:var(--r-sm);text-decoration:none}
+.nav-lbl{font-size:var(--fs-xs);font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:var(--g-400);padding:4px 8px 8px}
+.navitem{display:flex;align-items:center;gap:8px;padding:8px;font-size:var(--fs-md);color:var(--g-700);border-radius:var(--r-sm);text-decoration:none}
 .navitem svg{flex:none;stroke:var(--g-500)}
-.navitem:hover{background:var(--g-100);color:var(--g-900);text-decoration:none;cursor:pointer}
+.navitem:hover{background:var(--hover);color:var(--g-900);text-decoration:none;cursor:pointer}
 .navitem.on{background:var(--shell-nav-active-bg);color:var(--acc-strong);font-weight:500}
 .navitem.on svg{stroke:var(--acc)}
-.navitem .cnt{margin-left:auto;font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.navitem .cnt{margin-left:auto;font-size:var(--fs-xs);color:var(--g-400)}
 .navitem.on .cnt{color:var(--acc)}
 
 /* rodapé da lateral: conta e configurações, encostados embaixo */
 .side-ft{margin-top:auto;padding:12px;border-top:1px solid var(--line-soft);display:flex;flex-direction:column;gap:2px}
 .side-ft .navitem{color:var(--g-500)}
 .side-user{width:100%;display:flex;align-items:center;gap:8px;padding:8px;border:0;border-radius:var(--r-sm);background:transparent;cursor:pointer;text-align:left;font-family:inherit}
-.side-user:hover{background:var(--g-100)}
+.side-user:hover{background:var(--hover)}
 /* AVATAR de iniciais. Era `.side-user .av`, virou classe própria (29/ago): a
    tela de conta usa o mesmo círculo maior, e duas cópias de um componente é
    como começa a divergência silenciosa. Geometria e tinta idênticas ao que
    estava aqui; `.av-lg` só troca a escala. */
-.av{width:26px;height:26px;border-radius:50%;background:var(--acc-soft);color:var(--acc-strong);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none}
-.av-lg{width:44px;height:44px;font-size:15px}
+.av{width:26px;height:26px;border-radius:50%;background:var(--acc-soft);color:var(--acc-strong);font-size:var(--fs-xs);font-weight:500;display:flex;align-items:center;justify-content:center;flex:none}
+.av-lg{width:44px;height:44px;font-size:var(--fs-xl)}
 .side-user .nm{display:flex;flex-direction:column;line-height:1.25;min-width:0}
-.side-user .nm b{font-size:12px;font-weight:500;color:var(--g-900)}
-.side-user .nm span{font-size:11px;color:var(--g-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.side-user .car{margin-left:auto;flex:none;color:var(--g-400);font-size:10px;display:inline-block;transform:rotate(0deg);transition:transform .12s ease}
+.side-user .nm b{font-size:var(--fs-sm);font-weight:500;color:var(--g-900)}
+.side-user .nm span{font-size:var(--fs-xs);color:var(--g-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-user .car{margin-left:auto;flex:none;color:var(--g-400);font-size:var(--fs-xs);display:inline-block;transform:rotate(0deg);transition:transform .12s ease}
 
-/* ---------- LATERAL ESCURA ---------------------------------------------------
-   Da página "Área de Atuação" do Claude Design (2026-08-19). A régua vertical
-   saiu com a cor: quem separa a coluna do conteúdo é o salto de fundo, e um
-   traço por cima disso é ruído.
-   Tudo aqui é REDEFINIÇÃO DE TINTA — geometria, espaçamento e estados são os
-   mesmos de antes, e é por isso que o bloco é curto. REPLICAR NO DESIGN. */
+/* ---------- TINTAS DA LATERAL -----------------------------------------------
+   Tudo aqui é REDEFINIÇÃO DE TINTA: geometria, espaçamento e estados são os
+   mesmos do resto do app, e é por isso que o bloco é curto.
+   A RÉGUA VERTICAL voltou em 2026-09-05, junto com a lateral clara: era o
+   salto do verde profundo que separava a coluna do conteúdo, e sem ele a
+   separação precisa do traço. */
+.shell-side{border-right:1px solid var(--side-line)}
 .shell-side .mark{fill:var(--side-ink)}
 .shell-brand .nm b{color:var(--side-ink)}
 .shell-brand .nm span{color:var(--side-ink-3)}
@@ -996,33 +1075,34 @@ th{vertical-align:bottom}
 .navitem svg{stroke:var(--side-icon)}
 .navitem:hover{background:var(--side-hover);color:var(--side-ink)}
 .navitem:hover svg{stroke:var(--side-ink-2)}
-/* o ativo é fundo translúcido + texto branco; o verde claro entra SÓ no ícone,
-   que é onde ele se lê sobre o escuro sem virar cor de texto */
-.navitem.on{background:var(--side-active);color:var(--side-ink)}
+/* o ativo é fundo de apoio + tinta cheia; o ícone acompanha o texto
+   (`--side-icon-on: currentColor`) em vez de ter cor própria */
+.navitem.on{background:var(--side-active);color:var(--side-ink);font-weight:500}
 .navitem.on svg{stroke:var(--side-icon-on)}
 .navitem .cnt{color:var(--side-ink-3)}
 .navitem.on .cnt{color:var(--side-ink-2)}
 .side-ft{border-top:1px solid var(--side-line)}
 .side-ft .navitem{color:var(--side-ink-3)}
 .side-user:hover{background:var(--side-hover)}
-.side-user .av{background:rgba(255,255,255,.12);color:var(--side-ink)}
+.side-user .av{background:var(--side-av-bg);color:var(--side-av-ink)}
 .side-user .nm b{color:var(--side-ink)}
 .side-user .nm span{color:var(--side-ink-3)}
 .side-user .car{color:var(--side-ink-3)}
 
-.params{margin-top:auto;background:#fff;border-top:1px solid var(--line)}
+.params{margin-top:auto;background:var(--surface);border-top:1px solid var(--line)}
 .params-hd{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line-soft)}
 .params-body{padding:14px;display:flex;flex-direction:column;gap:14px}
 /* A linha sob a MIGALHA fica (pedido de 14/ago): ela separa o rastro
    ("onde estou") do campo de trabalho, e é a única régua horizontal que ganha
    a leitura de volta em troca do traço. */
-.topbar{height:var(--shell-top-h);display:flex;align-items:center;gap:16px;padding:0 var(--content-pad);border-bottom:1px solid var(--line);background:var(--canvas);position:sticky;top:0;z-index:5}
-.crumbs{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--g-500);white-space:nowrap;flex:0 1 auto;min-width:0;overflow:hidden}
+.topbar{height:var(--shell-top-h);display:flex;align-items:center;gap:16px;padding:0 var(--content-pad);background:var(--canvas);position:sticky;top:0;z-index:5}
+.crumbs{display:flex;align-items:center;gap:8px;font-size:var(--fs-md);color:var(--g-500);white-space:nowrap;flex:0 1 auto;min-width:0;overflow:hidden}
 .crumbs>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .crumbs>i,.crumbs>b{flex:none}
 .crumbs b{font-weight:500;color:var(--g-900)}
-.crumbs i{font-style:normal;color:var(--g-300)}
-.search{flex:1 1 200px;min-width:0;max-width:320px;white-space:nowrap;overflow:hidden;display:flex;align-items:center;gap:8px;border:1px solid var(--g-200);border-radius:var(--r-sm);padding:6px 10px;font-size:12.5px;color:var(--g-400);background:var(--g-25)}
+.crumbs i{display:inline-block;width:14px;height:14px;background:var(--g-300);
+  -webkit-mask:var(--ico-chev-r) center/14px 14px no-repeat;mask:var(--ico-chev-r) center/14px 14px no-repeat}
+.search{flex:1 1 200px;min-width:0;max-width:320px;white-space:nowrap;overflow:hidden;display:flex;align-items:center;gap:8px;border:1px solid var(--g-200);border-radius:var(--r-sm);padding:6px 10px;font-size:var(--fs-md);color:var(--g-400);background:var(--g-25)}
 .search>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .search>span:first-child,.search .push{flex:none}
 /* CAMPO DE BUSCA ATIVO (27/ago) — desvio autorizado, ver CLAUDE.md.
@@ -1036,7 +1116,7 @@ th{vertical-align:bottom}
    do `<span>` de exibição) e o clipe comia o popover inteiro dentro da caixa.
    O ellipsis não se perde: o `<input>` rola sozinho. */
 .search{position:relative;overflow:visible}
-.search input{flex:1;min-width:0;border:0;background:transparent;font-family:inherit;font-size:12.5px;color:var(--g-900);padding:0}
+.search input{flex:1;min-width:0;border:0;background:transparent;font-family:inherit;font-size:var(--fs-md);color:var(--g-900);padding:0}
 .search input::placeholder{color:var(--g-400)}
 .search input:focus{outline:none}
 .search:focus-within{border-color:var(--g-300);box-shadow:var(--focus-ring)}
@@ -1045,22 +1125,22 @@ th{vertical-align:bottom}
    (`#op-esp:checked ~ …`), e as sugestões da busca nascem do que se digita, que
    nenhum CSS estático cobre. Mesmo efeito visual, nenhum token novo. */
 .pop.on{display:block}
-.topchips{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none;font-size:11px;color:var(--g-500);font-variant-numeric:tabular-nums;white-space:nowrap}
+.topchips{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none;font-size:var(--fs-xs);color:var(--g-500);font-variant-numeric:tabular-nums;white-space:nowrap}
 .content{background:var(--canvas);padding:var(--content-pad);display:flex;flex-direction:column;gap:16px}
 .content-inner{max-width:var(--content-max);width:100%;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-.widthbar{display:flex;align-items:center;gap:0;font-size:10.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
-.widthbar span{padding:4px 8px;border:1px solid var(--line);border-right:0;background:#fff}
+.widthbar{display:flex;align-items:center;gap:0;font-size:var(--fs-xs);color:var(--g-500);font-variant-numeric:tabular-nums}
+.widthbar span{padding:4px 8px;border:1px solid var(--line);border-right:0;background:var(--surface)}
 .widthbar span:last-child{border-right:1px solid var(--line)}
 .widthbar .min{background:var(--g-100);color:var(--g-600)}
 .widthbar .fluid{background:var(--acc-soft);color:var(--acc-strong);flex:1;text-align:center}
 
 /* padrão de página */
 .pattern{display:flex;flex-direction:column;gap:10px}
-.band{display:flex;align-items:center;gap:12px;padding:12px 14px;font-size:12.5px;color:var(--g-600)}
+.band{display:flex;align-items:center;gap:12px;padding:12px 14px;font-size:var(--fs-md);color:var(--g-600)}
 .band-open{border-left:1px solid var(--g-200);background:transparent}
-.band-framed{background:#fff;border:1px solid var(--line);border-radius:var(--r-md)}
-.band .k{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500);width:180px;flex:none}
-.band .f{margin-left:auto;font-size:10.5px;color:var(--g-400);white-space:nowrap}
+.band-framed{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md)}
+.band .k{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500);width:180px;flex:none}
+.band .f{margin-left:auto;font-size:var(--fs-xs);color:var(--g-400);white-space:nowrap}
 
 /* ---------- tabela de largura ESTÁVEL --------------------------------------
    `table-layout:auto` recalcula as colunas a cada mudança de conteúdo: ordenar,
@@ -1101,14 +1181,14 @@ th{vertical-align:bottom}
    primeira é o nome como link. Duas afordâncias para o mesmo destino porque a
    linha é larga: quem lê a última coluna não volta ao nome para clicar. */
 .col-chev{width:44px}
-.chev{display:flex;align-items:center;justify-content:center;width:100%;min-height:24px;color:var(--g-300);font-size:15px;line-height:1;text-decoration:none}
+.chev{display:flex;align-items:center;justify-content:center;width:100%;min-height:24px;color:var(--g-300);font-size:var(--fs-xl);line-height:1;text-decoration:none}
 .chev:hover{color:var(--g-900)}
 tr:hover .chev{color:var(--g-500)}
 tr:hover .chev:hover{color:var(--g-900)}
 .chev:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm)}
 /* Apelido de `.v.rng` para o valor que é RESSALVA e não intervalo: mesma
    declaração, nome que diz o que está acontecendo. `.rng` continua valendo. */
-.stats .v-ressalva{font-size:17px}
+.stats .v-ressalva{font-size:var(--fs-xl)}
 
 /* cabeçalho sticky — só o grude. A altura é de `.tbl-fill`; misturar as duas
    coisas numa classe obrigava a escolher entre cabeçalho fixo e altura certa. */
@@ -1128,16 +1208,16 @@ tr:focus-visible td{background:var(--row-hover)}
 .casc{display:flex;flex-direction:column}
 .casc-hd,.casc-r{display:grid;grid-template-columns:20px minmax(0,1fr) 92px 92px 88px 104px;gap:0 14px;align-items:baseline}
 .casc-hd{padding:0 0 8px;border-bottom:1px solid var(--line)}
-.casc-hd span{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400)}
+.casc-hd span{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400)}
 .casc-hd .rt,.casc-r .casc-v{text-align:right}
 .casc-r{padding:13px 0;border-bottom:1px solid var(--line-soft)}
 .casc-r:last-child{border-bottom:0}
-.casc-n{font-size:10.5px;color:var(--g-300);font-variant-numeric:tabular-nums}
-.casc-t{font-size:12.5px;color:var(--g-900);display:block}
-.casc-d{font-size:11px;color:var(--g-500);line-height:1.45;text-wrap:pretty;display:block;margin-top:3px}
-.casc-nat{font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500)}
-.casc-v{font-size:12.5px;color:var(--g-900);font-variant-numeric:tabular-nums;white-space:nowrap}
-.casc-v .d{display:block;font-size:10.5px;color:var(--g-400);margin-top:2px}
+.casc-n{font-size:var(--fs-xs);color:var(--g-300);font-variant-numeric:tabular-nums}
+.casc-t{font-size:var(--fs-md);color:var(--g-900);display:block}
+.casc-d{font-size:var(--fs-xs);color:var(--g-500);line-height:1.45;text-wrap:pretty;display:block;margin-top:3px}
+.casc-nat{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500)}
+.casc-v{font-size:var(--fs-md);color:var(--g-900);font-variant-numeric:tabular-nums;white-space:nowrap}
+.casc-v .d{display:block;font-size:var(--fs-xs);color:var(--g-400);margin-top:2px}
 /* trilho do afunilamento: largura proporcional ao que restou do ponto de partida */
 .casc-bar{grid-column:2;margin-top:8px;height:3px;background:var(--g-100);border-radius:2px}
 .casc-bar i{display:block;height:3px;background:var(--g-300);border-radius:2px}
@@ -1146,39 +1226,39 @@ tr:focus-visible td{background:var(--row-hover)}
 /* tradução do percentil */
 .pctl-wrap{display:flex;flex-direction:column;gap:2px;min-width:118px}
 .pctl-wrap .pctl{width:auto;text-align:left;font-weight:500}
-.pctl-t{font-size:10.5px;color:var(--g-500);line-height:1.35;text-wrap:pretty}
+.pctl-t{font-size:var(--fs-xs);color:var(--g-500);line-height:1.35;text-wrap:pretty}
 
 /* valor recomendado e desvio do padrão */
-.rec-mark{color:var(--acc);font-weight:600;margin-left:4px}
+.rec-mark{color:var(--acc);font-weight:500;margin-left:4px}
 .seg>span.on .rec-mark,.seg>label.on .rec-mark{color:var(--acc)}
-.rec-hint{font-size:10.5px;color:var(--g-500)}
+.rec-hint{font-size:var(--fs-xs);color:var(--g-500)}
 
 /* ---------- seletor em lista (combobox) ---------- */
 .cascade{position:relative}
 .cascade .r,.cascade .oc{position:absolute;opacity:0;pointer-events:none}
 .fields{display:grid;grid-template-columns:minmax(240px,320px) minmax(240px,320px);gap:16px;align-items:start}
 .sel{position:relative;display:flex;flex-direction:column;gap:6px}
-.sel-lbl{display:flex;align-items:baseline;gap:8px;font-size:11.5px;color:var(--g-500)}
-.sel-trig{display:flex;align-items:center;gap:8px;min-height:36px;padding:7px 10px;border:1px solid var(--g-200);border-radius:var(--r-sm);background:#fff;font-size:13px;color:var(--g-800);cursor:pointer}
+.sel-lbl{display:flex;align-items:baseline;gap:8px;font-size:var(--fs-sm);color:var(--g-500)}
+.sel-trig{display:flex;align-items:center;gap:8px;min-height:36px;padding:7px 10px;border:1px solid var(--g-200);border-radius:var(--r-sm);background:var(--surface);font-size:var(--fs-md);color:var(--g-800);cursor:pointer}
 .sel-trig:hover{border-color:var(--g-400)}
-.sel-trig .car{margin-left:auto;color:var(--g-400);font-size:10px}
+.sel-trig .car{margin-left:auto;color:var(--g-400);font-size:var(--fs-xs)}
 .sel-trig .v{display:none;align-items:center;gap:8px;min-width:0}
-.sel-trig .vn{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sel-trig .vn{font-size:var(--fs-xs);color:var(--g-400);font-variant-numeric:tabular-nums;white-space:nowrap}
 .sel-trig .ph{color:var(--g-400)}
 .oc:checked ~ .fields .sel-trig[for]{}
-.pop{position:absolute;left:0;right:0;min-width:300px;top:calc(100% + 4px);z-index:8;background:#fff;border:1px solid var(--g-300);border-radius:var(--r-md);box-shadow:var(--sh-1);display:none;max-height:250px;overflow:auto}
+.pop{position:absolute;left:0;right:0;min-width:300px;top:calc(100% + 4px);z-index:8;background:var(--surface);border:1px solid var(--g-300);border-radius:var(--r-md);box-shadow:var(--sh-1);display:none;max-height:250px;overflow:auto}
 .pop-grp{display:none;flex-direction:column}
-.opt{display:grid;grid-template-columns:1fr auto 14px;align-items:center;gap:10px;padding:7px 10px;font-size:13px;color:var(--g-700);cursor:pointer;border-top:1px solid var(--line-soft)}
+.opt{display:grid;grid-template-columns:1fr auto 14px;align-items:center;gap:10px;padding:7px 10px;font-size:var(--fs-md);color:var(--g-700);cursor:pointer;border-top:1px solid var(--line-soft)}
 .opt:first-of-type{border-top:0}
-.opt:hover{background:var(--g-50)}
+.opt:hover{background:var(--hover)}
 .opt .oname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.opt .ock{opacity:0;color:var(--acc);font-size:11px;text-align:right}
+.opt .ock{opacity:0;color:var(--acc);font-size:var(--fs-xs);text-align:right}
 #op-esp:checked ~ .fields .sel-esp .pop,#op-area:checked ~ .fields .sel-area .pop{display:block}
 #op-esp:checked ~ .fields .sel-esp .sel-trig,#op-area:checked ~ .fields .sel-area .sel-trig{border-color:var(--g-600)}
 .sel-trig:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .opt:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--acc)}
-.sel-note{font-size:10.5px;color:var(--g-500);line-height:1.45}
-.sel-dep{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--g-400)}
+.sel-note{font-size:var(--fs-xs);color:var(--g-500);line-height:1.45}
+.sel-dep{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-xs);font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--g-400)}
 .sel-locked{background:var(--g-50);border-color:var(--line-soft);color:var(--g-400);cursor:not-allowed}
 .sel-locked:hover{border-color:var(--line-soft)}
 #esp-gyn:checked ~ .fields .v-esp-gyn,#esp-gyn:checked ~ .fields .g-gyn{display:flex}
@@ -1235,14 +1315,14 @@ tr:focus-visible td{background:var(--row-hover)}
 
 /* variante de barra lateral: campo em coluna única, popover mais largo que o campo */
 .fields-side{grid-template-columns:1fr;gap:12px}
-.sel-side .sel-trig{min-height:34px;font-size:12.5px;padding:6px 9px}
-.sel-side .sel-lbl{font-size:11px}
+.sel-side .sel-trig{min-height:34px;font-size:var(--fs-md);padding:6px 9px}
+.sel-side .sel-lbl{font-size:var(--fs-xs)}
 .sel-side .pop{left:0;right:auto;width:308px;max-height:288px}
 /* Na barra lateral real (280px, overflow-y:auto), 308px fixos estouram a borda
    e o popup sai cortado: dentro de `.shell-side` ele cabe no gatilho.
    CORREÇÃO LOCAL 2026-08-13, replicar no Design. */
 .shell-side .sel-side .pop{width:auto;right:0;min-width:0}
-.sel-side .opt{font-size:12.5px;padding:6px 9px}
+.sel-side .opt{font-size:var(--fs-md);padding:6px 9px}
 #op-esp-s:checked ~ .fields .sel-esp .pop,#op-area-s:checked ~ .fields .sel-area .pop{display:block}
 #op-esp-s:checked ~ .fields .sel-esp .sel-trig,#op-area-s:checked ~ .fields .sel-area .sel-trig{border-color:var(--g-600)}
 .sidemock{width:var(--shell-side-w);background:var(--shell-side-bg);border:1px solid var(--line);border-radius:var(--r-md);overflow:visible}
@@ -1379,21 +1459,21 @@ tr:focus-visible td{background:var(--row-hover)}
 .sel-side .pop{max-height:264px}
 
 /* painel de parâmetros · divulgação progressiva */
-.panel-in{position:relative;display:flex;flex-direction:column;background:#fff}
+.panel-in{position:relative;display:flex;flex-direction:column;background:var(--surface)}
 .panel-in>.r,.panel-in>.oc{position:absolute;opacity:0;pointer-events:none}
 .p-hd{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
-.okline{margin-left:auto;font-size:10.5px;color:var(--g-500);white-space:nowrap}
+.okline{margin-left:auto;font-size:var(--fs-xs);color:var(--g-500);white-space:nowrap}
 .p-blk{padding:12px 14px;border-bottom:1px solid var(--line-soft);display:flex;flex-direction:column;gap:12px}
-.p-lbl{font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g-400)}
-.ctxval{font-size:13px;font-weight:500;color:var(--g-900)}
+.p-lbl{font-size:var(--fs-xs);font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--g-400)}
+.ctxval{font-size:var(--fs-md);font-weight:500;color:var(--g-900)}
 .arealist{display:flex;flex-direction:column;gap:2px}
-.arealist .navitem{padding:6px 9px;font-size:12.5px}
-.disc{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:11px 14px;cursor:pointer;background:#fff;border-bottom:1px solid var(--line-soft)}
-.disc:hover{background:var(--g-50)}
-.disc .car{margin-left:auto;color:var(--g-400);font-size:10px;transform:rotate(0deg);transition:transform .12s ease}
+.arealist .navitem{padding:6px 9px;font-size:var(--fs-md)}
+.disc{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:11px 14px;cursor:pointer;background:var(--surface);border-bottom:1px solid var(--line-soft)}
+.disc:hover{background:var(--hover)}
+.disc .car{margin-left:auto;color:var(--g-400);font-size:var(--fs-xs);transform:rotate(0deg);transition:transform .12s ease}
 .disc:focus-visible{outline:none;box-shadow:var(--focus-ring)}
-.disc-t{font-size:12px;font-weight:600;color:var(--g-800);white-space:nowrap}
-.summ{flex-basis:100%;order:3;font-size:10.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.disc-t{font-size:var(--fs-sm);font-weight:500;color:var(--g-800);white-space:nowrap}
+.summ{flex-basis:100%;order:3;font-size:var(--fs-xs);color:var(--g-500);font-variant-numeric:tabular-nums}
 .disc-body{display:none;flex-direction:column;gap:16px;padding:14px}
 .pv{display:none}
 .p-sub{border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-sm);background:var(--caveat-soft);overflow:hidden}
@@ -1401,7 +1481,7 @@ tr:focus-visible td{background:var(--row-hover)}
 .p-sub>.disc:hover{background:rgba(255,255,255,.5)}
 .p-sub>.disc .disc-t{color:var(--caveat-ink)}
 .p-sub>.disc-body{padding:0 12px 12px}
-.p-warn{font-size:11px;color:var(--caveat-ink);line-height:1.5;padding-bottom:2px}
+.p-warn{font-size:var(--fs-xs);color:var(--caveat-ink);line-height:1.5;padding-bottom:2px}
 .seg>label.na{color:var(--g-300);background:var(--g-50);cursor:not-allowed}
 #win-3:checked ~ .p-sec .pv-win-3{display:inline}
 #win-6:checked ~ .p-sec .pv-win-6{display:inline}
@@ -1413,16 +1493,16 @@ tr:focus-visible td{background:var(--row-hover)}
 #ref-p90:checked ~ .p-sec .pv-ref-p90{display:inline}
 #cf-90:checked ~ .p-sec .pv-cf-90{display:inline}
 #cf-95:checked ~ .p-sec .pv-cf-95{display:inline}
-#win-3:checked ~ .p-sec label[for="win-3"]{background:var(--g-800);color:#fff;font-weight:600}
-#win-6:checked ~ .p-sec label[for="win-6"]{background:var(--g-800);color:#fff;font-weight:600}
-#win-12:checked ~ .p-sec label[for="win-12"]{background:var(--g-800);color:#fff;font-weight:600}
-#crit-p75:checked ~ .p-sec label[for="crit-p75"]{background:var(--g-800);color:#fff;font-weight:600}
-#crit-p90:checked ~ .p-sec label[for="crit-p90"]{background:var(--g-800);color:#fff;font-weight:600}
-#ref-med:checked ~ .p-sec label[for="ref-med"]{background:var(--g-800);color:#fff;font-weight:600}
-#ref-p75:checked ~ .p-sec label[for="ref-p75"]{background:var(--g-800);color:#fff;font-weight:600}
-#ref-p90:checked ~ .p-sec label[for="ref-p90"]{background:var(--g-800);color:#fff;font-weight:600}
-#cf-90:checked ~ .p-sec label[for="cf-90"]{background:var(--g-800);color:#fff;font-weight:600}
-#cf-95:checked ~ .p-sec label[for="cf-95"]{background:var(--g-800);color:#fff;font-weight:600}
+#win-3:checked ~ .p-sec label[for="win-3"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#win-6:checked ~ .p-sec label[for="win-6"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#win-12:checked ~ .p-sec label[for="win-12"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#crit-p75:checked ~ .p-sec label[for="crit-p75"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#crit-p90:checked ~ .p-sec label[for="crit-p90"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#ref-med:checked ~ .p-sec label[for="ref-med"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#ref-p75:checked ~ .p-sec label[for="ref-p75"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#ref-p90:checked ~ .p-sec label[for="ref-p90"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#cf-90:checked ~ .p-sec label[for="cf-90"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#cf-95:checked ~ .p-sec label[for="cf-95"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
 #win-3:checked ~ .p-hd .okline,#win-6:checked ~ .p-hd .okline,#crit-p75:checked ~ .p-hd .okline,#ref-p75:checked ~ .p-hd .okline,#ref-p90:checked ~ .p-hd .okline,#cf-95:checked ~ .p-hd .okline{display:none}
 #crit-p75:checked ~ .p-sec label[for="ref-p90"],#crit-p75:checked ~ .p-sec label[for="ref-p75"]{color:var(--g-300);background:var(--g-50);pointer-events:none}
 #an:checked ~ .p-sec>.disc-body{display:flex}
@@ -1437,16 +1517,16 @@ tr:focus-visible td{background:var(--row-hover)}
 #ref-p90-sh:checked ~ .p-sec .pv-ref-p90-sh{display:inline}
 #cf-90-sh:checked ~ .p-sec .pv-cf-90-sh{display:inline}
 #cf-95-sh:checked ~ .p-sec .pv-cf-95-sh{display:inline}
-#win-3-sh:checked ~ .p-sec label[for="win-3-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#win-6-sh:checked ~ .p-sec label[for="win-6-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#win-12-sh:checked ~ .p-sec label[for="win-12-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#crit-p75-sh:checked ~ .p-sec label[for="crit-p75-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#crit-p90-sh:checked ~ .p-sec label[for="crit-p90-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#ref-med-sh:checked ~ .p-sec label[for="ref-med-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#ref-p75-sh:checked ~ .p-sec label[for="ref-p75-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#ref-p90-sh:checked ~ .p-sec label[for="ref-p90-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#cf-90-sh:checked ~ .p-sec label[for="cf-90-sh"]{background:var(--g-800);color:#fff;font-weight:600}
-#cf-95-sh:checked ~ .p-sec label[for="cf-95-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#win-3-sh:checked ~ .p-sec label[for="win-3-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#win-6-sh:checked ~ .p-sec label[for="win-6-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#win-12-sh:checked ~ .p-sec label[for="win-12-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#crit-p75-sh:checked ~ .p-sec label[for="crit-p75-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#crit-p90-sh:checked ~ .p-sec label[for="crit-p90-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#ref-med-sh:checked ~ .p-sec label[for="ref-med-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#ref-p75-sh:checked ~ .p-sec label[for="ref-p75-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#ref-p90-sh:checked ~ .p-sec label[for="ref-p90-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#cf-90-sh:checked ~ .p-sec label[for="cf-90-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
+#cf-95-sh:checked ~ .p-sec label[for="cf-95-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
 #win-3-sh:checked ~ .p-hd .okline,#win-6-sh:checked ~ .p-hd .okline,#crit-p75-sh:checked ~ .p-hd .okline,#ref-p75-sh:checked ~ .p-hd .okline,#ref-p90-sh:checked ~ .p-hd .okline,#cf-95-sh:checked ~ .p-hd .okline{display:none}
 #crit-p75-sh:checked ~ .p-sec label[for="ref-p90-sh"],#crit-p75-sh:checked ~ .p-sec label[for="ref-p75-sh"]{color:var(--g-300);background:var(--g-50);pointer-events:none}
 #an-sh:checked ~ .p-sec>.disc-body{display:flex}
@@ -1503,10 +1583,10 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
    e subtítulo para hospedar um filtro: ocupava a dobra do conteúdo e dava a um
    recorte o peso visual de um gráfico. */
 .pf{position:relative;display:inline-flex}
-.pf-trig{height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;font-size:12px;font-weight:500;color:var(--g-700);cursor:pointer;white-space:nowrap}
+.pf-trig{height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);font-size:var(--fs-sm);font-weight:500;color:var(--g-700);cursor:pointer;white-space:nowrap}
 .pf-trig svg{stroke:var(--g-500);flex:none}
 .pf-trig .car{stroke:var(--g-400);transition:transform .15s ease}
-.pf-trig:hover{background:var(--g-50)}
+.pf-trig:hover{background:var(--hover)}
 .pf-trig:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 #pf-sh:checked ~ .pf-trig .car{transform:rotate(180deg)}
 #pf-sh:checked ~ .pf-trig{border-color:var(--g-600)}
@@ -1530,13 +1610,13 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
    é a área de plotagem com dois eixos e o ponto de tamanho variável.
    REPLICAR NO DESIGN se o bloco for adotado. */
 .disp{position:relative;display:grid;grid-template-columns:14px 52px 1fr;grid-template-rows:var(--disp-h,260px) 18px 14px;column-gap:8px;align-items:stretch}
-.disp-eixo-y{grid-column:1;grid-row:1;writing-mode:vertical-rl;transform:rotate(180deg);justify-self:center;align-self:center;font-size:10.5px;color:var(--g-400);letter-spacing:.04em}
+.disp-eixo-y{grid-column:1;grid-row:1;writing-mode:vertical-rl;transform:rotate(180deg);justify-self:center;align-self:center;font-size:var(--fs-xs);color:var(--g-400);letter-spacing:.04em}
 .disp-marcas-y{grid-column:2;grid-row:1;position:relative}
-.disp-marcas-y span{position:absolute;right:0;transform:translateY(50%);font-family:var(--font-num);font-size:10.5px;color:var(--g-400);white-space:nowrap}
+.disp-marcas-y span{position:absolute;right:0;transform:translateY(50%);font-size:var(--fs-xs);color:var(--g-400);white-space:nowrap}
 .disp-plot{grid-column:3;grid-row:1;position:relative;border-left:1px solid var(--line);border-bottom:1px solid var(--line)}
 .disp-marcas-x{grid-column:3;grid-row:2;position:relative}
-.disp-marcas-x span{position:absolute;transform:translateX(-50%);font-family:var(--font-num);font-size:10.5px;color:var(--g-400);white-space:nowrap}
-.disp-eixo-x{grid-column:3;grid-row:3;justify-self:center;font-size:10.5px;color:var(--g-400);letter-spacing:.04em}
+.disp-marcas-x span{position:absolute;transform:translateX(-50%);font-size:var(--fs-xs);color:var(--g-400);white-space:nowrap}
+.disp-eixo-x{grid-column:3;grid-row:3;justify-self:center;font-size:var(--fs-xs);color:var(--g-400);letter-spacing:.04em}
 /* O PONTO. `--t` é o tamanho relativo (0–1) que o motor manda; o diâmetro sai
    dele entre um mínimo e um máximo. Cor neutra e uma só: este gráfico não
    julga, e uma paleta de severidade aqui reintroduziria a régua que ele não
@@ -1566,7 +1646,7 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .tbl-hd{position:relative}
 .tbl-toggle{margin-left:auto;flex:none;width:26px;height:26px;display:flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:var(--r-sm);background:transparent;color:var(--g-500);cursor:pointer}
 .tbl-toggle svg{stroke:currentColor;transition:transform .15s ease}
-.tbl-toggle:hover{background:var(--g-100);color:var(--g-900)}
+.tbl-toggle:hover{background:var(--hover);color:var(--g-900)}
 .tbl-toggle:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .tbl.fechado > .tbl-hd .tbl-toggle svg{transform:rotate(-90deg)}
 .tbl.fechado > *:not(.tbl-hd){display:none}
@@ -1588,48 +1668,48 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
    rótulos de uma palavra) e é `fixed`, porque metade dos hovers vive dentro de
    `.tbl-scroll`, que recortaria uma caixa presa ao elemento.
    REPLICAR NO DESIGN como componente do guia. */
-.dica{position:fixed;z-index:90;max-width:300px;padding:7px 10px;border-radius:var(--r-sm);background:var(--g-900);color:#fff;font-size:11.5px;line-height:1.45;font-weight:400;box-shadow:var(--sh-1);pointer-events:none;opacity:0;transform:translateY(2px);transition:opacity .1s ease,transform .1s ease}
+.dica{position:fixed;z-index:90;max-width:300px;padding:7px 10px;border-radius:var(--r-sm);background:var(--g-900);color:var(--ink-inv);font-size:var(--fs-sm);line-height:1.45;font-weight:400;box-shadow:var(--sh-1);pointer-events:none;opacity:0;transform:translateY(2px);transition:opacity .1s ease,transform .1s ease}
 .dica.on{opacity:1;transform:none}
 /* o número dentro da dica em mono, como em toda a tela */
 .dica{font-variant-numeric:tabular-nums}
 
-.pf-grp{font-size:10.5px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400);padding:8px 10px 4px}
+.pf-grp{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-400);padding:8px 10px 4px}
 /* escolha ÚNICA: a caixa vira redonda. Quadrada é a marca de seleção múltipla,
    e a diferença entre os dois seletores da faixa precisa se ver */
 .pf-opt.uni .bx{border-radius:50%}
 /* a QUEDA de um degrau para o próximo, à esquerda da contagem */
-.pf-opt .dp{font-family:var(--font-num);font-size:11px;color:var(--crit)}
+.pf-opt .dp{font-size:var(--fs-xs);color:var(--crit)}
 /* O resumo do que está escolhido, na MESMA forma do botão de Critérios
    (cinza, mono): os dois são botão de filtro com resumo, e um deles vestido de
    verde fazia parecer que "ter perfil escolhido" é um estado especial do app.
    Estado de filtro se lê pelo valor, não por cor. */
-.pf-tag{display:none;font-family:var(--font-num);font-size:11.5px;font-weight:400;color:var(--g-400)}
+.pf-tag{display:none;font-size:var(--fs-sm);font-weight:400;color:var(--g-400)}
 .pf.tem-perfil .pf-tag{display:inline}
 
-.pf-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:8;width:260px;flex-direction:column;padding:4px;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:var(--sh-pop)}
-.pf-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:12.5px;color:var(--g-800);cursor:pointer;text-align:left}
-.pf-opt:hover{background:var(--g-100);color:var(--g-900)}
+.pf-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:8;width:260px;flex-direction:column;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--sh-pop)}
+.pf-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:var(--fs-md);color:var(--g-800);cursor:pointer;text-align:left}
+.pf-opt:hover{background:var(--hover);color:var(--g-900)}
 /* caixa marcável (Clean v3): 14px, raio 4, vazia quando desmarcada e
    preenchida no acento com o ✓ branco quando marcada */
-.pf-opt .bx{width:14px;height:14px;flex:none;border:1px solid var(--g-300);border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center}
+.pf-opt .bx{width:14px;height:14px;flex:none;border:1px solid var(--g-300);border-radius:4px;background:var(--surface);display:flex;align-items:center;justify-content:center}
 .pf-opt .bx svg{opacity:0}
 .pf-opt.on .bx{background:var(--acc);border-color:var(--acc)}
 .pf-opt.on .bx svg{opacity:1}
 .pf-opt.na .bx{background:var(--g-50);border-color:var(--g-200)}
 .pf-opt .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pf-opt .n{font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.pf-opt .n{font-size:var(--fs-xs);color:var(--g-400)}
 /* marcado: a CAIXA carrega o estado, a linha continua neutra. Pintar a linha
    inteira de verde com três marcadas transformava o popover num bloco sólido. */
 .pf-opt.on{color:var(--g-900);font-weight:500}
-.pf-opt.on:hover{background:var(--g-100)}
+.pf-opt.on:hover{background:var(--row-selected)}
 /* perfil presente mas com portadores de menos: fica, com o motivo no hover.
    Sumir faria parecer que o perfil não existe na área. */
 .pf-opt.na{color:var(--g-300);cursor:not-allowed}
 .pf-opt.na:hover{background:transparent;color:var(--g-300)}
 .pf-ft{display:flex;align-items:center;gap:8px;margin-top:4px;padding:8px 10px 4px;border-top:1px solid var(--line-soft)}
-.pf-nota{flex:1;font-family:var(--font-num);font-size:11px;color:var(--g-400)}
-.pf-limpar{display:none;padding:4px 8px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:12px;color:var(--g-500);cursor:pointer}
-.pf-limpar:hover{background:var(--g-100);color:var(--g-900)}
+.pf-nota{flex:1;font-size:var(--fs-xs);color:var(--g-400)}
+.pf-limpar{display:none;padding:4px 8px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:var(--fs-sm);color:var(--g-500);cursor:pointer}
+.pf-limpar:hover{background:var(--hover);color:var(--g-900)}
 .pf.tem-perfil .pf-limpar{display:inline-flex}
 
 /* ── Pareto: lista de barras horizontais (Clean v3) ─────────────────────────
@@ -1643,26 +1723,30 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 /* Espaçamento uniforme com o resto do cartão: 16px nas laterais em cabeçalho,
    lista e legenda — a legenda estava colada na borda porque só a lista tinha
    respiro lateral. */
-.pareto-cab{display:flex;align-items:flex-end;gap:12px;padding:0 16px 8px;font-size:11px;color:var(--g-400);white-space:nowrap}
+.pareto-cab{display:flex;align-items:flex-end;gap:12px;padding:0 16px 8px;font-size:var(--fs-xs);color:var(--g-400);white-space:nowrap}
 .pareto-cab .rot,.pareto-cab .val,.pareto-cab .cum,.pareto-cab .cum-rs{font-family:inherit}
 .pareto-cab .rot{width:132px;flex:none;text-align:right}
 .pareto-cab .trilho{flex:1;min-width:0}
-.pareto-cab .val{width:74px;flex:none;text-align:right}
+.pareto-cab .val{width:88px;flex:none;text-align:right}
+/* coluna do custo total: existe só na barra aninhada (`.duplo`), e é o número
+   que dá leitura ao comprimento cinza */
+.pareto-cab .custo{width:88px;flex:none;text-align:right}
 /* ACUMULADO EM R$, ao lado do acumulado em %. O R$ vem primeiro porque é o
    número que se cita numa reunião; o % qualifica o que ele representa. */
-.pareto-cab .cum-rs{width:86px;flex:none;text-align:right;white-space:nowrap}
+.pareto-cab .cum-rs{width:112px;flex:none;text-align:right;white-space:nowrap}
 .pareto-cab .cum{width:56px;flex:none;text-align:right;white-space:nowrap}
 .pareto{display:flex;flex-direction:column;max-height:300px;overflow-y:auto;padding:0 16px}
 .pareto-l{position:relative;display:flex;align-items:center;gap:12px;padding:3px 0;border-bottom:1px solid transparent}
 .pareto-l.clicavel{cursor:pointer}
-.pareto-l:hover{background:var(--g-50)}
-.pareto-l .rot{width:132px;flex:none;text-align:right;font-family:var(--font-num);font-size:11px;color:var(--g-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pareto-l:hover{background:var(--hover)}
+.pareto-l .rot{width:132px;flex:none;text-align:right;font-size:var(--fs-xs);color:var(--g-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pareto-l .trilho{flex:1;min-width:0;height:14px;display:flex;align-items:center}
 .pareto-l .trilho i{display:block;height:12px;border-radius:2px;background:var(--g-300)}
 .pareto-l.nucleo .trilho i{background:var(--g-500)}
-.pareto-l .val{width:74px;flex:none;text-align:right;font-family:var(--font-num);font-size:11px;color:var(--g-900)}
-.pareto-l .cum-rs{width:86px;flex:none;text-align:right;font-family:var(--font-num);font-size:11px;color:var(--g-600)}
-.pareto-l .cum{width:56px;flex:none;text-align:right;font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.pareto-l .val{width:88px;flex:none;text-align:right;font-size:var(--fs-xs);color:var(--g-900)}
+.pareto-l .custo{width:88px;flex:none;text-align:right;font-size:var(--fs-xs);color:var(--g-600)}
+.pareto-l .cum-rs{width:112px;flex:none;text-align:right;font-size:var(--fs-xs);color:var(--g-600)}
+.pareto-l .cum{width:56px;flex:none;text-align:right;font-size:var(--fs-xs);color:var(--g-400)}
 /* o corte do limiar: a régua fecha a última linha do núcleo, então onde ela
    está é exatamente onde o núcleo termina */
 .pareto-l.corte{border-bottom-color:var(--g-400);border-bottom-style:dashed}
@@ -1679,24 +1763,50 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 
 /* o tooltip abre ABAIXO da linha: acima, a primeira linha da lista não tinha
    para onde ele ir e ele cobria a própria barra que descreve */
-.pareto-l .tip{position:absolute;left:140px;top:calc(100% + 2px);opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:#fff;border-radius:var(--r-sm);padding:7px 10px;box-shadow:var(--sh-pop);white-space:nowrap;z-index:5}
-.pareto-l .tip b{display:block;font-size:11.5px;font-weight:500}
-.pareto-l .tip em{display:block;font-style:normal;font-size:10.5px;color:var(--g-300)}
+.pareto-l .tip{position:absolute;left:140px;top:calc(100% + 2px);opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:var(--ink-inv);border-radius:var(--r-sm);padding:7px 10px;box-shadow:var(--sh-pop);white-space:nowrap;z-index:5}
+.pareto-l .tip b{display:block;font-size:var(--fs-sm);font-weight:500}
+.pareto-l .tip em{display:block;font-style:normal;font-size:var(--fs-xs);color:var(--g-300)}
 .pareto-l:hover .tip{opacity:1}
+/* O TOOLTIP DAS ÚLTIMAS LINHAS ABRE PARA CIMA, e não é só estética: mesmo
+   invisível (`opacity:0`), ele é filho posicionado e CONTA como área rolável do
+   `.pareto`. O da última linha somava ~104px depois da última barra, e era esse
+   o vazio que aparecia ao chegar no fim da lista. Virado para cima, ele deixa
+   de esticar a rolagem — e de quebra para de ser cortado pela borda do quadro,
+   que é onde ele era ilegível justamente nas linhas de baixo. */
+.pareto-l:nth-last-child(-n+4) .tip{top:auto;bottom:calc(100% + 2px)}
 
 /* dentro de um cartão de Pareto a legenda alinha com a lista */
-.tbl .pareto ~ .legend{padding:0 16px;margin-top:14px}
+/* Rodapé de NOTA: legenda e ressalva empilhadas numa faixa de cinza claro, o
+   fecho do cartão. `.tbl-ft` sozinho é uma linha de dois lados (espaço entre);
+   aqui são duas leituras em sequência, então a direção vira coluna e o fundo
+   deixa de ser transparente. O cinza é o `--g-25` do contrato, não uma tinta
+   nova. */
+.tbl-ft-nota{flex-direction:column;align-items:flex-start;gap:10px}
+.tbl-ft-nota .legend{margin-top:0}
+.tbl-ft-nota .nota{color:var(--g-500)}
 .legend i.bar-nucleo{width:14px;height:8px;border-radius:2px;background:var(--g-500)}
 .legend i.bar-cauda{width:14px;height:8px;border-radius:2px;background:var(--g-300)}
+/* marcas da barra aninhada: o quadradinho é a própria tinta da barra, e o
+   texto ao lado nomeia a grandeza. Nada descreve a geometria do desenho.
+
+   A tinta é `--exc`, e não `--acc`: é o mesmo valor hoje, mas são papéis
+   diferentes. `--acc` é a MARCA do produto (link, item ativo, botão primário);
+   `--exc` é o PREENCHIMENTO DE DADO, e é o único jeito de um dia trocar a cor
+   do dado sem trocar a do produto. Todo preenchimento verde de dado no app usa
+   este token: quadrado de trimestre, barra do Pareto, barra da evolução. */
+.legend i.bar-total{width:14px;height:8px;border-radius:2px;background:var(--g-200)}
+.legend i.bar-exc{width:14px;height:8px;border-radius:2px;background:var(--exc)}
+/* o corte não é uma cor, é uma régua: a marca repete o tracejado da linha */
+.legend i.bar-corte{width:16px;height:0;border-radius:0;border-top:1px dashed var(--g-400)}
 
 /* ── abas de unidade de análise (Clean v3) ──────────────────────────────────
    Sublinhado no ativo, sem moldura: a aba é o corte da PÁGINA, e caixa em volta
    dela competiria com os cartões que ela contém. */
 .vistas{display:flex;align-items:center;gap:24px;border-bottom:1px solid var(--line)}
-.vista{padding:0 0 12px;margin-bottom:-1px;border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:500;color:var(--g-400);cursor:pointer;display:flex;align-items:baseline;gap:8px}
+.vista{padding:0 0 12px;margin-bottom:-1px;border:0;background:transparent;font-family:inherit;font-size:var(--fs-md);font-weight:500;color:var(--g-400);cursor:pointer;display:flex;align-items:baseline;gap:8px}
 .vista:hover{color:var(--g-700)}
 .vista.on{color:var(--g-900);box-shadow:inset 0 -2px 0 var(--g-900)}
-.vista .cnt{font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.vista .cnt{font-size:var(--fs-xs);color:var(--g-400)}
 .vista:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .vista-painel{display:none;flex-direction:column;gap:16px}
 .vista-painel.on{display:flex}
@@ -1705,10 +1815,10 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
    Trilho cinza contínuo, pastilha branca no ativo. Mesma construção do
    segmentado do diálogo de critérios: um controle, uma linguagem. */
 .segfilt{display:flex;gap:2px;padding:2px;background:var(--g-50);border-radius:var(--r-sm)}
-.segfilt-o{height:28px;padding:0 12px;border:0;border-radius:calc(var(--r-sm) - 1px);background:transparent;color:var(--g-500);font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.segfilt-o{height:28px;padding:0 12px;border:0;border-radius:calc(var(--r-sm) - 1px);background:transparent;color:var(--g-500);font-family:inherit;font-size:var(--fs-sm);font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap}
 .segfilt-o:hover{color:var(--g-900)}
-.segfilt-o.on{background:#fff;color:var(--g-900);box-shadow:0 1px 2px rgba(24,24,27,.06)}
-.segfilt-o .cnt{font-family:var(--font-num);font-size:11px;color:var(--g-400)}
+.segfilt-o.on{background:var(--surface);color:var(--g-900);box-shadow:0 1px 2px rgba(24,24,27,.06)}
+.segfilt-o .cnt{font-size:var(--fs-xs);color:var(--g-400)}
 .segfilt-o:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 
 /* ── seletor de PERÍODO (Clean v3) ──────────────────────────────────────────
@@ -1733,17 +1843,17 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .per-lado{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:10px}
 .per-lado+.per-lado{border-left:1px solid var(--line-soft);padding-left:16px}
 .per-mes.on:hover{background:var(--acc-strong)}
-.per-hd{display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:500;color:var(--g-700)}
-.per-ano{display:flex;align-items:center;gap:4px;font-family:var(--font-num);font-size:12px;color:var(--g-900)}
+.per-hd{display:flex;align-items:center;justify-content:space-between;font-size:var(--fs-sm);font-weight:500;color:var(--g-700)}
+.per-ano{display:flex;align-items:center;gap:4px;font-size:var(--fs-sm);color:var(--g-900)}
 .per-ano .nav{padding:0;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:var(--r-sm);cursor:pointer;color:var(--g-600);flex:none}
-.per-ano .nav:hover{background:var(--g-50)}
+.per-ano .nav:hover{background:var(--hover)}
 .per-ano .nav.off{color:var(--g-300);cursor:not-allowed}
 .per-ano .y{width:40px;text-align:center}
 .per-meses{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 .per-mes{min-width:0}
-.per-mes{height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;font-size:12px;color:var(--g-700);cursor:pointer}
-.per-mes:hover{background:var(--g-50)}
-.per-mes.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:500}
+.per-mes{height:28px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);font-size:var(--fs-sm);color:var(--g-700);cursor:pointer}
+.per-mes:hover{background:var(--hover)}
+.per-mes.on{background:var(--acc);border-color:var(--acc);color:var(--ink-inv);font-weight:500}
 /* meses ENTRE as pontas: mesma família de cor, um degrau abaixo. É o que faz o
    intervalo ser lido como intervalo, e não como duas escolhas soltas. */
 .per-mes.faixa{background:var(--acc-soft);border-color:var(--acc-line);color:var(--acc-strong)}
@@ -1753,7 +1863,7 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .per-mes.na{color:var(--g-300);background:var(--g-25);cursor:not-allowed}
 .per-mes.na:hover{background:var(--g-25)}
 .per-ft{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line-soft);padding-top:12px;flex-wrap:nowrap}
-.per-leitura{flex:1 1 auto;min-width:0;font-size:11px;color:var(--g-500);line-height:1.45}
+.per-leitura{flex:1 1 auto;min-width:0;font-size:var(--fs-xs);color:var(--g-500);line-height:1.45}
 .per-leitura.alerta{color:var(--caveat-ink)}
 
 /* ── lista de opções no espírito shadcn (14/ago) ────────────────────────────
@@ -1770,8 +1880,8 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
      competia com o verde que significa "referência" no resto da tela;
    · sombra alta e raio 8: o painel flutua, como o diálogo. */
 .critbar .pop{padding:4px;border-color:var(--line);border-radius:8px}
-.critbar .opt{border-top:0;border-radius:var(--r-sm);padding:7px 10px;font-size:12.5px;gap:8px}
-.critbar .opt:hover{background:var(--g-100);color:var(--g-900)}
+.critbar .opt{border-top:0;border-radius:var(--r-sm);padding:7px 10px;font-size:var(--fs-md);gap:8px}
+.critbar .opt:hover{background:var(--hover);color:var(--g-900)}
 /* Escolhido em VERDE, como no resto do app: é a mesma marca de "este é o que
    está valendo" que a navegação lateral usa (`.navitem.on`). Cheguei a deixar
    neutro para o acento não competir com o verde do dado; a identidade venceu,
@@ -1784,7 +1894,7 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .critbar .opt.opt-na{color:var(--g-300);cursor:not-allowed}
 .critbar .opt.opt-na:hover{background:transparent;color:var(--g-300)}
 /* o gatilho: mesma altura dos demais controles da faixa, foco no acento */
-.critbar .sel-trig:hover{border-color:var(--line);background:var(--g-50)}
+.critbar .sel-trig:hover{border-color:var(--line);background:var(--hover)}
 
 /* na faixa, o popover abre PARA BAIXO e alinhado à esquerda do gatilho */
 /* Popover da faixa: abre PARA BAIXO, alinhado à esquerda do gatilho. O painel
@@ -1899,7 +2009,7 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 /* CLEAN V3: o diálogo flutua por sombra, não por borda dura. Raio um degrau
    acima do resto (10px): é a superfície mais alta da tela, e o raio é o que
    marca essa distância sem precisar de moldura. */
-.modal{display:none;position:fixed;z-index:9;inset:0;margin:auto;height:fit-content;width:560px;max-height:84vh;overflow:auto;background:#fff;border:0;border-radius:10px;box-shadow:0 24px 60px rgba(24,24,27,.24)}
+.modal{display:none;position:fixed;z-index:9;inset:0;margin:auto;height:fit-content;width:560px;max-height:84vh;overflow:auto;background:var(--surface);border:0;border-radius:10px;box-shadow:0 24px 60px rgba(24,24,27,.24)}
 .modal-hd{padding:14px 16px;border-bottom:1px solid var(--line)}
 .modal-bd{padding:16px;display:flex;flex-direction:column;gap:16px}
 .modal-ft{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:var(--g-25);position:sticky;bottom:0}
@@ -1911,7 +2021,7 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 #cal-sh:checked ~ .scrim-cal-sh{display:block}
 
 .scrim-dim{background:rgba(20,25,24,.32)}
-.modal-sm{padding:10px 16px;border-top:1px solid var(--line-soft);background:var(--g-25);font-size:11px;color:var(--g-500)}
+.modal-sm{padding:10px 16px;border-top:1px solid var(--line-soft);background:var(--g-25);font-size:var(--fs-xs);color:var(--g-500)}
 .csum{display:none}
 .csum-none,[class*="csum-none"]{color:var(--g-400)}
 .btn-off{color:var(--g-400);background:var(--g-50);border-color:var(--line-soft);cursor:not-allowed;pointer-events:none}
@@ -1936,50 +2046,61 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .p-blk-page .p-lbl{display:none}
 
 /* wireframe do shell — diagrama de blocos, sem componentes vivos */
-.wf-legend{display:flex;flex-wrap:wrap;align-items:center;gap:20px;font-size:11.5px;color:var(--g-600)}
+.wf-legend{display:flex;flex-wrap:wrap;align-items:center;gap:20px;font-size:var(--fs-sm);color:var(--g-600)}
 .wf-legend i{width:16px;height:10px;display:inline-block;margin-right:7px;vertical-align:-1px;border-radius:2px}
 .wf-g{background:var(--g-100);border:1px solid var(--g-400)}
-.wf-p{background:#fff;border:1px dashed var(--g-400)}
+.wf-p{background:var(--surface);border:1px dashed var(--g-400)}
 .wf{display:grid;grid-template-columns:280px 1fr;gap:12px;background:var(--g-25);border:1px solid var(--line);border-radius:var(--r-md);padding:12px}
 .wf-side,.wf-main{display:flex;flex-direction:column;gap:10px;position:relative}
 .wf-content{display:flex;flex-direction:column;gap:10px;position:relative;padding:12px;border:1px dashed var(--g-300);border-radius:var(--r-sm)}
 .wf-b{display:flex;flex-direction:column;gap:7px;padding:11px 12px;border-radius:var(--r-sm);background:var(--g-100);border:1px solid var(--g-400);position:relative}
-.wf-b.wf-page{background:#fff;border:1px dashed var(--g-400)}
-.wf-t{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--g-600);display:flex;align-items:center;gap:8px}
-.wf-tag{font-size:8.5px;font-weight:600;letter-spacing:.08em;color:var(--g-500);background:var(--g-50);border:1px solid var(--g-300);border-radius:2px;padding:1px 5px;text-transform:uppercase}
-.wf-tag-p{background:#fff;border-style:dashed}
+.wf-b.wf-page{background:var(--surface);border:1px dashed var(--g-400)}
+.wf-t{font-size:var(--fs-xs);font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--g-600);display:flex;align-items:center;gap:8px}
+.wf-tag{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;color:var(--g-500);background:var(--g-50);border:1px solid var(--g-300);border-radius:2px;padding:1px 5px;text-transform:uppercase}
+.wf-tag-p{background:var(--surface);border-style:dashed}
 .wf-bar{display:block;height:10px;border-radius:2px;background:var(--g-200)}
 .wf-bar.wf-on{background:var(--acc-line);box-shadow:inset 2px 0 0 var(--acc)}
 .wf-bar.wf-h{height:26px}
 .wf-row{display:flex;align-items:center;gap:10px}
 .wf-stats{gap:24px}
 .wf-stats span{flex:1;height:26px;background:var(--g-200);border-radius:2px}
-.wf-n{font-size:10.5px;color:var(--g-500);line-height:1.45;text-wrap:pretty}
-.wf-m{font-size:10px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.wf-n{font-size:var(--fs-xs);color:var(--g-500);line-height:1.45;text-wrap:pretty}
+.wf-m{font-size:var(--fs-xs);color:var(--g-500);font-variant-numeric:tabular-nums}
 .wf-m-r{margin-left:auto}
 .wf-brand{flex-direction:row;align-items:center;justify-content:space-between}
 .wf-nav{gap:5px}
 .wf-par{margin-top:auto}
-.wf-work{min-height:120px;justify-content:flex-start;background:#fff;border:1px solid var(--g-500)}
-.wf-side-m{font-size:10px;color:var(--g-400);letter-spacing:.06em;text-transform:uppercase;text-align:right}
+.wf-work{min-height:120px;justify-content:flex-start;background:var(--surface);border:1px solid var(--g-500)}
+.wf-side-m{font-size:var(--fs-xs);color:var(--g-400);letter-spacing:.06em;text-transform:uppercase;text-align:right}
 
 /* botão — padrão do sistema */
-.btn{display:inline-flex;align-items:center;justify-content:center;height:32px;min-height:32px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:#fff;color:var(--g-700);font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer}
-.btn:hover{background:var(--g-50);border-color:var(--line);color:var(--g-900);text-decoration:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;height:32px;min-height:32px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface);color:var(--g-700);font-size:var(--fs-sm);font-weight:500;white-space:nowrap;cursor:pointer}
+.btn:hover{background:var(--hover);border-color:var(--line);color:var(--g-900);text-decoration:none}
 .btn:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 /* CLEAN V3: a ação primária é o ACENTO, não tinta neutra. O verde já é o
    sinal institucional do sistema (referência, item ativo); usá-lo no botão que
    confirma mantém um pigmento com um significado só. */
-.btn-primary{background:var(--acc);border-color:var(--acc);color:#fff}
-.btn-primary:hover{background:var(--acc-strong);border-color:var(--acc-strong);color:#fff}
+/* Botão só de ÍCONE: quadrado na altura do `.btn`, sem rótulo. É o `.btn` do
+   contrato com a largura amarrada à altura, não um segundo botão. */
+.btn-ico{width:32px;padding:0;flex:none}
+/* O alternador de tema mostra o tema ATUAL: sol no claro, lua no escuro. Os
+   dois ícones estão na marcação e é aqui que se escolhe qual aparece — o JS
+   alterna `<html data-tema>` e não toca em aparência. */
+.tema-btn{margin-left:auto}
+.tema-btn svg{stroke:var(--g-600);fill:none}
+.tema-btn .ico-lua{display:none}
+[data-tema="dark"] .tema-btn .ico-sol{display:none}
+[data-tema="dark"] .tema-btn .ico-lua{display:block}
+.btn-primary{background:var(--acc);border-color:var(--acc);color:var(--ink-inv)}
+.btn-primary:hover{background:var(--acc-strong);border-color:var(--acc-strong);color:var(--ink-inv)}
 .btn-disabled{background:var(--g-100);border-color:var(--line);color:var(--g-400);cursor:not-allowed;pointer-events:none}
 
 /* diálogo */
 .dlg-hd{display:flex;align-items:flex-start;gap:16px;padding:16px 24px;border-bottom:1px solid var(--line-soft)}
-.dlg-t{font-size:14px;font-weight:600;color:var(--g-900)}
-.dlg-s{font-size:12px;color:var(--g-500);line-height:1.45;max-width:56ch}
-.dlg-x{margin-left:auto;font-size:12px;color:var(--g-400);cursor:pointer;padding:2px 4px;border-radius:var(--r-sm)}
-.dlg-x:hover{color:var(--g-800);background:var(--g-50)}
+.dlg-t{font-size:var(--fs-lg);font-weight:600;color:var(--g-900)}
+.dlg-s{font-size:var(--fs-sm);color:var(--g-500);line-height:1.45;max-width:56ch}
+.dlg-x{margin-left:auto;font-size:var(--fs-sm);color:var(--g-400);cursor:pointer;padding:2px 4px;border-radius:var(--r-sm)}
+.dlg-x:hover{color:var(--g-800);background:var(--hover)}
 .dlg-x:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 /* Grade de dois campos por linha, cada um empilhado (rótulo -> controle ->
    dica). Antes era uma lista de linhas com rótulo à esquerda e controle à
@@ -1989,27 +2110,27 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .dlg-bd{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:16px 24px}
 .dlg-row{display:flex;flex-direction:column;gap:8px;padding:0;border-bottom:0}
 .dlg-lb{display:flex;flex-direction:column;gap:2px;min-width:0;order:-1}
-.dlg-n{font-size:12px;font-weight:500;color:var(--g-700)}
-.dlg-h{font-size:11px;color:var(--g-400);line-height:1.4}
+.dlg-n{font-size:var(--fs-sm);font-weight:500;color:var(--g-700)}
+.dlg-h{font-size:var(--fs-xs);color:var(--g-400);line-height:1.4}
 .dlg-ct .stepper{width:100%}
-.dlg-ft{display:flex;align-items:center;gap:8px;padding:16px 24px;background:#fff;border-top:1px solid var(--line-soft)}
-.dlg-sum{font-size:11.5px;color:var(--g-500);font-variant-numeric:tabular-nums}
+.dlg-ft{display:flex;align-items:center;gap:8px;padding:16px 24px;background:var(--surface);border-top:1px solid var(--line-soft)}
+.dlg-sum{font-size:var(--fs-sm);color:var(--g-500);font-variant-numeric:tabular-nums}
 .dlg-act{display:flex;gap:8px;margin-left:auto}
-.dlg-note{grid-column:1/-1;padding:0;border-top:0;font-size:10.5px;color:var(--g-400)}
+.dlg-note{grid-column:1/-1;padding:0;border-top:0;font-size:var(--fs-xs);color:var(--g-400)}
 
 .dlg-act .cbtn-on{display:none}
 #vol-150:checked ~ .modal-cal .cbtn-on{display:inline-flex}
 
 #cf-80:checked ~ .p-sec .pv-cf-80{display:inline}
-#cf-80:checked ~ .p-sec label[for="cf-80"]{background:var(--g-800);color:#fff;font-weight:600}
+#cf-80:checked ~ .p-sec label[for="cf-80"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
 #cf-80-sh:checked ~ .p-sec .pv-cf-80-sh{display:inline}
-#cf-80-sh:checked ~ .p-sec label[for="cf-80-sh"]{background:var(--g-800);color:#fff;font-weight:600}
+#cf-80-sh:checked ~ .p-sec label[for="cf-80-sh"]{background:var(--g-800);color:var(--ink-inv);font-weight:500}
 
 .navdemo{position:relative;padding:8px;background:var(--shell-side-bg);border:1px solid var(--line);border-radius:var(--r-sm)}
-.nav-mod{display:flex;align-items:center;gap:8px;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g-500);padding:8px 10px 4px;cursor:pointer;border-radius:var(--r-sm)}
-label.nav-mod:hover{background:var(--g-100)}
+.nav-mod{display:flex;align-items:center;gap:8px;font-size:var(--fs-xs);font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--g-500);padding:8px 10px 4px;cursor:pointer;border-radius:var(--r-sm)}
+label.nav-mod:hover{background:var(--hover)}
 label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
-.nav-mod .car{margin-left:auto;font-size:9px;color:var(--g-400);display:inline-block;transform:rotate(0deg);transition:transform .12s ease}
+.nav-mod .car{margin-left:auto;font-size:var(--fs-xs);color:var(--g-400);display:inline-block;transform:rotate(0deg);transition:transform .12s ease}
 .nav-grp{display:flex;flex-direction:column;gap:2px}
 .navdemo>.oc{position:absolute;opacity:0;pointer-events:none}
 .nav-mod-off{color:var(--g-300);cursor:not-allowed;display:flex;align-items:center;gap:6px;margin-top:6px;border-top:1px solid var(--line-soft);padding-top:10px}
@@ -2022,12 +2143,12 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    proveniência, não controle).
    Não há estado recolhido: o que governa a leitura de todo número da tela fica
    à vista. ------------------------------------------------------------------ */
-.parambar{display:flex;align-items:center;gap:20px;min-height:48px;padding:0 var(--content-pad);background:#fff;border-bottom:1px solid var(--line)}
+.parambar{display:flex;align-items:center;gap:20px;min-height:48px;padding:0 var(--content-pad);background:var(--surface);border-bottom:1px solid var(--line)}
 .pfield{display:flex;align-items:center;gap:8px;flex:none}
-.plbl{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g-500);white-space:nowrap}
+.plbl{display:inline-flex;align-items:center;gap:5px;font-size:var(--fs-xs);font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--g-500);white-space:nowrap}
 .parambar .seg{flex:none}
 .parambar .seg>span,.parambar .seg>label{flex:none;padding:5px 11px}
-.parambar .btn{min-height:28px;padding:4px 12px;font-size:12px}
+.parambar .btn{min-height:28px;padding:4px 12px;font-size:var(--fs-sm)}
 
 /* ---------- affordance de informação por controle -------------------------
    Substitui a prosa fixa sob cada controle. O texto curto em linguagem comum
@@ -2035,12 +2156,12 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    Por que não `title=`: tooltip nativo não abre por teclado, não formata e não
    aceita link — e a explicação de um critério que acusa um médico tem de ser
    alcançável sem mouse. ---------------------------------------------------- */
-.help{position:relative;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1px solid var(--g-300);border-radius:50%;font-size:9px;font-weight:600;color:var(--g-500);cursor:help;flex:none;letter-spacing:0}
+.help{position:relative;display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border:1px solid var(--g-300);border-radius:50%;font-size:var(--fs-xs);font-weight:500;color:var(--g-500);cursor:help;flex:none;letter-spacing:0}
 .help:hover{border-color:var(--g-500);color:var(--g-800)}
 .help:focus-visible{outline:none;box-shadow:var(--focus-ring)}
-.help .tip{position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);width:240px;opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:#fff;border-radius:var(--r-sm);padding:9px 11px;box-shadow:var(--sh-1);font-size:11px;font-weight:400;line-height:1.5;letter-spacing:0;text-transform:none;text-align:left;z-index:6}
+.help .tip{position:absolute;left:50%;top:calc(100% + 8px);transform:translateX(-50%);width:240px;opacity:0;pointer-events:none;transition:opacity .12s ease;background:var(--g-900);color:var(--ink-inv);border-radius:var(--r-sm);padding:9px 11px;box-shadow:var(--sh-1);font-size:var(--fs-xs);font-weight:400;line-height:1.5;letter-spacing:0;text-transform:none;text-align:left;z-index:6}
 .help:hover .tip,.help:focus-visible .tip{opacity:1}
-.help .tip a{color:#fff;text-decoration:underline}
+.help .tip a{color:var(--ink-inv);text-decoration:underline}
 /* No cabeçalho da tabela o ⓘ mora em `.tbl-hd`, que está FORA da área rolável:
    bolha ancorada em conteúdo que rola sai de sincronia com o próprio conteúdo.
    Dentro de `<th>` é proibido — o th é sticky dentro de `.tbl-scroll` e a bolha
@@ -2080,7 +2201,7 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .stepper.invalid{border-color:var(--crit-line);background:var(--crit-soft)}
 .stepper.invalid .stepnum{color:var(--crit)}
 .stepper.invalid:focus-within{border-color:var(--crit)}
-.step-err{font-size:10.5px;color:var(--crit);line-height:1.4;display:none}
+.step-err{font-size:var(--fs-xs);color:var(--crit);line-height:1.4;display:none}
 .stepper.invalid + .step-err{display:block}
 
 /* ---------- confirmação de descarte no diálogo ---------------------------
@@ -2102,7 +2223,7 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    "100 consultas" quando o número é 100 consultas/ANO — o motor escala esse piso
    pela janela. Encurtar para caber não limpou o controle, tornou o dado impreciso.
    Um passo mais clara que `.dlg-h`: a unidade recua atrás da explicação. ----- */
-.dlg-u{font-size:11px;color:var(--g-400);font-variant-numeric:tabular-nums}
+.dlg-u{font-size:var(--fs-xs);color:var(--g-400);font-variant-numeric:tabular-nums}
 
 /* item 2 do pedido — largura flexível — foi absorvido pela declaração única de
    `.stepnum` lá em cima, e não repetido aqui: duas declarações da mesma classe
@@ -2116,9 +2237,9 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    que aciona) ou um <a> (para aba que navega) não recebiam estilo nenhum — a
    mesma armadilha que `.seg>span` criou para o controle segmentado. O item passa
    a ter classe própria; o elemento fica a critério da semântica. --------------- */
-.tabs .tab{padding:9px 14px;font-size:13px;color:var(--g-500);border:0;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;background:none;font-family:inherit;font-weight:400;cursor:pointer}
+.tabs .tab{padding:9px 14px;font-size:var(--fs-md);color:var(--g-500);border:0;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;background:none;font-family:inherit;font-weight:400;cursor:pointer}
 .tabs .tab:hover{color:var(--g-800)}
-.tabs .tab.on{color:var(--g-900);font-weight:600;border-bottom-color:var(--g-900)}
+.tabs .tab.on{color:var(--g-900);font-weight:500;border-bottom-color:var(--g-900)}
 .tabs .tab.off{color:var(--g-300);cursor:not-allowed}
 .tabs .tab.off:hover{color:var(--g-300)}
 .tabs .tab:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm);position:relative;z-index:4}
@@ -2136,7 +2257,7 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .skel-w88{width:88%}
 .lbl-caveat{color:var(--caveat-ink)}
 .provtag-caveat{border-color:var(--caveat-line)}
-.link-crit{font-size:12.5px;color:var(--crit);white-space:nowrap}
+.link-crit{font-size:var(--fs-md);color:var(--crit);white-space:nowrap}
 
 /* últimas linhas do esqueleto e respiro acima da faixa de eixo */
 .skel-row-last{border-bottom:0}
@@ -2155,7 +2276,7 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    Contorno tracejado em caveat, não crítico: desviar é legítimo. O que não pode
    é ser silencioso. A ação de restaurar vai à direita (margin-left:auto) — ler
    primeiro o que mudou, agir depois. ---------------------------------------- */
-.deviation{display:flex;align-items:center;gap:8px;font-size:11px;line-height:1.4;color:var(--caveat-ink);background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-sm);padding:6px 8px}
+.deviation{display:flex;align-items:center;gap:8px;font-size:var(--fs-xs);line-height:1.4;color:var(--caveat-ink);background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line);border-radius:var(--r-sm);padding:6px 8px}
 .deviation a{color:var(--caveat-ink);text-decoration:underline;white-space:nowrap;margin-left:auto;cursor:pointer}
 .deviation a:hover{color:var(--caveat-ink)}
 .deviation a:focus-visible{outline:none;box-shadow:var(--focus-ring);border-radius:var(--r-sm)}
@@ -2210,12 +2331,12 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    app. Abrir e fechar é `.on` aplicado pelo JS, e não checkbox, porque este
    gatilho precisa de `aria-expanded` para leitor de tela (DIRETRIZES §19). */
 .menu-anc{position:relative}
-.menu{position:absolute;z-index:9;display:none;flex-direction:column;min-width:200px;padding:4px;background:#fff;border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-pop)}
+.menu{position:absolute;z-index:9;display:none;flex-direction:column;min-width:200px;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-pop)}
 .menu.on{display:flex}
 /* Ancorado no rodapé: abre PARA CIMA, alinhado ao gatilho. */
 .menu-acima{bottom:calc(100% + 6px);left:0;right:0}
-.menu-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:12.5px;font-weight:500;color:var(--g-800);cursor:pointer;text-align:left;text-decoration:none;white-space:nowrap}
-.menu-item:hover{background:var(--g-100);color:var(--g-900);text-decoration:none}
+.menu-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:var(--fs-md);font-weight:500;color:var(--g-800);cursor:pointer;text-align:left;text-decoration:none;white-space:nowrap}
+.menu-item:hover{background:var(--hover);color:var(--g-900);text-decoration:none}
 .menu-item:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .menu-item svg{stroke:var(--g-500);flex:none}
 .menu-item:hover svg{stroke:var(--g-700)}
@@ -2237,8 +2358,8 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .def-row{display:flex;align-items:center;gap:16px;padding:13px 0;border-top:1px solid var(--line-soft)}
 .def-row:first-child{border-top:0;padding-top:0}
 .def-row:last-child{padding-bottom:0}
-.def-k{width:200px;flex:none;font-size:12px;color:var(--g-500)}
-.def-v{min-width:0;font-size:13px;color:var(--g-900);overflow-wrap:anywhere}
+.def-k{width:200px;flex:none;font-size:var(--fs-sm);color:var(--g-500)}
+.def-v{min-width:0;font-size:var(--fs-md);color:var(--g-900);overflow-wrap:anywhere}
 /* A linha de apoio explica o valor sem competir com ele. */
 .def-v .sub{display:block;margin-top:3px}
 .def-act{margin-left:auto;flex:none}
@@ -2275,35 +2396,113 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
    aside que já tinha borda. Mesma decisão que `.tbl-hd`/`.tbl-band` tomaram com
    `border-bottom:0` — a moldura é do quadro, não de cada parte dele. */
 .painel-lateral{position:fixed;top:0;right:0;bottom:0;z-index:40;
-  width:min(420px,34vw);background:#fff;border-left:1px solid var(--line);
+  width:min(420px,34vw);background:var(--surface);border-left:1px solid var(--line);
   box-shadow:-8px 0 24px -12px rgb(0 0 0 / .18);
   display:flex;flex-direction:column;overflow:hidden}
 .painel-lateral[hidden]{display:none}
-.pnl-hd{flex:none;padding:16px;border-bottom:1px solid var(--line-soft);background:#fff}
-.pnl-corpo{flex:1;min-height:0;overflow-y:auto;padding:0 16px;
+/* 20px nas laterais, do cabeçalho ao rodapé: a moldura do painel é uma só, e
+   16px de um lado com 14px do outro fazia cada faixa começar num lugar. */
+.pnl-hd{flex:none;padding:20px 20px 16px;border-bottom:1px solid var(--line-soft);
+  background:var(--surface)}
+.pnl-corpo{flex:1;min-height:0;overflow-y:auto;padding:0 20px;
   overscroll-behavior:contain}
-.pnl-sec{display:flex;flex-direction:column;gap:8px;padding:16px 0;
+/* UM RITMO SÓ. O espaço entre o rótulo e o conteúdo é o MESMO espaço entre
+   duas linhas de conteúdo (`gap` na seção e no corpo, igual), e a seção inteira
+   respira o mesmo em cima e embaixo. Antes cada bloco montava o próprio
+   empilhamento no JS (`stack g6` por fora, `stack g4` por dentro) e o painel
+   tinha um ritmo por seção: o rótulo caía a 8px do texto em uma e a 6px na
+   seguinte, e as linhas de apoio se agrupavam em sub-blocos que não
+   significavam nada. */
+.pnl-sec{display:flex;flex-direction:column;gap:6px;padding:18px 0;
   border-top:1px solid var(--line-soft)}
+.pnl-cnt{display:flex;flex-direction:column;gap:6px;min-width:0}
+/* Seção com DESENHO respira mais: gráfico encostado no rótulo lê como parte
+   dele, e a legenda embaixo precisa se descolar das barras. */
+.pnl-sec-fig,.pnl-sec-fig>.pnl-cnt{gap:10px}
+/* A CALHA À ESQUERDA do bloco de trimestres, lida pelo eixo do gráfico E pela
+   faixa de valores da tabela: é ela que põe cada número sob a sua barra.
+   Dimensionada pelo EIXO, que é o único que precisa dela: a marca mais larga
+   ("15 mil") mede 32px, mais os 8px que a separam da pista. Já foi 100px,
+   quando a tabela tinha coluna de rótulos e o gráfico recuava para casar com
+   ela — e o bloco começava 88px à direita de todo o resto da aba. */
+.pnl-sec-fig{--evo-calha:40px}
 .pnl-corpo>.pnl-sec:first-child{border-top:0}
-.pnl-rot{text-transform:uppercase;letter-spacing:.04em;font-weight:600;color:var(--g-400)}
+.pnl-rot{font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.04em;
+  font-weight:500;color:var(--g-400)}
+/* a frase da seção: o mesmo corpo de texto do app, nunca um tamanho próprio */
+.pnl-cnt>.v{font-size:var(--fs-md);color:var(--g-900);text-wrap:pretty}
+.pnl-cnt .sub{text-wrap:pretty}
+/* Os três valores da régua (cooperado, referência, critério) lado a lado. O
+   rótulo cola no número que ele nomeia (2px) e os pares se separam entre si
+   (20px): sem essa diferença os seis elementos leem como uma lista só. */
+.pnl-vals{display:flex;align-items:baseline;gap:20px;flex-wrap:wrap}
+.pnl-vals>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+/* NÚMERO é número em todo o painel: mesma família mono, mesma cor, mesmo peso
+   da grade de volume sob o gráfico de trimestres, um passo acima só no corpo
+   porque estes três são o valor de cabeça da seção. Nenhum deles é tingido: o
+   que separa o cooperado da referência e do critério é a MARCA ao lado do
+   rótulo, a mesma forma que o desenho usa. */
+.pnl-val{font-size:var(--fs-md);font-weight:500;color:var(--g-900);
+  font-variant-numeric:tabular-nums}
 
 /* O conteúdo cede espaço em vez de ser coberto. Transição só na margem: a
    tabela reflui uma vez, sem animar o próprio layout interno. */
+/* `.com-painel` SEM USO desde 2026-09-06: o painel do procedimento virou gaveta
+   sobreposta, como a de "fora da referência". A regra fica como registro de que
+   empurrar o conteúdo foi tentado e descartado (a página andava para a esquerda
+   a cada clique). Remover quando o contrato for varrido. */
 .content.com-painel{margin-right:min(420px,34vw)}
 .content{transition:margin-right .16s ease}
 @media (prefers-reduced-motion:reduce){.content{transition:none}}
 
+/* Variante MODAL da gaveta: mesma geometria, mas com cortina por cima da tela.
+   A diferença não é estética. O painel de procedimento existe para trabalhar AO
+   LADO da tabela (trocar de linha sem fechar nada), e por isso o conteúdo cede
+   espaço em vez de ser coberto. Este aqui é uma lista para ler e fechar, e a
+   cortina diz exatamente isso. Mais largo porque cada entrada é uma frase, não
+   um par rótulo/valor. */
+.painel-lateral.pnl-modal{width:min(520px,94vw);z-index:60}
+/* uma ENTRADA da lista: identificação e volume em cima, motivo por extenso
+   embaixo, separadas pela mesma régua fina das seções do painel */
+.pnl-ent{display:flex;flex-direction:column;gap:5px;padding:13px 0;
+  border-top:1px solid var(--line-soft)}
+.pnl-corpo>.pnl-ent:first-child{border-top:0}
+.pnl-ent .mono{font-size:var(--fs-md);font-weight:500;color:var(--g-900)}
+.pnl-ent .dlg-h{font-size:var(--fs-md);color:var(--g-700);line-height:1.45}
+/* o chevron da tabela cabe aqui sem virar outro componente: só perde o
+   `width:100%`, que existe para ocupar a célula de 44px da coluna de ação */
+.pnl-ent .chev{width:auto;flex:none;padding-left:12px;color:var(--g-400)}
+/* a cortina passa a ser ESTADO em classe: o JS alterna, o CSS desenha (era
+   `style.display` escrito à mão pelo bloco dos excluídos) */
+.scrim.on{display:block}
+
+/* RODAPÉ do painel: faixa fixa fora da rolagem, com a saída para a área. Mesma
+   faixa de apoio do rodapé dos cartões, para o painel fechar com o vocabulário
+   do resto do app. */
+.pnl-ft{flex:none;display:flex;padding:14px 20px;border-top:1px solid var(--line);
+  background:var(--surface-2)}
+.pnl-ft .btn{flex:1;justify-content:center;text-decoration:none}
+
+/* MARCAS que ligam cada valor da régua ao traço dele no gráfico logo acima:
+   ponto cheio (o cooperado), traço contínuo (a referência), traço tracejado
+   (o critério). São as mesmas formas do desenho, em 8px. */
+.pnl-mk-rot{display:inline-flex;align-items:center;gap:7px}
+.pnl-mk{width:8px;flex:none;display:inline-block}
+.pnl-mk.mk-pt{height:8px;border-radius:50%;background:var(--exc)}
+.pnl-mk.mk-ref{height:2px;border-radius:1px;background:var(--g-500)}
+.pnl-mk.mk-crit{height:0;border-top:1px dashed var(--g-500)}
+
 .painel-x{width:28px;height:28px;flex:0 0 28px;display:flex;align-items:center;
   justify-content:center;border:0;border-radius:var(--r-sm);background:transparent;
-  color:var(--g-500);font-family:inherit;font-size:14px;cursor:pointer}
-.painel-x:hover{background:var(--g-50);color:var(--g-900)}
+  color:var(--g-500);font-family:inherit;font-size:var(--fs-lg);cursor:pointer}
+.painel-x:hover{background:var(--hover);color:var(--g-900)}
 .painel-x:focus-visible{outline:2px solid var(--g-400);outline-offset:1px}
 
 /* A linha da tabela é o gatilho: precisa PARECER acionável e receber foco de
    teclado com contorno visível — linha clicável sem foco só existe pro mouse. */
 tr.clicavel{cursor:pointer}
-tr.clicavel:hover{background:var(--g-25)}
-tr.clicavel.selecionada{background:var(--g-50)}
+tr.clicavel:hover{background:var(--hover)}
+tr.clicavel.selecionada{background:var(--row-selected)}
 tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 
 /* Sem largura para as duas coisas, o painel passa a cobrir — em tela estreita
@@ -2313,32 +2512,319 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
   .content.com-painel{margin-right:0}
 }
 
-/* Curva de densidade do painel do procedimento. Tokens do contrato — nenhum
-   valor de cor nasce aqui. A curva é o grupo de pares; a marca é o cooperado, e
-   é o único elemento que precisa saltar. */
-.dens{display:block;width:100%;height:auto;overflow:visible}
-.dens-area{fill:var(--ch-iqr-fill);stroke:var(--ch-iqr-line);stroke-width:1;
-  vector-effect:non-scaling-stroke}
-.dens-box{fill:var(--g-200)}
-.dens-med{stroke:var(--acc);stroke-width:2;vector-effect:non-scaling-stroke}
-.dens-crit{stroke:var(--read-above);stroke-width:1.5;stroke-dasharray:3 3;
-  vector-effect:non-scaling-stroke}
-.dens-mk{stroke:var(--g-700);stroke-width:2;vector-effect:non-scaling-stroke}
-.dens-mk.warnmk{stroke:var(--read-above)}
-.dens-mk.critmk{stroke:var(--crit)}
-.v-mk{color:var(--crit)}
+/* ── LEITURA DO CASO: a grade de números do dossiê (2026-09-06) ─────────────
+   Substituiu a faixa `.kpis` de sete cartões no topo do dossiê. Três colunas,
+   uma por pergunta (quanto ele faz · com que intensidade · quanto custa), e
+   dentro de cada uma os pares rótulo/valor alinhados numa régua só.
 
-/* Barra aninhada do Pareto de custo (dossiê): o comprimento é o custo total, o
-   preenchimento interno é a parcela acima da referência. Mesma pista e mesma
-   altura das outras barras do Pareto — muda o que está DENTRO, não a forma. */
-.pareto-l .trilho i.duplo{position:relative;overflow:hidden}
+   A régua é o que a faixa de cartões não tinha: sete caixas de largura igual
+   punham "1.032 consultas" e "R$ 86 mil" em dois blocos sem relação. Aqui os
+   valores encostam na mesma coluna da direita e se leem de cima a baixo. */
+.res-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:1px;background:var(--line-soft);border-top:1px solid var(--line-soft)}
+/* o respiro horizontal é o MESMO do cabeçalho, da faixa e do rodapé do cartão
+   (16px): o bloco é uma coluna só de cima a baixo, e 20px aqui fazia a primeira
+   linha de número começar depois do título */
+.res-grupo{display:flex;flex-direction:column;gap:10px;
+  padding:14px 16px;background:var(--surface)}
+.res-grupo-t{text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.res-linha{display:grid;grid-template-columns:1fr auto;align-items:baseline;
+  column-gap:16px;row-gap:2px}
+.res-k{font-size:var(--fs-md);color:var(--g-500);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ALINHADO À DIREITA, e é o que faz a coluna existir: a largura da coluna vem
+   da referência abaixo ("referência: 3.497"), que é sempre mais larga que o
+   valor. Sem isto o número ficava encostado à ESQUERDA dessa largura, e
+   "1.032" e "11.085" terminavam em pontos diferentes. */
+/* 20px, e não 14: são os números do caso, a substância do cartão. Em 14 eles
+   ficavam MENORES que o total de beneficiários da carteira (20px), que é um
+   denominador de contexto — a hierarquia lia ao contrário. O `line-height`
+   apertado e o tracking negativo são os do número de destaque em todo o app. */
+.res-v{font-size:var(--fs-2xl);font-weight:600;line-height:1.15;
+  letter-spacing:-.02em;color:var(--g-900);
+  font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+/* a referência da área ocupa a linha inteira abaixo do par, na coluna do valor:
+   ela é a régua do número, não um terceiro número */
+.res-p{grid-column:2;font-size:var(--fs-xs);color:var(--g-400);text-align:right;
+  white-space:nowrap}
+/* o mesmo pontilhado de "tem hover" da faixa de KPIs: só a referência carrega
+   explicação (como ela é construída), e o pontilhado é o que anuncia isso */
+.res-p.tem-hover{text-decoration:underline;text-decoration-style:dotted;
+  text-decoration-color:var(--line);text-underline-offset:3px;cursor:help}
+/* ── LEITURA DA ÁREA: o destaque e o rodapé de notas ────────────────────────
+   O bloco reusa a grade do "Leitura do caso" do dossiê (`.res-*`); o que ele
+   acrescenta é a faixa de destaque, onde vive o número que a tela existe para
+   produzir, e um rodapé que comporta duas frases empilhadas. */
+.res-destaque{flex-direction:row;align-items:baseline;flex-wrap:wrap;gap:10px;
+  border-top:1px solid var(--line-soft)}
+.la-destaque{font-size:var(--fs-2xl);font-weight:600;line-height:1.15;
+  letter-spacing:-.02em;color:var(--g-900);font-variant-numeric:tabular-nums}
+/* o rodapé do cartão é de UMA linha; aqui são duas frases de método, e elas
+   empilham como no `.tbl-ft-nota` do Pareto */
+.res-notas-ft{flex-direction:column;align-items:flex-start;gap:5px;
+  text-wrap:pretty}
+
+/* AS AFIRMAÇÕES DO CASO, uma por linha, com a marca dos fatores de contexto.
+   Não são chips: chip é etiqueta curta em fila, e aqui cada item é uma frase
+   que ocupa a linha inteira. O que se toma emprestado é só a marca, que é o que
+   diz "isto é uma afirmação verificada", e ela alinha com a primeira linha do
+   texto quando ele quebra. */
+.res-itens{display:flex;flex-direction:column;gap:5px}
+.res-item{display:flex;gap:8px;font-size:var(--fs-md);color:var(--g-500);
+  text-wrap:pretty}
+.res-item .mk{width:5px;height:5px;flex:none;margin-top:7px;border-radius:50%;
+  background:var(--exc)}
+
+/* a régua que separa a carteira dos números, como no desenho */
+.res-carteira{border-top:1px solid var(--line-soft)}
+
+/* ── FATORES DE CONTEXTO: a faixa que fecha o cartão ────────────────────────
+   Mesma faixa de apoio do `.tbl-ft` (surface-2 com régua em cima), mas em
+   coluna, porque aqui há três coisas: o rótulo da seção, os chips e a frase que
+   diz o que eles não são. É a última pergunta antes de concluir qualquer coisa
+   sobre o que está acima, e por isso fecha o bloco em vez de abrir. */
+.res-fatores{display:flex;flex-direction:column;gap:8px;padding:14px 16px;
+  border-top:1px solid var(--line);background:var(--surface-2)}
+
+/* ── CARTEIRA ATENDIDA ──────────────────────────────────────────────────────
+   Uma linha por faixa etária: a barra é a fatia DESTA carteira, o traço é a
+   fatia da ÁREA na mesma faixa. Duas barras empilhadas diriam o mesmo e
+   ocupariam o dobro; o traço deixa a comparação acontecer na linha em que o
+   olho já está, que é a mesma decisão da barra aninhada do Pareto.
+   As larguras são DADO (vêm em `largura_pct`/`area_pct` do motor) e por isso
+   saem em `style`, como no Pareto e na régua. */
+.cart{display:flex;flex-direction:column;gap:10px}
+.cart-hd{align-items:baseline}
+/* O MESMO CORPO dos números do caso, e não um degrau abaixo. "866 beneficiários
+   distintos" é uma magnitude do período, igual a "2.839 consultas" — ela era um
+   dos KPIs da faixa antiga, ao lado deles. O que é CONTEXTO nesta seção é a
+   composição por faixa etária, não a contagem; e o que separa contexto de achado
+   é o rótulo, a posição e o rodapé, não o corpo do número (DIRETRIZES §8). */
+.cart-n{font-size:var(--fs-2xl);font-weight:600;color:var(--g-900);
+  font-variant-numeric:tabular-nums;line-height:1.15;letter-spacing:-.02em}
+.cart-faixas{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px 16px}
+.cart-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.cart-f-k{font-size:var(--fs-xs);color:var(--g-500)}
+.cart-f-v{font-size:var(--fs-sm);font-weight:500;color:var(--g-900);
+  font-variant-numeric:tabular-nums}
+.cart-f-a{font-size:var(--fs-xs);color:var(--g-400)}
+.cart-f-a.tem-hover{text-decoration:underline;text-decoration-style:dotted;
+  text-decoration-color:var(--line);text-underline-offset:3px;cursor:help}
+.cart-bar{position:relative;height:var(--ch-bar-h);border-radius:3px;
+  background:var(--ch-bar-track);overflow:hidden}
+/* A BARRA É NEUTRA, e não verde. `--exc` é a tinta do EXCEDENTE em todo o app,
+   e composição de carteira não é excedente: é o contexto contra o qual se lê a
+   frequência, a mesma natureza da caixa interquartil, que também é neutra por
+   decisão declarada nos tokens. Em verde, a faixa mais cheia da carteira lia
+   como achado. */
+/* `--g-400` e não `--g-300`: no tema escuro o 300 (#3F3F46) quase encosta na
+   pista (#1F1F23) e a barra sumia. O 400 inverte com o tema (#A1A1AA no claro,
+   #52525B no escuro) e fica legível nos dois, que é o registro do desenho. */
+.cart-bar i{display:block;height:100%;border-radius:3px;background:var(--g-400)}
+/* o traço da referência da área: 1px sobre a pista, na posição da fatia dela */
+.cart-bar b{position:absolute;top:-2px;bottom:-2px;width:1px;
+  background:var(--g-700)}
+.legend i.cart-mk-eu{width:14px;height:7px;border-radius:2px;background:var(--g-400)}
+.legend i.cart-mk-area{width:1px;height:11px;border-radius:0;background:var(--g-700)}
+
+/* ── BOX PLOT COMPACTO (painel do procedimento, 2026-09-06) ─────────────────
+   Substituiu uma curva de densidade em SVG que só existia aqui (`.dens*`): ela
+   mostrava a forma e escondia os quartis, que é o que se lê num painel de caso,
+   e trazia um segundo vocabulário visual para a mesma leitura que a tela de
+   Área já tinha.
+
+   É o MESMO `.plot` da distribuição, com a geometria comprimida para caber numa
+   coluna de painel. Só as medidas verticais mudam; haste, tampa, caixa, linha e
+   ponto continuam sendo os componentes de lá.
+
+   Geometria, de cima para baixo:
+     8-48   linhas de referência
+     14-42  caixa interquartil
+     28     haste do mínimo ao máximo, com as tampas em 21-35
+   Sem eixo numerado e sem rótulo sobre as linhas: os três valores estão escritos
+   logo abaixo, com a marca de cada um ao lado. */
+.plot-sm{--ch-h:56px;margin:0}
+.plot-sm .haste{top:28px}
+.plot-sm .tampa{top:21px;height:15px}
+.plot-sm .iqrband{top:14px;height:28px}
+/* As duas linhas são NEUTRAS e se distinguem pelo TRAÇO, não pela cor: contínua
+   é a referência, tracejada é o critério. É a mesma gramática das marcas da
+   legenda logo abaixo (`.pnl-mk`), e é o que "discreto" significa aqui — num
+   painel de UM caso, a única tinta é a do ponto dele. */
+.plot-sm .refline{top:8px;height:40px;
+  border-left:var(--ch-ref-w) solid var(--g-500)}
+.plot-sm .refline.tracejada{border-left-style:dashed}
+/* O ponto do cooperado: verde do dado, centrado na altura da caixa, com um anel
+   da cor do papel que o separa da borda da caixa quando os dois coincidem.
+   Precisa da especificidade de `.plot .pt` para vencer a rampa de cor da
+   distribuição, que pinta o ponto a partir de `--i`. */
+.plot .pt.pt-eu{top:50%;bottom:auto;width:var(--ch-dot-hi);height:var(--ch-dot-hi);
+  margin-left:calc(var(--ch-dot-hi)/-2);margin-top:calc(var(--ch-dot-hi)/-2);
+  background:var(--exc);opacity:1;box-shadow:0 0 0 2px var(--surface);z-index:2}
+
+/* Barra aninhada do Pareto: o comprimento é o custo total, o preenchimento
+   interno é a parcela acima da referência do grupo. Mesma pista e mesma altura
+   das outras barras do Pareto — muda o que está DENTRO, não a forma.
+
+   O cinza é claro de propósito: ele é CONTEXTO, o todo dentro do qual a
+   pergunta acontece. A tinta cheia fica com o excedente, que é o produto da
+   tela. Invertido, o olho iria primeiro para o custo, que ninguém está
+   propondo revisar. */
+.pareto-l .trilho i.duplo{position:relative;overflow:hidden;background:var(--g-200)}
 .pareto-l .trilho i.duplo b{position:absolute;left:0;top:0;bottom:0;display:block;
-  background:var(--crit);border-radius:2px 0 0 2px}
-.pareto-legenda{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--g-400)}
-.pareto-legenda i{width:18px;height:8px;border-radius:2px;background:var(--g-300);
-  position:relative;overflow:hidden;display:block}
-.pareto-legenda i b{position:absolute;left:0;top:0;bottom:0;width:60%;background:var(--crit);
-  border-radius:2px 0 0 2px}
+  background:var(--exc);border-radius:2px 0 0 2px}
+
+/* ── EVOLUÇÃO TRIMESTRAL (dossiê, 2026-09-05) ───────────────────────────────
+   Barras verticais empilhadas, uma por trimestre: a barra é o custo do período
+   e o trecho preenchido é o excedente dentro dele. As tintas são as MESMAS da
+   barra aninhada do Pareto (--g-200 e --acc), porque é o mesmo dinheiro visto
+   por outro eixo; tinta diferente aqui faria o leitor procurar um significado
+   que não existe. */
+.evo-corpo{display:flex;flex-direction:column;gap:18px;padding:4px 16px 16px}
+/* dentro do painel lateral o bloco não tem cartão nem respiro próprio: a seção
+   do painel já dá os dois, e a pista encolhe porque a coluna é estreita */
+.evo-corpo-nu{padding:0;gap:10px}
+.evo-corpo-nu .legend{margin-top:0}
+/* BARRA FINA no painel. A pista ocupava a coluna inteira (96px de 101px de
+   faixa) e as quatro barras encostavam uma na outra: o que o olho lia era um
+   bloco cinza recortado, não quatro trimestres comparáveis. Metade da faixa é
+   a proporção do desenho, e é ela que devolve o espaço branco entre as
+   colunas, que é o que separa uma barra da seguinte. */
+.evo-corpo-nu .evo-plot{max-width:48px}
+
+/* ── TABELA DE VOLUME sob o gráfico do exame ────────────────────────────────
+   Rótulo em cima, valores embaixo. A versão anterior tinha COLUNA de rótulos à
+   esquerda, e para os números caírem sob as barras o gráfico precisava recuar a
+   largura dela (88px): o bloco inteiro começava mais à direita que todo o resto
+   da aba lateral.
+
+   Sem a coluna, o rótulo ocupa a linha cheia a partir da borda da seção, e só a
+   faixa de valores herda a calha do eixo (`--evo-calha`) — que passa a ser
+   apenas o que as marcas do eixo pedem. Tudo começa na mesma vertical e cada
+   número continua exatamente sob a sua barra.
+
+   A conta do alinhamento: gráfico e faixa de valores têm a MESMA calha à
+   esquerda, o MESMO número de colunas de 1fr e o MESMO vão de 12px. */
+.evo-tab{display:flex;flex-direction:column;gap:3px;padding-top:10px;
+  border-top:1px solid var(--line-soft)}
+.evo-tab-k{font-size:var(--fs-xs);color:var(--g-500)}
+.evo-tab-k:not(:first-child){margin-top:7px}
+.evo-tab-v{display:grid;grid-template-columns:repeat(var(--evo-cols,4),1fr);
+  gap:12px;padding-left:var(--evo-calha);align-items:center;
+  font-size:var(--fs-sm);color:var(--g-900);text-align:center}
+/* o quadrado da consistência centrado na coluna, como os números */
+.evo-tab-v .spark{justify-content:center;height:auto}
+
+.evo-corpo-nu .evo-plot{max-width:48px}
+
+/* ── TABELA DE VOLUME sob o gráfico do exame ────────────────────────────────
+   Rótulo em cima, valores embaixo. A versão anterior tinha COLUNA de rótulos à
+   esquerda, e para os números caírem sob as barras o gráfico precisava recuar a
+   largura dela (88px): o bloco inteiro começava mais à direita que todo o resto
+   da aba lateral.
+
+   Sem a coluna, o rótulo ocupa a linha cheia a partir da borda da seção, e só a
+   faixa de valores herda a calha do eixo (`--evo-calha`), que passa a ser
+   apenas o que as marcas do eixo pedem. Tudo começa na mesma vertical e cada
+   número continua exatamente sob a sua barra.
+
+   A conta do alinhamento: gráfico e faixa de valores têm a MESMA calha à
+   esquerda, o MESMO número de colunas de 1fr e o MESMO vão de 12px. */
+.evo-tab{display:flex;flex-direction:column;gap:3px;padding-top:10px;
+  border-top:1px solid var(--line-soft)}
+.evo-tab-k{font-size:var(--fs-xs);color:var(--g-500)}
+.evo-tab-k:not(:first-child){margin-top:7px}
+.evo-tab-v{display:grid;grid-template-columns:repeat(var(--evo-cols,4),1fr);
+  gap:12px;padding-left:var(--evo-calha);align-items:center;
+  font-size:var(--fs-sm);color:var(--g-900);text-align:center}
+/* o quadrado da consistência centrado na coluna, como os números */
+.evo-tab-v .spark{justify-content:center;height:auto}
+/* pista mais alta que os 120px iniciais: com quatro linhas de régua em 120px,
+   rótulo e linha disputavam o mesmo pixel.
+   A calha do eixo é a MESMA coluna de rótulos da grade de volume: uma calha só
+   para o bloco inteiro é o que permite a grade cair debaixo das barras. */
+.evo-corpo-nu .evo{--evo-h:150px;--evo-eixo-w:var(--evo-calha,46px)}
+/* a altura da pista mora num token porque TRÊS coisas têm de concordar com ela:
+   a barra, a régua e a camada de linhas */
+.evo{--evo-h:168px;--evo-eixo-w:52px;position:relative;display:grid;
+  grid-auto-flow:column;grid-auto-columns:1fr;gap:12px;align-items:end;
+  padding-left:var(--evo-eixo-w)}
+.evo-col{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+.evo-plot{position:relative;width:100%;max-width:96px;height:var(--evo-h)}
+
+/* ── régua horizontal ───────────────────────────────────────────────────────
+   Uma camada só, atrás das colunas, ancorada no topo: a pista é o primeiro
+   filho de cada coluna e tem altura fixa, então `top:0` + `height` alinham a
+   grade com as barras sem ninguém precisar somar espaçamentos. */
+.evo-eixo{position:absolute;left:0;top:0;width:var(--evo-eixo-w);height:var(--evo-h);
+  padding-right:8px}
+.evo-marca{position:absolute;right:8px;transform:translateY(50%);
+  font-size:var(--fs-xs);color:var(--g-400);white-space:nowrap}
+.evo-linhas{position:absolute;left:var(--evo-eixo-w);right:0;top:0;height:var(--evo-h);
+  pointer-events:none}
+/* tracejada, e a de ZERO contínua: o zero é o chão do gráfico, não uma
+   referência entre outras */
+.evo-linhas i{position:absolute;left:0;right:0;display:block;height:0;
+  border-top:1px dashed var(--line)}
+.evo-linhas i.evo-base{border-top-style:solid;border-top-color:var(--g-200)}
+.evo-barra{position:absolute;left:0;right:0;display:block;
+  background:var(--g-200);border-radius:4px 4px 0 0}
+/* O EXCEDENTE é irmão da barra, não filho. Positivo, ele preenche a base do
+   custo e o resultado é a mesma barra aninhada do Pareto; NEGATIVO, ele desce
+   abaixo da linha do zero, onde não há custo para preencher. Aninhado, o caso
+   negativo não teria onde existir. */
+/* `min-height` porque valor que EXISTE tem de aparecer: um trimestre R$ 300
+   abaixo da referência vale 0,5% da pista e sumiria em meio pixel. */
+.evo-exc{position:absolute;left:0;right:0;display:block;background:var(--exc);
+  border-radius:0;min-height:2px}
+.evo-exc-neg{border-radius:0 0 4px 4px}
+/* o valor do excedente escrito DENTRO do trecho: tinta sobre tinta, encostado
+   no topo do próprio trecho, e só quando o motor disse que cabe */
+/* `font-style:normal` porque as barras são <i> (elemento de forma, sem
+   semântica de texto) e o navegador italiciza tudo que vive dentro delas */
+.evo-barra,.evo-exc,.evo-vaga{font-style:normal}
+.evo-exc b{position:absolute;left:0;right:0;top:3px;display:block;text-align:center;
+  font-size:var(--fs-xs);font-weight:500;color:var(--ink-inv);
+  white-space:nowrap;pointer-events:none}
+/* seta de direção contra o trimestre anterior */
+.evo-seta{margin-left:5px;font-size:var(--fs-xs);line-height:1;color:var(--g-400)}
+/* O VALOR flutua logo acima do topo da própria barra (o `bottom` é dado, vem do
+   motor), e não numa linha fixa: alinhado no topo do quadro, ele se soltava das
+   barras baixas e virava outra leitura.
+   Rótulo acima da barra fica, por definição, ACIMA do valor que ele nomeia, e
+   numa pista curta essa distância cai em cima de uma linha da régua: o "R$ 53
+   mil" era impresso na altura de R$ 60 mil e lia-se como leitura de eixo.
+   Três medidas contra isso, nenhuma delas mexendo na barra:
+     · fundo opaco colado ao texto, para a linha tracejada não passar por trás
+       (é o que faz o número pertencer à barra, e não ao eixo);
+     · `width:fit-content` + margem automática, para o fundo abraçar o texto em
+       vez de virar uma faixa da largura da coluna;
+     · `line-height:1` e folga de 3px, que encurtam a distância pela metade. */
+.evo-topo{position:absolute;left:0;right:0;width:fit-content;
+  margin:0 auto 3px;padding:1px 4px;border-radius:3px;background:var(--surface);
+  text-align:center;line-height:1;
+  font-size:var(--fs-sm);font-weight:500;color:var(--g-700);
+  white-space:nowrap}
+.evo-rot{font-size:var(--fs-sm);color:var(--g-500)}
+.evo-rot-na{color:var(--g-300)}
+/* trimestre NÃO MEDIDO: vaga tracejada rente ao chão. Mesma gramática dos
+   quadrados do trimestre na tabela (`.spark i.na`) — contorno tracejado é
+   ausência de medida em todo o app, e não uma medida que deu zero. */
+.evo-vaga{position:absolute;left:0;right:0;bottom:0;display:block;height:14px;
+  border:1px dashed var(--g-300);border-bottom:0;border-radius:4px 4px 0 0}
+.evo-na{font-size:var(--fs-xs);color:var(--g-500);line-height:1.4}
+
+/* os quatro cartões de resumo: mesma faixa de apoio do rodapé e do cabeçalho de
+   colunas, para o bloco fechar com o vocabulário do resto do app */
+.evo-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.evo-card{display:flex;flex-direction:column;gap:5px;padding:10px 12px;
+  border:1px solid var(--line-soft);border-radius:var(--r-md);background:var(--surface-2)}
+.evo-card>.row{gap:6px}
+.evo-card b{font-size:var(--fs-md);font-weight:500;color:var(--g-900)}
+.evo-meses{font-size:var(--fs-sm);color:var(--g-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evo-k{font-size:var(--fs-xs);color:var(--g-500)}
+.evo-v{font-size:var(--fs-md);color:var(--g-900)}
 
 /* Controle no cabeçalho de um cartão `.tbl` (2026-08-31): o segmentado que
    troca a medida do eixo da distribuição. Fica na DIREITA do `.tbl-hd`, entre o
@@ -2360,3 +2846,21 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    empurra é ele. */
 .tbl-hd .hd-ctl ~ .tbl-toggle{margin-left:0}
 .tbl.fechado > .tbl-hd .hd-ctl{display:none}
+
+/* ---------- .spin · anel de carga ----------------------------------------
+   O estado de carga de hoje era uma linha de texto cinza. Numa espera de
+   segundos, texto parado não distingue "calculando" de "travou".
+
+   Anel, não ponto pulsando (`.loading-note i`, que nasceu aqui e nunca foi
+   usado): rotação lê como trabalho em curso; opacidade pulsando lê como
+   elemento desabilitado. O anel fica dentro do `.loading-note`, que já tinha o
+   tamanho e a cor certos do rótulo, então é um componente de carga, não dois.
+
+   Sem determinação de progresso de propósito: o servidor responde de uma vez,
+   não em etapas, e barra que anda sem saber quanto falta seria invenção. */
+@keyframes girar{to{transform:rotate(360deg)}}
+.spin{flex:none;width:12px;height:12px;border-radius:50%;
+      border:1.5px solid var(--g-200);border-top-color:var(--g-500);
+      animation:girar .6s linear infinite}
+/* quem pediu menos movimento no sistema continua vendo o estado, mais lento. */
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}

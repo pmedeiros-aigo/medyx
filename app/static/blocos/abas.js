@@ -24,19 +24,37 @@ import { el } from '../lib/dom.js';
 /**
  * Monta a faixa de abas e devolve o painel de cada uma.
  *
+ * DUAS FORMAS, porque são dois níveis diferentes de escolha:
+ *
+ *   'abas'  sublinhado no ativo, sem moldura (`.vistas`). É o corte da PÁGINA:
+ *           Cooperados / Procedimentos trocam a unidade de análise, e por isso
+ *           viajam na URL.
+ *   'seg'   trilho cinza com pastilha branca (`.segfilt`). É controle de UM
+ *           bloco: Concentração / Distribuição / Quantidade × custo trocam a
+ *           leitura do mesmo recorte, dentro do cartão do gráfico.
+ *
+ * A distinção não é decorativa. As duas faixas ficam a poucos pixels uma da
+ * outra, e desenhadas iguais a de dentro do cartão lia como uma segunda
+ * navegação de página. O segmentado é fechado, cabe num cabeçalho e se anuncia
+ * como controle local.
+ *
  * @param {HTMLElement} destino
  * @param {{chave: string, rotulo: string, n?: number|string}[]} abas
  * @param {(chave: string) => void} aoTrocar
- * @returns {{paineis: Record<string, HTMLElement>, marcar: (chave: string) => void}}
+ * @param {{forma?: 'abas'|'seg'}} [opcoes]
+ * @returns {{faixa: HTMLElement, paineis: Record<string, HTMLElement>,
+ *            contar: (chave: string, n: number|string) => void,
+ *            marcar: (chave: string) => void}}
  */
-export function montarAbas(destino, abas, aoTrocar) {
-  const faixa = el('div', 'vistas');
+export function montarAbas(destino, abas, aoTrocar, opcoes = {}) {
+  const seg = opcoes.forma === 'seg';
+  const faixa = el('div', seg ? 'segfilt' : 'vistas');
   const botoes = new Map();
   const contadores = new Map();
   const paineis = {};
 
   for (const a of abas) {
-    const b = el('button', 'vista', a.rotulo);
+    const b = el('button', seg ? 'segfilt-o' : 'vista', a.rotulo);
     b.type = 'button';
     if (a.n != null) {
       const cnt = el('span', 'cnt', String(a.n));
@@ -53,6 +71,10 @@ export function montarAbas(destino, abas, aoTrocar) {
   for (const a of abas) destino.appendChild(paineis[a.chave]);
 
   return {
+    /* A faixa sai junto porque a página de Área a REMANEJA: ela mora dentro do
+       cartão do gráfico em cena, e muda de cartão a cada troca. Procurá-la de
+       volta por classe amarrava quem chama à forma escolhida aqui. */
+    faixa,
     paineis,
     /**
      * Reescreve o contador de uma aba. Existe porque o número ao lado do rótulo

@@ -148,7 +148,7 @@
 
         <div class="topbar">
           <div class="crumbs">
-            <span>SADT</span><i>/</i><span>Área de Atuação</span><i>/</i>
+            <span>SADT</span><i aria-hidden="true"></i><span>Área de Atuação</span><i aria-hidden="true"></i>
             <b data-crumb-area></b>
           </div>
           <!--
@@ -157,6 +157,19 @@
             cena: dois lugares dizendo a mesma janela, e o do canto era o único
             que o leitor não podia mudar.
           -->
+
+          <!--
+            ALTERNADOR DE TEMA, no canto direito da migalha (mesma posição do
+            Claude Design). Os DOIS ícones vivem na marcação e quem escolhe qual
+            aparece é o CSS, a partir de `<html data-tema>`: o JS alterna estado,
+            nunca decide aparência. O ícone mostra o tema ATUAL (sol no claro,
+            lua no escuro) e o rótulo diz o que vem no próximo clique.
+          -->
+          <button type="button" class="btn btn-ico tema-btn" data-tema-btn
+                  aria-label="Alternar tema">
+            <svg class="ico-sol" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
+            <svg class="ico-lua" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z"/></svg>
+          </button>
         </div>
 
         <!--

@@ -40,7 +40,7 @@ const ASSUNTOS = [
   ['Fatores de contexto',
    'urgência, regime e autorreferência: leituras, nunca vereditos'],
   ['Preço e valores em R$',
-   'preço interno derivado das contas, em quarentena até a tabela oficial'],
+   'preço interno derivado das contas do período'],
 ];
 
 await abrirPagina({

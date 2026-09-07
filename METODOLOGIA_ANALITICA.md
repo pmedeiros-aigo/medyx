@@ -205,6 +205,55 @@ Duas perguntas de negócio diferentes, **nunca misturadas**:
 Usar norma recalculada para medir progresso faz o número mentir. Esta é provavelmente a decisão
 mais importante do documento.
 
+#### 5.4.1 A regra aplicada à série trimestral do dossiê (set/2026)
+
+O corolário operacional da regra acima, decidido depois de a tela contradizer a si mesma: a soma
+dos quatro trimestres do gráfico de evolução não fechava com o excedente do ano exibido no mesmo
+dossiê (R$ 516.498 contra R$ 728.498 no `cooperado_85`), porque cada trimestre estava sendo medido
+sob a norma do próprio trimestre.
+
+**Régua recalculada para SINALIZAR; régua congelada para ACOMPANHAR.**
+
+| Leitura | Régua | Onde vive |
+| --- | --- | --- |
+| em quantos trimestres ele passou o critério | recalculada por trimestre | mini-série de consistência (`persistencia_temporal`) |
+| como o excedente se distribui no tempo | congelada no ano | gráfico de evolução trimestral |
+
+O motor por trimestre (`persistencia_temporal`) continua sendo a fonte da **consistência**. Ele
+não é fonte de **dinheiro**.
+
+A distribuição do excedente no tempo usa, todos anuais: a **cesta** de pares sinalizados, o
+**alvo** contra o qual o excedente foi medido e o **preço**. O trimestre entra apenas com os
+itens e as consultas dele:
+
+> excedente do trimestre = (solicitações do trimestre × preço) − (consultas do trimestre × Σ alvo × preço)
+
+**Sem clip por trimestre.** Os dois lados são lineares em itens e em consultas, e é isso que faz
+os trimestres somarem exatamente o excedente do ano; clipar em zero por trimestre quebraria a
+identidade. O clip continua onde sempre esteve: por par, no ano. Trimestre negativo é resultado
+válido e significa que naquele período ele solicitou menos do que a referência anual previa para
+as consultas dele; a tela desenha abaixo do zero e declara "dentro da referência neste trimestre".
+
+Ressalva aceita: com régua congelada, a sazonalidade da área é atribuída ao cooperado. É o custo
+de qualquer baseline fixo, e é preferível ao inverso (a régua descer junto com o consumo da área,
+mostrando melhora onde não houve). Se um dia incomodar, o caminho é uma referência anual
+sazonalizada, não a volta da régua móvel.
+
+**O piso de consultas não se aplica a esta distribuição.** O piso decide se uma TAXA é
+comparável (§5.2); aqui não há comparação: o custo é uma soma e o excedente do trimestre é a
+parcela de uma medição já feita no ano. Esconder o trimestre abaixo do piso omitia um custo
+conhecido e ainda quebrava a identidade da soma. O que o piso continua dizendo entra como
+ressalva no trimestre ("volume baixo"), qualificando as taxas daquele período (SADT e custo por
+consulta) e nunca o custo. Trimestre sem barra só existe quando não há preço apurado.
+
+**Arredondamento.** As barras são publicadas com duas casas; quatro arredondamentos
+independentes somariam até dois centavos fora do número do ano. A sobra é aplicada à MAIOR
+barra, onde é imperceptível, em vez de ficar visível na conta de quem soma.
+
+Aceite permanente: a soma dos trimestres tem de bater com o excedente do ano **na casa do
+centavo**, para todo cooperado com excedente valorado. Verificado em 63/63 na área de
+Ginecologia, com diferença máxima de R$ 0,005.
+
 ### 5.5 Forma da distribuição e tendência central
 
 A forma é **verificada a cada análise** (faz parte do pipeline, passo 8) — nunca assumida, nunca

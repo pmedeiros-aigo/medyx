@@ -20,9 +20,11 @@
 
 import { buscar } from '../lib/api.js';
 import { abrirPagina } from '../lib/pagina.js';
-import { TELAS, rotaAtual } from '../lib/rotas.js';
+import { TELAS, comRegua, rotaAtual } from '../lib/rotas.js';
 import { abrirPainel } from '../blocos/painel-procedimento.js';
+import { montarEvolucao } from '../blocos/evolucao.js';
 import { montarPareto } from '../blocos/pareto.js';
+import { montarResumoDoCaso } from '../blocos/resumo-caso.js';
 import { el, ordenar, cabecalho, ordemDaURL, gravarOrdem, proximaOrdem, moldura,
          celulaConsistencia, campoDeBusca, casa } from '../lib/tabelas.js';
 
@@ -58,159 +60,48 @@ function montarIdentidade(destino, d) {
   /* Sem "voltar à área" aqui: a migalha da barra superior navega (a área é
      link a partir do dossiê), e dois caminhos para o mesmo lugar a 40px um do
      outro é ruído, não afordância. */
-  topo.appendChild(el('span', 'sub', d.cooperado.area.titulo));
-  if (d.justificativa?.resumo) topo.appendChild(el('span', 'sub', d.justificativa.resumo));
+  /* UMA linha de contexto, não duas. A área tinha linha própria e reaparecia
+     em seguida dentro de "Comparado com: Ginecologia · n=63 comparáveis";
+     agora ela abre a linha da justificativa, que já diz contra quem e sobre que
+     base o caso é medido. O método por extenso fica no hover. */
+  const contexto = el('span', 'sub',
+                      d.justificativa?.resumo ?? d.cooperado.area.titulo);
+  if (d.justificativa?.resumo_detalhe) {
+    contexto.title = d.justificativa.resumo_detalhe;
+  }
+  topo.appendChild(contexto);
   destino.appendChild(topo);
 
-  /* A MESMA faixa de KPIs da tela de Área (`.kpis`/`.kpi`), e não mais `.stats`.
-     As duas telas mostravam a mesma coisa em dois pesos e dois tamanhos de
-     número; o `.stats` era herança do guia antes de a faixa de KPIs existir.
-     Os filhos já eram `.k`/`.v`/`.h`, que é o que o `.kpi` também usa, então a
-     troca é de container, sem classe nova. O pontilhado de "tem hover" segue a
-     mesma regra do bloco de cards: só onde há explicação para mostrar. */
-  const faixa = el('div', 'kpis');
-  for (const e of d.cabecalho ?? []) {
-    const bloco = el('div', 'kpi');
-    bloco.appendChild(el('span', 'k', e.rotulo));
-    bloco.appendChild(el('span', 'v', e.valor_fmt));
-    /* DOIS hovers, cada um no elemento que ele explica: o do valor diz o que a
-       métrica mede; o da linha de baixo diz como a referência da área foi
-       construída. Um hover só, no bloco inteiro, obrigava a mesma frase a
-       responder duas perguntas. */
-    if (e.titulo_longo) bloco.title = e.titulo_longo;
-    const apoio = el('span', e.par_titulo ? 'h tem-hover' : 'h', e.par_fmt);
-    if (e.par_titulo) apoio.title = e.par_titulo;
-    bloco.appendChild(apoio);
-    faixa.appendChild(bloco);
-  }
-  destino.appendChild(faixa);
+  /* A FAIXA DE SETE KPIs saiu daqui (set/2026) e virou o bloco "Leitura do
+     caso" (`blocos/resumo-caso.js`), logo abaixo. Ela dava aos sete números o
+     mesmo peso e nenhuma relação entre eles; os mesmos números agora chegam
+     agrupados pela pergunta que respondem, e com a carteira atendida ao lado.
+     Nada foi recalculado: `cabecalho` continua sendo a fonte, e o motor só o
+     agrupa em `resumo_do_caso`. */
 }
 
-/** Um item da leitura: rótulo pequeno em cima, conteúdo embaixo. */
-function item(rotulo, conteudo) {
-  const bloco = el('div', 'stack g4');
-  bloco.appendChild(el('span', 'micro', rotulo));
-  bloco.appendChild(conteudo);
-  return bloco;
-}
+/* O CARTÃO "Leitura do caso" NARRATIVO saiu daqui (set/2026), junto com o
+   utilitário `item()` que só ele usava. Ele repetia, palavra por palavra, o
+   subtítulo do bloco de resumo logo acima, e trazia de novo a posição, a origem
+   do excedente e o lugar no Pareto. Dois cartões com o mesmo título e o mesmo
+   conteúdo, a um scroll um do outro.
 
-/** Leitura do caso: narrativa em seções, de cima a baixo, na ordem em que a
- *  pergunta se faz — onde ele está → o que puxa → o padrão se repete? → como
- *  se distribui nos pacientes → quanto é. O subtítulo do card é o CASO numa
- *  frase (redigida no motor), nunca a regra do método. */
-function montarLeitura(destino, d) {
-  const L = d.leitura;
-  const cartao = el('div', 'tbl');
-  const topo = el('div', 'tbl-hd');
-  const titulo = el('div', 'stack g4');
-  titulo.appendChild(el('span', 't', 'Leitura do caso'));
-  if (L.frase) titulo.appendChild(el('span', 'sub', L.frase));
-  topo.appendChild(titulo);
-  cartao.appendChild(topo);
+   O que ele mostrava e NENHUMA outra superfície do dossiê mostra hoje:
+     · os quadrados de consistência entre trimestres, com a direção da série;
+     · a concentração por beneficiário no agregado ("49% da carteira recebe o
+       procedimento principal");
+     · o EXCESSO DE SOLICITAÇÕES (o número de itens; o de R$ está no resumo);
+     · a linha "maior volume: <exame> (40,1× a referência)".
+   Os dados continuam no payload (`leitura`), intocados: o que saiu foi o
+   desenho. Reintroduzir qualquer um deles é escolher onde ele mora. */
 
-  const corpo = el('div', 'tbl-band');
-  const pilha = el('div', 'stack g10');
+/* AS COLUNAS da tabela de procedimentos: nome, definição para o hover do
+   cabeçalho, e a chave de ordenação com o valor que a ordena. A ordem desta
+   lista É a ordem das células em `linhaProcedimento`, e as duas têm de andar
+   juntas.
 
-  // 1 · posição na área: selo + tradução na mesma linha
-  const pos = L.posicao ?? {};
-  const cx = el('div', 'row');
-  cx.appendChild(el('span', `pctl ${pos.classe ?? ''}`, pos.rotulo ?? ''));
-  cx.appendChild(el('span', 'sub', pos.traducao ?? pos.indisponivel_motivo ?? ''));
-  pilha.appendChild(item('Posição na área', cx));
-
-  // 2 · origem do excedente: difusa/concentrada + o procedimento principal
-  const or_ = L.origem_excedente;
-  if (or_) {
-    const co = el('div', 'stack g4');
-    co.appendChild(el('span', null, or_.leitura ?? ''));
-    if (or_.topo?.descricao) {
-      co.appendChild(el('span', 'sub',
-        `principal: ${or_.topo.descricao.trim()} (${or_.topo.razao_fmt} a referência, `
-        + `${or_.topo.pct_fmt} do excedente dele)`));
-    }
-    pilha.appendChild(item('Origem do excedente', co));
-  }
-
-  // 3 · consistência: mini-série + direção
-  const c = L.consistencia ?? {};
-  const cc = el('div', 'row');
-  if (c.trimestres?.length) {
-    const caixa = el('div', 'sparkwrap');
-    const barras = el('div', 'spark');
-    const ALTURA_MAX = 26;
-    for (const t of c.trimestres) {
-      const i = document.createElement('i');
-      if (t.estado === 'sinalizado') i.className = 'crit';
-      i.style.height = `${Math.round((t.altura_rel ?? 0.12) * ALTURA_MAX)}px`;
-      if (t.estado === 'nao_avaliavel') i.style.opacity = '.35';
-      i.title = `${t.janela}º trimestre: ` + (
-        t.estado === 'nao_avaliavel' ? t.motivo
-          : `índice ${t.indice_fmt}${t.sinalizado ? ', algum procedimento acima do critério' : ''}`);
-      barras.appendChild(i);
-    }
-    caixa.appendChild(barras);
-    if (c.direcao) caixa.appendChild(el('span', `dir ${c.direcao.classe}`, c.direcao.seta));
-    cc.appendChild(caixa);
-    cc.appendChild(el('span', 'sub', c.direcao?.texto ?? c.rotulo ?? ''));
-  } else {
-    cc.appendChild(el('span', 'sub', c.motivo ?? 'sem medida'));
-  }
-  pilha.appendChild(item('Consistência entre trimestres', cc));
-
-  // 4 · concentração por beneficiário: rotina/case-mix, com os números
-  const conc = L.concentracao;
-  if (conc?.rotulo) {
-    const cn = el('span', null,
-      conc.pct_carteira_fmt
-        ? `${conc.rotulo} · ${conc.pct_carteira_fmt} da carteira recebe o `
-          + `procedimento principal (pares: ${conc.pct_carteira_pares_fmt})`
-        : conc.rotulo);
-    cn.title = 'Leitura agregada por procedimento. Não há análise individual '
-             + 'de beneficiário.';
-    pilha.appendChild(item('Concentração por beneficiário', cn));
-  }
-
-  // 5 · variação excedente: solicitações · R$ em quarentena · piso
-  const ex = L.excedente ?? {};
-  const ce = el('div', 'stack g4');
-  let textoEx = ex.motivo ? ex.itens_fmt
-    : `${ex.itens_fmt} solicitações${ex.reais_fmt ? ` · ${ex.reais_fmt} (em quarentena)` : ''}`;
-  if (!ex.motivo && ex.piso_fmt) textoEx += ` · piso: ${ex.piso_fmt}`;
-  const linhaEx = el('span', null, textoEx);
-  linhaEx.title = ex.motivo ?? (
-    'R$ com preço interno derivado das contas, até a tabela oficial; o piso é o '
-    + 'cenário conservador da reamostragem por paciente, somado nos procedimentos '
-    + 'em que ela é possível');
-  ce.appendChild(linhaEx);
-  if (ex.pareto) {
-    ce.appendChild(el('span', 'sub',
-      `${ex.pareto.pct_do_total_fmt} do excedente da área · `
-      + `${ex.pareto.posto}º de ${ex.pareto.total} cooperados`));
-  }
-  pilha.appendChild(item('Variação excedente', ce));
-
-  corpo.appendChild(pilha);
-  cartao.appendChild(corpo);
-  destino.appendChild(cartao);
-}
-
-/* ── tabela de procedimentos ───────────────────────────────────────────────── */
-
-/* Uma unidade por coluna, declarada UMA vez no cabeçalho: índice e referência
- * em solicitações POR MIL consultas. A cascata é do CASO, não do procedimento
- * — a coluna que a mostrava saiu; o piso de confiança, quando existe, é
- * sub-linha da própria variação excedente. */
-/* AS COLUNAS (27/ago). A leitura vai da prática dele para o dinheiro, com a
-   comparação no meio: quanto pediu · com que frequência · quanto os pares pedem
-   · quantas vezes mais · que fatia da prática dele é · em quantos trimestres ·
-   e só então o custo.
-
-   Frequência e Referência na MESMA unidade (por consulta), porque a Razão entre
-   elas é a divisão das duas: unidades diferentes fariam as três células se
-   contradizerem na mesma linha.
-
-   Largura: `col-num` nas oito de número, `col-txt` na consistência (é gráfico
-   com texto, alinhado à esquerda como na tabela da área). */
+   Coluna sem `ordem` não é ordenável (Referência é a mesma para todas as linhas
+   de um mesmo exame, ordenar por ela não diz nada). */
 const COLUNAS = [
   { nome: 'Procedimento', classe: 'col-txt' },
   { nome: 'Solicitações', direita: true, classe: 'col-num',
@@ -234,21 +125,28 @@ const COLUNAS = [
        + 'Um quadrado por trimestre; preenchido indica trimestre acima.',
     ordem: 'consistencia', valor: (l) => l.persistencia?.n_sinalizado },
   { nome: 'Custo unitário', direita: true, classe: 'col-num',
-    def: 'Valor unitário apurado nas contas do período. Preço interno '
-       + 'provisório, ainda não homologado contra a tabela contratual.',
+    def: 'Valor unitário apurado nas contas do período, a preços de referência '
+       + 'internos.',
     ordem: 'custo_unitario', valor: (l) => l.custo_unitario },
   { nome: 'Custo total', direita: true, classe: 'col-num',
     def: 'Valor de tudo que foi solicitado deste procedimento no período. '
        + 'Mede o porte, não o desvio.',
     ordem: 'custo_total', valor: (l) => l.custo_total },
+  /* ORDENA POR `excedente_reais`, o número em R$ que a célula mostra, e não
+     por `excedente_itens`: a coluna dizia "Custo excedente" e ordenava por
+     solicitações, então o topo da ordem decrescente não era o de maior custo. */
   { nome: 'Custo excedente', direita: true, classe: 'col-num',
-    def: 'Valor das solicitações acima da referência da área. Indica '
-       + 'oportunidade de revisão, não economia já realizada.',
-    ordem: 'excedente', valor: (l) => l.excedente_itens },
+    def: 'Valor das solicitações acima da referência da área, apurado exame a '
+       + 'exame contra a referência de cada um.',
+    ordem: 'excedente_reais', valor: (l) => l.excedente_reais },
 ];
+
 
 function linhaProcedimento(l, semMedida = '', aoAbrir = null) {
   const tr = document.createElement('tr');
+  /* o código na linha é o que deixa o Pareto encontrar a linha da tabela sem
+     que os dois blocos precisem conversar por índice */
+  tr.dataset.cd = l.codigo;
   if (l.sinalizado) tr.classList.add('acima');
   /* A linha inteira é o gatilho do painel — alvo grande, sem um botão a mais
      numa tabela de dez colunas. Teclado incluído: `tabIndex` + Enter/Espaço,
@@ -273,26 +171,26 @@ function linhaProcedimento(l, semMedida = '', aoAbrir = null) {
   sub.title = l.descricao;
   nome.appendChild(sub);
 
-  /* CUSTO EXCEDENTE: o R$ é o número da coluna; a contagem de solicitações
-     excedentes e o piso de confiança descem como sub-linha, que é onde a
-     tabela da área também põe o que qualifica o número. */
+  /* CUSTO EXCEDENTE: só o R$, e nada de sub-linha (set/2026).
+     Havia duas embaixo dele. A primeira dizia "993 solicitações", que é a
+     contagem EXCEDENTE, na mesma linha em que a coluna Solicitações dizia
+     1.036, que é o total pedido. Dois números com a mesma palavra na mesma
+     linha, e o leitor concluía que a tabela se contradizia. A segunda,
+     "943 de 993 se sustentam", pendurava-se na primeira e ficava sem
+     antecedente sozinha.
+     As duas viraram HOVER, junto da ressalva de preço: quem quer a decomposição
+     alcança, e a coluna volta a ter um número só. */
   const exc = el('td', 'rt num', l.excedente_reais_fmt ?? semMedida);
   if (l.excedente_motivo) exc.title = l.excedente_motivo;
   if (!l.medido) exc.classList.add('val-ressalva');
   if (l.excedente_reais_fmt) {
-    exc.title = 'Valorado a preços internos provisórios, apurados nas contas do '
-              + 'período e ainda não homologados contra a tabela contratual.';
-  }
-  if (l.excedente_itens) {
-    exc.appendChild(el('div', 'cell-sub', `${l.excedente_fmt} solicitações`));
-  }
-  if (l.confianca?.rotulo) {
-    /* `div` e não `span`: `.cell-sub` só ganha display do contrato dentro de
-       `.cell-name`; aqui a quebra de linha vem da própria tag de bloco, sem
-       CSS novo nem estilo inline. */
-    const piso = el('div', 'cell-sub', l.confianca.rotulo);
-    piso.title = l.confianca.detalhe;
-    exc.appendChild(piso);
+    exc.title = [
+      'Valorado a preços internos provisórios, apurados nas contas do período '
+      + 'e ainda não homologados contra a tabela contratual.',
+      l.excedente_itens && `${l.excedente_fmt} das solicitações estão acima da `
+        + 'referência da área.',
+      l.confianca?.detalhe,
+    ].filter(Boolean).join(' ');
   }
 
   /* MESMA célula de consistência da tabela da área (lib/tabelas.js): quadrados
@@ -337,52 +235,22 @@ function linhaProcedimento(l, semMedida = '', aoAbrir = null) {
   return tr;
 }
 
-function montarCusto(destino, d) {
-  const p = d.pareto_custo;
-  if (!p?.eixos?.length) return;
-
-  /* DOIS CHIPS que trocam o Pareto inteiro — não a ordenação. Num Pareto a
-     barra, a ordem e o acumulado são a mesma grandeza; ordenar por um eixo
-     desenhando o outro deixaria o acumulado somando uma coisa numa ordem
-     ditada por outra. Mesmo componente de chip do recorte da tabela abaixo. */
-  const faixa = el('div', 'row flexwrap');
-  faixa.appendChild(el('span', 'micro', 'Eixo'));
-  const botoes = new Map();
-  const caixa = el('div', null);
-  destino.appendChild(faixa);
-  destino.appendChild(caixa);
-
-  const bloco = montarPareto(caixa, p.dados[p.default], null, 'custo');
-  let ativo = p.default;
-
-  function aplicar(chave) {
-    if (!p.dados[chave]) return;
-    ativo = chave;
-    for (const [k, b] of botoes) b.classList.toggle('pill-on', k === chave);
-    bloco.atualizar(p.dados[chave]);
-  }
-
-  for (const e of p.eixos) {
-    const b = el('span', 'pill', e.rotulo);
-    b.tabIndex = 0;
-    b.setAttribute('role', 'button');
-    const acionar = () => aplicar(e.chave);
-    b.addEventListener('click', acionar);
-    b.addEventListener('keydown', (ev) => {
-      if (ev.key !== 'Enter' && ev.key !== ' ') return;
-      ev.preventDefault();
-      acionar();
-    });
-    botoes.set(e.chave, b);
-    faixa.appendChild(b);
-  }
-  aplicar(ativo);
+function montarCusto(destino, d, aoEscolher) {
+  /* O MESMO bloco da tela de Área, com o mesmo payload: barra aninhada (custo
+     total em cinza, excedente dentro dele), "Ordenar por" no cabeçalho e as
+     duas ordens já calculadas pelo motor.
+     Sumiram daqui os chips "Eixo", que faziam à mão o que o envelope de ordens
+     do `montarPareto` faz sozinho, e sumiu a segunda gramática de barra: eram
+     dois Paretos de tinta única, e o leitor tinha de reaprender a barra ao
+     descer da área para o dossiê. */
+  if (d.pareto_custo) montarPareto(destino, d.pareto_custo, aoEscolher, 'custo');
 }
 
 
 function montarProcedimentos(destino, d) {
   const dados = d.procedimentos;
   let aoAbrirLinha = null;
+  let abrirPorCodigo = null;
   /* Sem par medido (área sem referência, cooperado abaixo do piso): o bloco
      declara o estado em vez de exibir moldura vazia. */
   if (!dados?.total_medidos) {
@@ -451,15 +319,18 @@ function montarProcedimentos(destino, d) {
       corpo.appendChild(tr);
     }
     tabela.replaceChildren(cabecalho(COLUNAS, ordemAtiva, direcao, alternarOrdem), corpo);
-    const dizOrdem = coluna
-      ? `${coluna.nome.toLowerCase()}, ${direcao === 'asc' ? 'crescente' : 'decrescente'}`
-      : `${dados.ordenado_por} (padrão)`;
+    /* A ORDEM só é declarada quando o leitor a ESCOLHEU. No padrão ela dizia
+       "ordenado por variação excedente (padrão)", que é a mesma informação que
+       o cabeçalho da coluna já dá com a seta, e alongava o rodapé com a
+       descrição de um estado que ninguém mudou. Escolhida, ela fica: aí é
+       resposta a "por que esta linha está no topo". */
     peEstado.textContent =
       `${visiveis.length} de ${dados.total_medidos} procedimentos solicitados`
       + ` · ${dados.sem_referencia} sem referência na área · `
       + `recorte: ${r.rotulo.toLowerCase()}`
       + (termo ? ` · busca: "${termo}"` : '')
-      + ` · ordenado por ${dizOrdem}`;
+      + (coluna ? ` · ordenado por ${coluna.nome.toLowerCase()}, `
+                  + `${direcao === 'asc' ? 'crescente' : 'decrescente'}` : '');
   }
 
   for (const r of RECORTES) {
@@ -477,24 +348,38 @@ function montarProcedimentos(destino, d) {
     faixa.appendChild(b);
   }
 
-  /* O painel é DRAWER ancorado na viewport, fora do fluxo da página: painel no
-     fluxo tem altura de conteúdo e a tabela tem altura de linhas, e as duas
-     nunca coincidem. Ele mora no <body> e o conteúdo cede margem (`com-painel`)
-     em vez de ser coberto — a tabela continua inteira e clicável, que é a razão
-     de ser painel e não modal. */
-  const colPainel = el('aside', 'painel-lateral');
+  /* GAVETA SOBRE A PÁGINA, com cortina, igual à de "fora da referência" da tela
+     de Área (2026-09-06). Ela continua ancorada na viewport e morando no
+     <body>, pelo motivo de sempre: painel no fluxo tem altura de conteúdo e a
+     tabela tem altura de linhas, e as duas nunca coincidem.
+     O que mudou é que o conteúdo NÃO cede mais margem (`com-painel`). Antes a
+     página inteira andava para a esquerda a cada clique: a tabela continuava
+     clicável, mas ao custo de refluir tudo e de a leitura se mexer debaixo do
+     cursor. Uma superfície sobreposta, um comportamento só no app. */
+  /* A régua viaja no link, como em toda navegação do app; a aba e o exame são
+     o que o DESTINO precisa, e vão por `extras` — montar query à mão aqui foi o
+     que produziu o endereço com dois `?`. O código do exame entra na hora de
+     abrir, porque só ali se sabe qual linha foi clicada. */
+  const areaId = d.cooperado?.area?.id;
+  const hrefDaArea = (codigo) => (areaId
+    ? comRegua(TELAS.area.caminho(areaId), { aba: 'procedimentos', qp: codigo })
+    : null);
+
+  const scrim = el('span', 'scrim scrim-dim');
+  document.body.appendChild(scrim);
+  const colPainel = el('aside', 'painel-lateral pnl-modal');
   colPainel.hidden = true;
-  colPainel.setAttribute('role', 'complementary');
+  colPainel.setAttribute('role', 'dialog');
+  colPainel.setAttribute('aria-modal', 'true');
   colPainel.setAttribute('aria-label', 'Detalhe do procedimento');
   document.body.appendChild(colPainel);
-  const conteudoEl = document.querySelector('.content');
 
   let aberto = null;
   function fechar() {
     aberto = null;
     colPainel.hidden = true;
     colPainel.replaceChildren();
-    conteudoEl?.classList.remove('com-painel');
+    scrim.classList.remove('on');
     for (const tr of tabela.querySelectorAll('tr.selecionada')) {
       tr.classList.remove('selecionada');
     }
@@ -507,10 +392,26 @@ function montarProcedimentos(destino, d) {
       outra.classList.remove('selecionada');
     }
     tr?.classList.add('selecionada');
-    conteudoEl?.classList.add('com-painel');
-    abrirPainel(colPainel, d.cooperado.id, linha, fechar);
+    scrim.classList.add('on');
+    /* O link leva o CÓDIGO do exame: "ver na área de atuação" tem de abrir a
+       área JÁ neste procedimento, senão o leitor cai numa lista de centenas e a
+       promessa do rótulo não é cumprida. */
+    abrirPainel(colPainel, d.cooperado.id, linha, fechar, hrefDaArea(linha.codigo));
   }
   aoAbrirLinha = (linha, tr) => abrir(linha, tr);
+
+  /* A MESMA porta, pelo outro lado: uma linha do Pareto conhece o código do
+     procedimento, não a linha da tabela. Aqui o código vira linha, e a seleção
+     só é marcada quando a linha está em cena — o Pareto lista os 251 com custo
+     e a tabela abre no recorte "em revisão", então clicar numa barra que não
+     está na tabela tem de abrir o painel do mesmo jeito. */
+  abrirPorCodigo = (codigo) => {
+    const linha = (dados.linhas ?? []).find((l) => String(l.codigo) === String(codigo));
+    if (!linha) return;
+    const tr = tabela.querySelector(`tr[data-cd="${CSS.escape(String(codigo))}"]`);
+    abrir(linha, tr);
+    if (!tr) colPainel.scrollIntoView({ block: 'nearest' });
+  };
 
   /* Esc fecha — convenção de qualquer superfície sobreposta, e aqui é a única
      alternativa ao botão quando o foco está na tabela.
@@ -520,37 +421,19 @@ function montarProcedimentos(destino, d) {
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape' && aberto) fechar();
   });
+  scrim.addEventListener('click', fechar);
 
   destino.appendChild(faixa);
   destino.appendChild(cartao);
   aplicar('revisao');
+  return { abrirPorCodigo: (cd) => abrirPorCodigo?.(cd) };
 }
 
-/** Fatores de contexto: defendem o cooperado ANTES da conversa. */
-function montarContexto(destino, d) {
-  const itens = d.contexto ?? [];
-  if (!itens.length) return;
-  const cartao = el('div', 'tbl');
-  const topo = el('div', 'tbl-hd');
-  const titulo = el('div', 'stack g4');
-  titulo.appendChild(el('span', 't', 'Fatores de contexto'));
-  titulo.appendChild(el('span', 'sub',
-    'não alteram nenhum número: dizem com que lente investigar antes de concluir'));
-  topo.appendChild(titulo);
-  cartao.appendChild(topo);
-  const corpo = el('div', 'tbl-band');
-  const linha = el('div', 'row flexwrap');
-  for (const c of itens) {
-    const t = el('span', c.alerta ? 'tag tag-read' : 'tag tag-attr',
-      `${c.rotulo}: ${c.valor_fmt}`);
-    if (c.alerta) t.prepend(el('i', 'mk'));
-    if (c.ajuda) t.title = c.ajuda;
-    linha.appendChild(t);
-  }
-  corpo.appendChild(linha);
-  cartao.appendChild(corpo);
-  destino.appendChild(cartao);
-}
+/* `montarContexto` saiu daqui (set/2026): os fatores viraram a faixa que fecha
+   o bloco "Leitura do caso" (`blocos/resumo-caso.js`), onde eles são a última
+   pergunta antes de concluir. Como cartão próprio no fim da página, ficavam
+   depois de toda a evidência que eles qualificam. Os dados são os mesmos
+   (`d.contexto`, de `blocos.contexto_do_cooperado`). */
 
 /* ── montagem ──────────────────────────────────────────────────────────────── */
 
@@ -561,20 +444,27 @@ await abrirPagina({
   aoTrocarArea: (id) => TELAS.area.caminho(id),
   montar: async ({ conteudo, definirArea }) => {
     const d = await buscar(`/api/cooperado/${encodeURIComponent(idCooperado)}`,
-                           { anunciarEm: conteudo, rotulo: 'carregando o dossiê…' });
+                           { anunciarEm: conteudo, rotulo: 'Calculando' });
     /* A área do caso só se sabe agora: o chassi corrige o seletor, a migalha e
        os links da navegação. */
     definirArea(d.cooperado?.area?.id);
 
     montarIdentidade(conteudo, d);
-    montarLeitura(conteudo, d);
+    montarResumoDoCaso(conteudo, d);
     /* ONDE ESTÁ O DINHEIRO, antes da tabela: a tabela responde "como ele se
        compara em cada procedimento", e essa pergunta só faz sentido depois de
        saber quais procedimentos importam. O mesmo `montarPareto` da tela de
        Área — aqui as barras vêm com o nível de excesso dentro. */
-    montarCusto(conteudo, d);
-    montarProcedimentos(conteudo, d);
-    montarContexto(conteudo, d);
+    /* ANTES do Pareto: ele responde "em que procedimento está o dinheiro", e a
+       pergunta anterior é se o caso está estável ou piorando. Quem já sabe que
+       o excedente cresceu lê o Pareto procurando o que cresceu. */
+    montarEvolucao(conteudo, d.evolucao);
+    /* O Pareto é montado ANTES da tabela, mas quem sabe abrir o painel é a
+       tabela. O gancho fica numa referência mutável: o clique só pode acontecer
+       depois que a página inteira montou, e aí ela já está preenchida. */
+    const procs = { abrir: null };
+    montarCusto(conteudo, d, (cd) => procs.abrir?.(cd));
+    procs.abrir = montarProcedimentos(conteudo, d)?.abrirPorCodigo;
 
     if (d.proveniencia?.carimbo) {
       conteudo.appendChild(el('span', 'note', d.proveniencia.carimbo));

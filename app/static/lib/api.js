@@ -56,8 +56,18 @@ export async function buscar(caminho, { anunciarEm, rotulo, soMotor = false,
   const busca = q.toString();
   const url = busca ? `${caminho}?${busca}` : caminho;
 
-  const aviso = anunciarEm ? el('span', 'sub', rotulo ?? 'carregando…') : null;
-  if (aviso) anunciarEm.appendChild(aviso);
+  /* `role="status"` + `aria-live="polite"`: quem usa leitor de tela ouve o
+     rótulo quando ele aparece, sem ter o foco roubado. O anel é decorativo, o
+     texto ao lado é que informa (DIRETRIZES §19: nunca só a forma). */
+  let aviso = null;
+  if (anunciarEm) {
+    aviso = el('span', 'loading-note');
+    aviso.setAttribute('role', 'status');
+    aviso.setAttribute('aria-live', 'polite');
+    aviso.appendChild(el('span', 'spin'));
+    aviso.appendChild(document.createTextNode(rotulo ?? 'Calculando'));
+    anunciarEm.appendChild(aviso);
+  }
   try {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`${caminho} respondeu ${r.status}`);

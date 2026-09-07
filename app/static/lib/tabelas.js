@@ -112,10 +112,10 @@ export function celulaConsistencia(c) {
     const i = document.createElement('i');
     if (t.estado === 'sinalizado') i.className = 'on';
     else if (t.estado === 'nao_avaliavel') i.className = 'na';
-    i.title = `${t.janela}º trimestre: ` + (
+    i.title = `${t.janela}º trimestre. ` + (
       t.estado === 'nao_avaliavel' ? t.motivo
-        : t.sinalizado ? `acima do critério · índice ${t.indice_fmt}`
-        : `dentro do critério · índice ${t.indice_fmt}`);
+        : t.sinalizado ? `Acima do critério, índice ${t.indice_fmt}.`
+        : `Dentro do critério, índice ${t.indice_fmt}.`);
     barras.appendChild(i);
   }
   caixa.appendChild(barras);

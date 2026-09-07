@@ -63,7 +63,7 @@ export function colapsavel(cartao, chave) {
   const aplicar = (fechado) => {
     cartao.classList.toggle('fechado', fechado);
     botao.setAttribute('aria-expanded', String(!fechado));
-    botao.title = fechado ? 'Abrir este bloco' : 'Fechar este bloco';
+    botao.title = fechado ? 'Abrir este bloco.' : 'Fechar este bloco.';
   };
 
   botao.addEventListener('click', () => {

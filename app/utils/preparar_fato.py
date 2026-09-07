@@ -223,7 +223,21 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
             _seq += 1
             _ids.append(f"beneficiario_{_seq}")
     dim_beneficiarios["ID_BENEFICIARIO"] = _ids
-    dim_beneficiarios = dim_beneficiarios[["ID_BENEFICIARIO", "IDENTIFICADOR_BENEFICIARIO"]]
+    # SEXO e IDADE vêm da PRÓPRIA requisição (set/2026), e não das contas: aqui
+    # elas cobrem 100% dos beneficiários do fato, e pelas contas cobririam 82%
+    # (só tem conta quem teve execução na janela). São atributos do beneficiário
+    # e por isso moram na dim, não no fato: repetidos em cada uma das 988 mil
+    # linhas seriam o mesmo dado 17 vezes.
+    # A idade da origem é a ATUAL, não a da data do evento: verificado em
+    # set/2026, nenhum beneficiário aparece com duas idades na janela de 12
+    # meses. `max` é indiferente aqui e sobrevive ao dia em que a origem passar
+    # a variar.
+    _perfil = (src.groupby("IDENTIFICADOR_BENEFICIARIO", observed=True)
+               .agg(SEXO=("SEXO", "first"), IDADE=("IDADE", "max")).reset_index())
+    dim_beneficiarios = dim_beneficiarios.merge(
+        _perfil, on="IDENTIFICADOR_BENEFICIARIO", how="left")
+    dim_beneficiarios = dim_beneficiarios[
+        ["ID_BENEFICIARIO", "IDENTIFICADOR_BENEFICIARIO", "SEXO", "IDADE"]]
     src = src.merge(dim_beneficiarios, on="IDENTIFICADOR_BENEFICIARIO", how="left")
 
     # consulta inferida (denominador de todas as taxas): solicitações do mesmo
