@@ -99,7 +99,7 @@ function secao(rotulo, definicao, { figura = false, recolhivel = null } = {}) {
 function distribuicao(destino, d) {
   const g = d.distribuicao;
   const { cartao, corpo } = secao('Distribuição na área',
-    'Solicitações deste exame por consulta, um ponto por cooperado que o '
+    'Solicitações deste procedimento por consulta, um ponto por cooperado que o '
     + 'solicita. A posição é régua da área e não se move com o recorte; o verde '
     + 'marca quem passou o critério de revisão.', { figura: true });
   if (!g) {
@@ -165,7 +165,7 @@ function distribuicao(destino, d) {
   corpo.appendChild(el('span', 'sub',
     `Referência apurada entre ${g.n_pares}`
     + (g.n_area ? ` dos ${g.n_area}` : '')
-    + ' cooperados da área, os que solicitam este exame.'));
+    + ' cooperados da área, os que solicitam este procedimento.'));
   if (g.sem_criterio_motivo) corpo.appendChild(el('span', 'sub', g.sem_criterio_motivo));
   destino.appendChild(cartao);
 
@@ -222,7 +222,7 @@ function nucleo(destino, d) {
   const n = d.nucleo;
   if (!n) return;
   const { cartao, corpo } = secao('Concentração entre cooperados',
-    'Quantos cooperados somam a maior parte do excedente deste exame no '
+    'Quantos cooperados somam a maior parte do excedente deste procedimento no '
     + 'recorte, na ordem do maior para o menor.');
   corpo.appendChild(el('span', 'v', n.frase));
   if (n.reais_fmt) {
@@ -238,15 +238,15 @@ function nucleo(destino, d) {
    de aba e procurar o exame na tabela de cada cooperado.
    Lista truncada com o resto declarado: oito nomes cabem na coluna, e o nono em
    diante é a cauda que a seção acima já resumiu. */
-function acima(destino, d, hrefDoCooperado, plot) {
+function acima(destino, d, hrefDoCooperado, plot, coopAlvo) {
   const a = d.acima;
   const { cartao, corpo, recolher } = secao('Acima do critério',
-    'Cooperados em cena cuja frequência neste exame passou o critério de '
+    'Cooperados em cena cuja frequência neste procedimento passou o critério de '
     + 'revisão da área, do maior excedente para o menor.',
     { recolhivel: 'painel-exame-acima' });
   if (!a?.linhas?.length) {
     corpo.appendChild(el('span', 'sub',
-      'Nenhum cooperado em cena passou o critério neste exame.'));
+      'Nenhum cooperado em cena passou o critério neste procedimento.'));
     destino.appendChild(cartao);
     recolher();
     return;
@@ -335,11 +335,49 @@ function acima(destino, d, hrefDoCooperado, plot) {
      lista); o hover fecha a leitura, mostrando QUAL ponto é cada nome.
      Mesma mecânica do `destacar` entre a distribuição e a tabela de cooperados
      da página. */
+  /* O PAR QUE ABRIU A GAVETA, apontado NOS DOIS DESENHOS (2026-09-07). Quem
+     chega aqui pelo bloco de Principais oportunidades clicou num PAR, não num
+     procedimento: a gaveta tem de abrir já mostrando qual das linhas e qual dos
+     pontos é o dele, senão o leitor procura na lista o nome que acabou de
+     clicar e no enxame o ponto que corresponde a ele.
+
+     É a MESMA marca do fio de hover, e de propósito: um segundo realce só para
+     este caso ensinaria duas gramáticas para a mesma ideia. O que muda é a
+     permanência — o hover empresta o destaque e o devolve, o apontado fica. */
+  const apontado = (coopAlvo && entradas.some((e) => e.dataset.coop === coopAlvo))
+    ? coopAlvo : null;
+  if (apontado) {
+    const alvo = entradas.find((e) => e.dataset.coop === apontado);
+    // na cauda da lista ele nasceria escondido pelo corte dos 80%
+    alvo.hidden = false;
+    alvo.classList.add('pnl-ent-alvo');
+    requestAnimationFrame(() => alvo.scrollIntoView({ block: 'nearest' }));
+  }
+
   if (plot) {
+    /* Sair do hover VOLTA ao par apontado em vez de apagar tudo: sem esse
+       retorno, passar o cursor por qualquer nome e sair deixava a gaveta sem
+       destaque nenhum, e o caso que o auditor veio investigar sumia do desenho
+       sem ele ter pedido.
+
+       E o realce só TROCA quando há para onde trocar. Os dois conjuntos não
+       coincidem: o enxame tem todos os que solicitam o procedimento, a lista só
+       os que passaram o critério. Apontar um ponto sem linha correspondente
+       apagava a linha apontada e não acendia nenhuma outra, então o gesto de
+       explorar o gráfico desfazia o estado da gaveta. */
+    const pontos = [...plot.querySelectorAll('.pt')];
+    const resolver = (id, existe) => (id && existe(id) ? id : apontado);
     const acender = (id) => {
-      plot.classList.toggle('com-selecao', !!id);
-      for (const pt of plot.querySelectorAll('.pt')) {
-        pt.classList.toggle('pt-escolhido', !!id && pt.dataset.coop === id);
+      const alvo = resolver(id, (c) => pontos.some((p) => p.dataset.coop === c));
+      plot.classList.toggle('com-selecao', !!alvo);
+      for (const pt of pontos) {
+        pt.classList.toggle('pt-escolhido', !!alvo && pt.dataset.coop === alvo);
+      }
+    };
+    const marcar = (id) => {
+      const alvo = resolver(id, (c) => entradas.some((e) => e.dataset.coop === c));
+      for (const ent of entradas) {
+        ent.classList.toggle('pnl-ent-alvo', !!alvo && ent.dataset.coop === alvo);
       }
     };
     for (const ent of entradas) {
@@ -349,14 +387,12 @@ function acima(destino, d, hrefDoCooperado, plot) {
       ent.addEventListener('focusout', () => acender(null));
     }
     /* e o caminho de volta: o ponto acende a linha dele */
-    for (const pt of plot.querySelectorAll('.pt')) {
-      const marcar = (on) => {
-        const ent = entradas.find((e) => e.dataset.coop === pt.dataset.coop);
-        ent?.classList.toggle('pnl-ent-alvo', on);
-      };
-      pt.addEventListener('mouseenter', () => marcar(true));
-      pt.addEventListener('mouseleave', () => marcar(false));
+    for (const pt of pontos) {
+      pt.addEventListener('mouseenter', () => marcar(pt.dataset.coop));
+      pt.addEventListener('mouseleave', () => marcar(null));
     }
+    // o estado de abertura: o par apontado já aceso nos dois lados
+    acender(null);
   }
   destino.appendChild(cartao);
   recolher();
@@ -370,7 +406,7 @@ function peso(destino, d) {
   const p = d.peso;
   if (!p) return;
   const { cartao, corpo } = secao('Peso na área',
-    'Participação deste exame no que os cooperados em cena solicitaram no '
+    'Participação deste procedimento no que os cooperados em cena solicitaram no '
     + 'período. Preços internos provisórios, ainda não homologados contra a '
     + 'tabela contratual.');
   corpo.appendChild(el('span', 'v',
@@ -397,7 +433,7 @@ function faixas(destino, d) {
   const f = d.faixas;
   if (!f?.faixas?.length) return;
   const { cartao, corpo } = secao('Solicitações por faixa etária',
-    'Repartição das solicitações deste exame pela idade de quem as recebeu, '
+    'Repartição das solicitações deste procedimento pela idade de quem as recebeu, '
     + 'ao lado da mesma repartição na área de atuação.', { figura: true });
 
   /* MESMA marcação do painel do dossiê (`.cart-faixas`): a barra é a fatia do
@@ -425,7 +461,7 @@ function faixas(destino, d) {
 
     const ref = el('span', 'cart-f-a tem-hover', x.area_fmt);
     ref.title = 'Fatia desta faixa etária entre todas as solicitações deste '
-      + 'exame na área de atuação, sob a mesma janela e o mesmo recorte de '
+      + 'procedimento na área de atuação, sob a mesma janela e o mesmo recorte de '
       + 'consultas.';
     item.appendChild(ref);
     grade.appendChild(item);
@@ -454,7 +490,7 @@ function repeticao(destino, d) {
   const r = d.repeticao;
   if (!r) return;
   const { cartao, corpo } = secao('Repetição por beneficiário',
-    'Beneficiários que receberam este exame no recorte, quantas vezes em '
+    'Beneficiários que receberam este procedimento no recorte, quantas vezes em '
     + 'média e que parcela deles voltou a recebê-lo no período.');
   corpo.appendChild(el('span', 'v',
     `${r.n_beneficiarios_fmt} beneficiários`
@@ -510,7 +546,7 @@ function evolucao(destino, d) {
   const linhas = d.evolucao?.linhas;
   if (!linhas?.length) return;
   const { cartao, corpo } = secao('Custo por trimestre',
-    'Custo deste exame em cada trimestre do período entre os cooperados acima '
+    'Custo deste procedimento em cada trimestre do período entre os cooperados acima '
     + 'do critério, com a parcela acima da referência da área destacada. Os '
     + 'quatro somam o custo excedente do ano.', { figura: true });
   montarSerieTrimestral(corpo, d.evolucao, { semCartao: true });
@@ -557,9 +593,11 @@ function evolucao(destino, d) {
  * @param {object} recorte  o recorte ativo, que o achado do painel obedece
  * @param {() => void} aoFechar
  * @param {(id: string) => string} [hrefDoCooperado]  destino de cada nome
+ * @param {string} [coopAlvo]  cooperado apontado na lista, quando a gaveta foi
+ *        aberta a partir de um PAR e não de um exame
  */
 export async function abrirPainelDoExame(destino, area, linha, recorte,
-                                         aoFechar, hrefDoCooperado) {
+                                         aoFechar, hrefDoCooperado, coopAlvo) {
   destino.replaceChildren();
   destino.hidden = false;
 
@@ -613,7 +651,7 @@ export async function abrirPainelDoExame(destino, area, linha, recorte,
      nela, e é esse fio que resolve a distância entre as duas ordens */
   const plot = distribuicao(corpo, d);
   nucleo(corpo, d);
-  acima(corpo, d, hrefDoCooperado, plot);
+  acima(corpo, d, hrefDoCooperado, plot, coopAlvo);
   faixas(corpo, d);
   repeticao(corpo, d);
   autorreferencia(corpo, d);

@@ -1634,18 +1634,17 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .pf-trig .car{stroke:var(--g-400);transition:transform .15s ease}
 .pf-trig:hover{background:var(--hover)}
 .pf-trig:focus-visible{outline:none;box-shadow:var(--focus-ring)}
-#pf-sh:checked ~ .pf-trig .car{transform:rotate(180deg)}
-#pf-sh:checked ~ .pf-trig{border-color:var(--g-600)}
-#pf-sh:checked ~ .pf-pop{display:flex;animation:pop-in .14s ease-out}
-#pf-sh:checked ~ .scrim-pf{display:block}
-/* SEGUNDO popover com a mesma roupa: o RECORTE (2026-08-19). O mecanismo é
-   CSS puro e o seletor traz o id do interruptor, então cada popover precisa do
-   seu par de regras — o visual todo é reusado das classes `.pf-*`.
-   CORREÇÃO LOCAL, replicar no Design junto com o seletor de recorte. */
-#rc-sh:checked ~ .pf-trig .car{transform:rotate(180deg)}
-#rc-sh:checked ~ .pf-trig{border-color:var(--g-600)}
-#rc-sh:checked ~ .pf-pop{display:flex;animation:pop-in .14s ease-out}
-#rc-sh:checked ~ .scrim-rc{display:block}
+/* ABERTO É ESTADO DA CAIXA, não do id dela (set/2026). As regras traziam o id
+   do interruptor (`#pf-sh`, `#rc-sh`), e cada popover novo precisava do próprio
+   par copiado — o terceiro (o filtro de áreas do Panorama) nasceu sem abrir,
+   porque a marcação estava certa e a regra não existia.
+   `.oc` já é a classe do interruptor, e o irmão só existe dentro de um `.pf`:
+   um par de regras serve a todos. CORREÇÃO LOCAL, replicar no Design. */
+.oc:checked ~ .pf-trig .car{transform:rotate(180deg)}
+.oc:checked ~ .pf-trig{border-color:var(--g-600)}
+.oc:checked ~ .pf-pop{display:flex;animation:pop-in .14s ease-out}
+.oc:checked ~ .scrim-pf,
+.oc:checked ~ .scrim-rc{display:block}
 /* o popover do recorte é mais largo: os rótulos dos degraus são frases
    ("Sem fator de contexto que explique"), não palavras soltas */
 #rc-sh ~ .pf-pop{width:330px}
@@ -3146,13 +3145,6 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 .kpi-acao{color:inherit;text-decoration:none;transition:border-color 120ms ease-out}
 .kpi-acao:hover{border-color:var(--g-400);text-decoration:none}
 .kpi-acao:focus-visible{outline:none;box-shadow:var(--focus-ring)}
-/* A BARRA é a fatia da área no excedente da especialidade. Trilho na cor da
-   superfície secundária e preenchimento no acento: mesma dupla das barras do
-   Pareto, para as duas proporções da tela se lerem com a mesma gramática. */
-.pano-trilho{position:relative;height:6px;margin-top:4px;border-radius:999px;
-  background:var(--g-100);overflow:hidden}
-.pano-trilho i{display:block;height:100%;border-radius:999px;background:var(--acc)}
-[data-tema="dark"] .pano-trilho{background:var(--g-800)}
 /* as linhas de apoio do cartão de área não quebram: elas são rótulos
    telegráficos, e "63 comparáveis" sobre "de 64" lê como dois números */
 .kpis-areas .kpi .micro{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -3171,7 +3163,41 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    padrão porque são um catálogo e não uma faixa de números-herói. Houve uma
    versão com dois cartões grandes na frente; eles prometiam responder "onde o
    excesso está", e essa é pergunta de Pareto, que tem seção própria. */
-.kpis-areas{grid-template-columns:repeat(auto-fit,minmax(184px,1fr));gap:12px}
-.kpis-areas .kpi{gap:4px;padding:14px 16px}
-.kpis-areas .kpi .v{font-size:var(--fs-2xl)}
+.kpis-areas{grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:12px}
+.kpis-areas .kpi{gap:8px;padding:16px 18px}
 .kpis-areas .kpi .k{font-weight:500;color:var(--g-900)}
+/* A LISTA DE ATRIBUTOS dentro do cartão: a `.deflist` do contrato, com a calha
+   do rótulo estreitada. Os 200px de lá servem a uma tela de uma coluna; aqui
+   são sete cartões lado a lado, e o rótulo divide a largura com o valor. */
+.pano-lista .def-row{gap:12px;padding:7px 0;justify-content:space-between}
+.pano-lista .def-k{width:auto;flex:1 1 auto;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pano-lista .def-v{flex:none;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* o CUSTO EXCEDENTE é o produto da tela, e ganha o peso que é dele */
+.pano-v-forte{font-weight:600}
+/* o % ao lado do valor, não abaixo: mesma medida, segunda leitura */
+/* `display:inline` vence o `.def-v .sub{display:block}` do contrato: lá o apoio
+   fica SOB o valor, aqui ao lado dele, porque é a mesma medida em segunda
+   leitura e não um segundo fato. */
+.def-v .pano-apoio{display:inline;margin-left:6px;font-variant-numeric:tabular-nums}
+/* AUSÊNCIA: recua, mas não some. O motivo vai no `title`, e o pontilhado é o
+   mesmo sinal de "tem explicação no hover" que o `.kpi .h.tem-hover` usa. */
+.pano-ausente{color:var(--g-400);text-decoration:underline;
+  text-decoration-style:dotted;text-decoration-color:var(--line);
+  text-underline-offset:3px;cursor:help}
+/* OS DOIS PARETOS do Panorama, lado a lado: onde o excesso se concentra e quais
+   procedimentos o puxam. Duas leituras do mesmo total, e lê-las em paralelo é a
+   razão de estarem na mesma linha. Empilham na tela estreita, onde uma lista de
+   barras em meia largura deixa de ser legível. */
+.pano-duplas{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
+  gap:16px}
+/* MESMA ALTURA nos dois: os cabeçalhos têm números de linhas diferentes (um
+   subtítulo quebra em duas, o outro não), e sem isto um cartão terminava acima
+   do outro. A diferença é absorvida pela LISTA, que rola: o cartão mais curto
+   passa a mostrar uma barra a mais em vez de deixar um vão no rodapé. */
+.pano-duplas > .tbl{display:flex;flex-direction:column;height:452px}
+/* a LISTA absorve a diferença entre os dois cabeçalhos (um subtítulo quebra em
+   duas linhas, o outro não) e rola dentro do cartão. `min-height:0` porque item
+   de flex não encolhe abaixo do conteúdo sem isso, e a lista voltaria a empurrar
+   o rodapé para fora. */
+.pano-duplas > .tbl > .pareto{flex:1;min-height:0;max-height:none}

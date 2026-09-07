@@ -134,7 +134,7 @@ function montarRegua(destino, d) {
   const fig = boxplot(g);
   fig.setAttribute('role', 'img');
   fig.setAttribute('aria-label',
-    `Distribuição da área neste exame`
+    `Distribuição da área neste procedimento`
     + (g.haste ? `, de ${g.haste.min_fmt} a ${g.haste.max_fmt}` : '')
     + `. Este cooperado: ${g.marca.valor_fmt} solicitações por consulta. `
     + `${g.referencia.rotulo}: ${g.referencia.valor_fmt}.`);
@@ -171,7 +171,7 @@ function montarRegua(destino, d) {
   corpo.appendChild(el('span', 'sub',
     `Referência apurada entre ${g.n_pares}`
     + (g.n_area ? ` dos ${g.n_area}` : '')
-    + ` cooperados da área, os que solicitam este exame.`));
+    + ` cooperados da área, os que solicitam este procedimento.`));
   if (g.sem_criterio_motivo) corpo.appendChild(el('span', 'sub', g.sem_criterio_motivo));
   destino.appendChild(cartao);
 }
@@ -187,7 +187,7 @@ function montarEvolucaoDoExame(destino, d) {
   const linhas = d.evolucao?.linhas;
   if (!linhas?.length) return;
   const { cartao, corpo } = secao('Custo por trimestre',
-    'Custo deste exame em cada trimestre do período, com a parcela acima da '
+    'Custo deste procedimento em cada trimestre do período, com a parcela acima da '
     + 'referência da área destacada quando ela existe. O quadrado da última '
     + 'linha marca outra coisa: os trimestres que passaram do critério de '
     + 'revisão, que fica acima da referência. Um trimestre pode ter parcela '
@@ -378,7 +378,7 @@ function montarFaixas(destino, d) {
   const f = d.faixas;
   if (!f) return;
   const { cartao, corpo } = secao('Solicitações por faixa etária',
-    'Repartição das solicitações deste exame pela idade de quem as recebeu, '
+    'Repartição das solicitações deste procedimento pela idade de quem as recebeu, '
     + 'ao lado da mesma repartição na área de atuação.', { figura: true });
 
   const grade = el('div', 'cart-faixas');
@@ -405,7 +405,7 @@ function montarFaixas(destino, d) {
 
     const ref = el('span', 'cart-f-a tem-hover', x.area_fmt);
     ref.title = 'Fatia desta faixa etária entre todas as solicitações deste '
-      + 'exame na área de atuação, sob a mesma janela e o mesmo recorte de '
+      + 'procedimento na área de atuação, sob a mesma janela e o mesmo recorte de '
       + 'consultas.';
     item.appendChild(ref);
     grade.appendChild(item);

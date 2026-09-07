@@ -126,6 +126,11 @@ export function montarRecorte(destino, dados, aoEscolher) {
     const n = nDe(r);
     const o = el('button', 'pf-opt uni');
     o.type = 'button';
+    /* A CHAVE DO MÉTODO no elemento. O rótulo visível vem do motor e muda com o
+       vocabulário do produto ("Qualificados" é "Com confiança estatística" na
+       escada); endereçar a opção pelo texto faz a prova de tela quebrar quando
+       uma palavra melhora, que é o oposto do que ela deve cobrar. */
+    o.dataset.chave = r.chave;
     o.insertAdjacentHTML('beforeend',
       '<span class="bx"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" '
       + 'stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" '

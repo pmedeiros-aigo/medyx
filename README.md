@@ -73,8 +73,33 @@ cache**, então a requisição seguinte volta a pagar o custo integral.
 
 ### Entrar com uma sessão (tela Minha conta)
 
-**O app ainda não tem login.** O Cognito é a decisão tomada, e ainda não foi
-ligado. Enquanto isso, o comportamento normal é o de quem não está autenticado:
+**O login existe desde set/2026** (Cognito, fluxo de código de autorização com
+PKCE), e **só liga com as variáveis de ambiente abaixo**. Sem elas o app se
+comporta como sempre se comportou: aberto, e sem sessão.
+
+```bash
+export MEDYX_COGNITO_REGIAO="sa-east-1"
+export MEDYX_COGNITO_POOL_ID="sa-east-1_ylgQdMTxL"
+export MEDYX_COGNITO_CLIENT_ID="6mk459t02pdg53v3ss816d2h86"
+export MEDYX_COGNITO_DOMINIO="sa-east-1ylgqdmtxl.auth.sa-east-1.amazoncognito.com"
+export MEDYX_URL_BASE="http://localhost:8770"
+export MEDYX_CHAVE_SESSAO="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+```
+
+São **seis, e as seis são obrigatórias**: faltando qualquer uma, o login fica
+desligado inteiro. Provedor sem chave de sessão diria quem é a pessoa e não
+teria onde guardar a resposta.
+
+Ligado, o app fecha: quem não tem sessão vai para `/entrar`, e `/api/*` responde
+401 em vez de redirecionar (o front espera JSON, não HTML). Ficam abertos só
+`/entrar`, `/auth/*`, `/static/*` e `/sair`.
+
+`MEDYX_URL_BASE` monta o endereço de retorno, e ele precisa estar cadastrado
+nas *callback URLs* do app client, **idêntico até a barra final**. Divergência
+aí é o erro mais comum do fluxo, e aparece como `redirect_mismatch` na tela do
+Cognito antes mesmo de pedir a senha.
+
+Desligado, o comportamento é o de quem não está autenticado:
 
 - o rodapé da barra lateral fica vazio, **sem bloco de conta**;
 - `/conta` monta e declara que não há sessão.
@@ -82,8 +107,8 @@ ligado. Enquanto isso, o comportamento normal é o de quem não está autenticad
 Isso é deliberado, não uma tela pela metade: sem autenticação, um nome fixo na
 tela seria ficção, e ficção em produto de auditoria custa confiança.
 
-Para construir ou conferir a tela com uma sessão, existe um override **de
-desenvolvimento**:
+Para construir ou conferir a tela com uma sessão **sem subir o Cognito**, existe
+um override **de desenvolvimento**:
 
 ```bash
 export MEDYX_SESSAO_DEV="Seu Nome <seu.email@exemplo.com>"
@@ -97,9 +122,9 @@ Três coisas que ele NÃO é:
 
 1. **Não é login.** Vale para o servidor inteiro, não para um navegador. Quem
    abrir o app é essa pessoa.
-2. **Não prova que o Sair funciona.** A rota apaga o cookie de sessão, mas a
-   identidade vem da variável de ambiente, que continua lá. O logout de verdade
-   só existe com o provedor de identidade.
+2. **Não prova que o Sair funciona.** A rota limpa a sessão, mas a identidade
+   vem da variável de ambiente, que continua lá. Com o Cognito ligado, o Sair
+   encerra as duas pontas: a sessão do Medyx e a do provedor.
 3. **Não sobrevive ao Cognito.** Sessão real tem precedência no `app/sessao.py`,
    então a variável deixa de ter efeito mesmo se alguém esquecer de removê-la.
 
@@ -138,7 +163,8 @@ dois estados (com e sem sessão). Destravar a suíte pede atualizar as seções 
 ```
 app/
 ├── api.py            FastAPI: entrega os blocos da tela; não calcula nada
-├── sessao.py         quem está usando o app; o Cognito entra só aqui
+├── sessao.py         quem está usando o app: identidade e duração da sessão
+├── cognito.py        o protocolo OAuth com o provedor, e nada além dele
 ├── utils/
 │   ├── pipeline.py       os motores analíticos
 │   ├── preparar_fato.py  ingestão CSV bruto → fato + dimensões

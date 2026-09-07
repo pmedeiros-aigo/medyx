@@ -429,3 +429,39 @@ def resolver_janela(rotulo: str) -> tuple[str, str]:
               fim - pd.DateOffset(months=config.JANELAS_UI[rotulo])
               + pd.Timedelta(days=1))
     return str(ini.date()), str(fim.date())
+
+
+def custo_por_area(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
+                   gatilho: str, alvo: str, incluir_ps: bool) -> dict[str, float]:
+    """Custo total solicitado por ÁREA, entre os cooperados comparáveis.
+
+    O denominador do "% excedente" do Panorama. Sai daqui, e não de uma soma no
+    endpoint, porque é agregação sobre a saída de um motor — a API entrega
+    blocos, não calcula (CLAUDE.md, mapa dos documentos).
+
+    ── por que só os COMPARÁVEIS ────────────────────────────────────────────
+    O excedente que divide este número é medido só entre quem tem volume para
+    comparação: quem está abaixo do piso não é sinalizado e não contribui com
+    excedente nenhum. Somar o custo dele no denominador daria uma fração cujo
+    numerador e denominador vêm de conjuntos diferentes (rigor-estatistico §9),
+    e o % excedente da área sairia menor do que é, por diluição.
+
+    É também o que faz o número fechar com a tela de Área: o "custo total" da
+    Leitura é o do recorte em cena, e o recorte default é justamente os
+    comparáveis.
+
+    ── parcial por construção, e declarado ─────────────────────────────────
+    Só entra procedimento com preço apurado nas contas do período. A cobertura
+    viaja com o número (`n_procedimentos` sobre `n_procedimentos_com_preco`),
+    porque soma com buraco parece menor, não parece incompleta.
+    """
+    re_ = rodar_pipeline_execucao(janela_ini, janela_fim, piso, n_minimo,
+                                  config.PISO_EXECUCOES_ANO, config.Q_CONFUNDIDOR,
+                                  None, gatilho, alvo, incluir_ps)
+    rs = re_["posicao_proc_rs"]
+    rs = rs[rs["avaliavel"] & rs["preco_mediano"].notna()]
+    if not len(rs):
+        return {}
+    custo = (rs["taxa"] * rs["consultas_totais"] * rs["preco_mediano"])
+    return {str(area): float(v)
+            for area, v in custo.groupby(rs["AREA_ATUACAO"]).sum().items()}

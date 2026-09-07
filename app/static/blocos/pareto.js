@@ -40,9 +40,13 @@ import { colapsavel } from '../lib/colapsar.js';
  * @param {HTMLElement} destino
  * @param {object} d  um bloco `pareto_*` de /api/area/{id}
  * @param {(id: string) => void} [aoEscolher]  clique numa linha (opcional)
+ * @param {string} [chave]  identidade do bloco, para lembrar se está recolhido
+ * @param {() => void} [aoRedesenhar]  chamado ao fim de cada redesenho, para
+ *        quem tiver pendurado algo DENTRO do cartão devolver o que era seu
  * @returns {{recortar: (ids: string[]|null) => void} | null}
  */
-export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
+export function montarPareto(destino, d, aoEscolher, chave = 'pareto',
+                             aoRedesenhar = null) {
   if (!d) return null;
 
   const cartao = el('div', 'tbl');
@@ -169,7 +173,11 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
      do gráfico de distribuição — um controle de bloco, uma posição. */
   if (pacote?.ordens?.length > 1) {
     const ctl = el('div', 'hd-ctl row g8');
-    ctl.appendChild(el('span', 'micro', 'Ordenar por'));
+    /* O RÓTULO do controle vem do payload quando o bloco não alterna ORDEM e
+       sim agregação: no Panorama as opções são "Área de atuação" e "Cooperado",
+       e chamá-las de ordenação diria que a lista é a mesma em outra sequência,
+       quando são conjuntos diferentes com o mesmo total. */
+    ctl.appendChild(el('span', 'micro', pacote.rotulo_controle ?? 'Ordenar por'));
     const seg = el('div', 'segfilt');
     for (const o of pacote.ordens) {
       const b = el('button', 'segfilt-o', o.rotulo);
@@ -192,6 +200,7 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
   if (!d.linhas?.length) {
     partes.push(el('div', 'tbl-band', d.vazio ?? ''));
     cartao.replaceChildren(...partes);
+    aoRedesenhar?.();
     return;
   }
 
@@ -331,6 +340,12 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto') {
      helper é idempotente e relê o estado salvo, então o bloco não reabre
      sozinho a cada troca de recorte. */
   colapsavel(cartao, chave);
+  /* E DEVOLVE o que não é deste bloco. Na tela de Área, a faixa de abas dos
+     três gráficos mora DENTRO deste cartão, e `replaceChildren` a levava junto:
+     trocar a ordem apagava o caminho para Distribuição e Quantidade × custo, e
+     o cartão encolhia a altura da faixa. A troca de recorte já reencaixava, por
+     fora; a troca de ordem, que acontece aqui dentro, não tinha quem o fizesse. */
+  aoRedesenhar?.();
   /* Sem rolar: o redesenho não é um gesto do leitor, e puxar a lista a cada
      troca de recorte seria movimento que ninguém pediu. */
   aplicarApontado(false);

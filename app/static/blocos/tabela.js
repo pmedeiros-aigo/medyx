@@ -75,8 +75,12 @@ import { el, ordenar, cabecalho, moldura, celulaConsistencia, campoDeBusca }
 export const COLUNAS = [
   { nome: 'Cooperado', classe: 'col-id' },
   { nome: 'Consultas', direita: true, classe: 'col-num', ordem: 'consultas', valor: (l) => l.consultas },
-  { nome: 'Exames por consulta', direita: true, classe: 'col-num-lg',
-    def: 'Exames solicitados dividido por consultas atendidas na janela. '
+  /* "Solicitações por consulta", e não "Exames por consulta" (set/2026): a
+     palavra "exame" saiu de toda superfície visível do app, e o léxico já
+     traduzia `taxa de exames por consulta` para o vocabulário de solicitação. A
+     chave de ordenação continua `indice`, que é interna e viaja na URL. */
+  { nome: 'Solicitações por consulta', direita: true, classe: 'col-num-lg',
+    def: 'Solicitações divididas por consultas atendidas na janela. '
        + 'É o índice contra o qual a área é comparada.',
     ordem: 'indice', valor: (l) => l.indice },
   /* CUSTO POR CONSULTA e VALOR TOTAL (2026-08-26): magnitude em R$, não desvio.
@@ -84,7 +88,7 @@ export const COLUNAS = [
      que são perguntas de tamanho — o Excesso em R$, lá adiante, responde quanto
      disso está acima da referência.
 
-     Ficam ao lado de "Exames por consulta" de propósito: as três formam a
+     Ficam ao lado de "Solicitações por consulta" de propósito: as três formam a
      leitura de magnitude, e a divisão entre elas é informativa. Custo por
      consulta ÷ exames por consulta é o preço médio do exame que ele pede, e ele
      varia 6× dentro de Ginecologia — quem pede pouco e caro não se parece com
@@ -105,7 +109,7 @@ export const COLUNAS = [
      era o desencontro mais visível da tabela. */
   { nome: 'Trimestres acima do critério', classe: 'col-txt',
     def: 'Em quantos trimestres do período ele passou o critério em algum '
-       + 'exame. Os quadrados mostram a série, um por trimestre, na ordem: '
+       + 'procedimento. Os quadrados mostram a série, um por trimestre, na ordem: '
        + 'preenchido é trimestre acima.',
     ordem: 'consistencia', valor: (l) => l.consistencia?.janelas_sinalizado },
   /* O excedente em DUAS colunas (2026-08-20). Vinha numa só, como
@@ -115,7 +119,7 @@ export const COLUNAS = [
      inteira falar uma língua só. */
   { nome: 'Excesso de solicitações', direita: true, classe: 'col-num-lg',
     def: 'Solicitações a mais que a referência do grupo, no volume de consultas '
-       + 'dele, somadas entre os exames em que passou o critério.',
+       + 'dele, somadas entre os procedimentos em que passou o critério.',
     ordem: 'excedente', valor: (l) => l.excedente_itens },
   { nome: 'Excesso em R$', direita: true, classe: 'col-num-md',
     def: 'As mesmas solicitações excedentes valoradas a preços de referência '
@@ -415,7 +419,7 @@ export function montarTabela(destino, dados,
    * @param {string} vista.rodape         o estado da vista, em uma frase
    */
   function atualizar({ linhas, perfilFlag, ordem, direcao, rodape }) {
-    /* O posto entra logo depois de "Exames por consulta" (índice 2), que é o
+    /* O posto entra logo depois de "Solicitações por consulta" (índice 2), que é o
        número de que ele é o posto. O corpo já o inseria aí; o cabeçalho usava
        slice(0, 4) e o punha um lugar adiante, o que trocava Posto e Trimestres
        de coluna sempre que um perfil estava em cena. Corrigido em 2026-08-26. */

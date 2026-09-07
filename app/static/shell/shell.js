@@ -143,7 +143,10 @@ export async function montarShell({ aoTrocarArea, escopo } = {}) {
   montarSeletor('area',
     [...(filtra ? [{ id: TODAS, nome: 'Todas as áreas' }] : []),
      ...meta.areas.map((a) => ({ id: a.id, nome: a.titulo, perfil: a.perfil }))],
-    filtra ? TODAS : area,
+    /* Telas que filtram abrem no que a URL pede, não sempre em "Todas": o
+       filtro viaja na query, e um seletor que volta a "Todas" depois de
+       recarregar diria que a tela mostra tudo enquanto mostra uma área. */
+    filtra ? (escopo.area ?? TODAS) : area,
     filtra ? (id) => escopo.aoFiltrar('area', id === TODAS ? null : id)
            : aoTrocarArea);
 

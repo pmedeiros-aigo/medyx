@@ -40,8 +40,10 @@ import { montarProcedimentos } from '../blocos/procedimentos.js';
 import { montarDistribuicao } from '../blocos/distribuicao.js';
 import { montarPareto } from '../blocos/pareto.js';
 import { montarLeituraDaArea } from '../blocos/leitura-area.js';
+import { montarOportunidades } from '../blocos/oportunidades.js';
 import { abrirPainelDoExame } from '../blocos/painel-procedimento-area.js';
 import { montarDispersao } from '../blocos/dispersao.js';
+import { montarEvolucao } from '../blocos/evolucao.js';
 
 await abrirPagina({
   titulo: 'Área de atuação',
@@ -102,6 +104,43 @@ await abrirPagina({
      em destaque e a régua declarada. Dois blocos para os mesmos cinco números
      é redundância, e a de cima era a que não hierarquizava. */
   const leitura = montarLeituraDaArea(conteudo, dados);
+
+  /* ── PRINCIPAIS OPORTUNIDADES, entre a Leitura e as abas ─────────────────
+     O guia de produto (§9) lista cinco perguntas que toda página deve
+     responder, e esta parava na quarta: o que está acontecendo (a Leitura), por
+     que (os gráficos), onde (as tabelas) e o que investigar (as gavetas). Falta
+     "o que eu faço agora", e é este bloco.
+
+     DEPOIS da Leitura, e não antes: é a Leitura que dá o denominador (o
+     excedente da área inteira). Sem ele, uma soma de cinco pares lê como o
+     problema todo, e resolver cinco linhas passaria a parecer resolver a área.
+
+     ANTES das abas, porque a ordem de leitura é resumo, prioridade e só então a
+     bancada de investigação (§10). E abaixo dos chips, porque é ACHADO: segue o
+     recorte como os Paretos e a Leitura (Lei 0).
+
+     Clicar num par abre a gaveta do exame com o cooperado apontado. A linha do
+     par já carrega código e descrição, então a gaveta não depende da tabela de
+     Procedimentos estar montada nem do exame estar visível nela. */
+  const oportunidades = montarOportunidades(
+    conteudo, dados,
+    (codigo, coop) => {
+      const l = (dados.oportunidades?.linhas ?? [])
+        .find((x) => String(x.codigo) === String(codigo) && x.id === coop);
+      abrirExame({ codigo, descricao: l?.descricao ?? '' }, null, coop);
+    },
+    (id) => comRegua(TELAS.cooperado.caminho(id)));
+
+  /* ── A ÁREA NO TEMPO, logo abaixo das oportunidades ──────────────────────
+     O MESMO bloco do dossiê (`blocos/evolucao.js`), com a área no lugar do
+     cooperado: uma barra por trimestre, a barra inteira é o custo do período e
+     o trecho preenchido é o excedente dentro dele.
+
+     Aqui porque a pergunta dele vem depois da lista de prioridades e antes da
+     bancada: sabendo o que fazer agora, a próxima é se o problema está crescendo
+     ou parado. E ele NÃO segue o recorte, como a distribuição: a série é da
+     área inteira, e trocar os chips não muda quem está sendo medido nela. */
+  montarEvolucao(conteudo, dados.evolucao);
 
   /* ── as duas unidades de análise, LOGO ABAIXO DOS CARDS ──────────────────
      As abas subiram em 2026-08-20, para o lugar que era da distribuição. O que
@@ -188,7 +227,12 @@ await abrirPagina({
    * trocar o recorte quando o escolhido está fora de cena); o que mudou é que
    * o Pareto passou a ouvir também. */
   const pareto = montarPareto(graficos.paineis.pareto, dados.pareto_cooperados,
-    (id) => grafico?.marcar(id), 'pareto-cooperados');
+    (id) => grafico?.marcar(id), 'pareto-cooperados',
+    /* A faixa de abas mora DENTRO deste cartão, e todo redesenho do Pareto a
+       leva junto. A troca de recorte já reencaixava por fora; a troca de ordem
+       acontece dentro do bloco, e sem este retorno ela apagava o caminho para
+       Distribuição e Quantidade × custo e encolhia o cartão. */
+    () => graficos.reencaixar());
   const grafico = montarDistribuicao(graficos.paineis.distribuicao, dados, (id) => {
     pareto?.destacar(id);
     if (!id) { tabela.destacar(null); return; }
@@ -249,16 +293,28 @@ await abrirPagina({
   function fecharExame() {
     exameAberto = null;
     linhaAberta = null;
+    coopApontado = null;
     gavetaExame.hidden = true;
     gavetaExame.replaceChildren();
     scrimExame.classList.remove('on');
     procedimentos?.marcar(null);
   }
-  function abrirExame(linha, tr) {
-    /* Clicar de novo na linha aberta fecha: o mesmo gesto desfaz o que fez. */
-    if (exameAberto === linha.codigo) { fecharExame(); return; }
+  /* O cooperado apontado na gaveta, quando ela foi aberta a partir de um PAR
+     (o bloco de oportunidades) e não de um exame. Guardado junto com a linha
+     pelo mesmo motivo dela: o recorte muda, a gaveta se refaz, e o apontamento
+     precisa sobreviver à refeitura. */
+  let coopApontado = null;
+  function abrirExame(linha, tr, coop = null) {
+    /* Clicar de novo na linha aberta fecha: o mesmo gesto desfaz o que fez.
+       Vindo de outro PAR do mesmo exame, porém, não é o mesmo gesto: a gaveta
+       continua aberta e troca de apontamento. */
+    if (exameAberto === linha.codigo && coopApontado === coop) {
+      fecharExame();
+      return;
+    }
     exameAberto = linha.codigo;
     linhaAberta = linha;
+    coopApontado = coop;
     procedimentos?.marcar(linha.codigo);
     if (tr) tr.classList.add('selecionada');
     scrimExame.classList.add('on');
@@ -267,7 +323,7 @@ await abrirPagina({
        contradição que o recorte veio corrigir. */
     abrirPainelDoExame(gavetaExame, dados.area?.id ?? '', linha, recorteAtivo(),
                        fecharExame,
-                       (id) => comRegua(TELAS.cooperado.caminho(id)));
+                       (id) => comRegua(TELAS.cooperado.caminho(id)), coop);
   }
   document.addEventListener('keydown', (ev) => {
     if (ev.key === 'Escape' && exameAberto) fecharExame();
@@ -438,8 +494,10 @@ await abrirPagina({
        populações na mesma tela. */
     if (exameAberto && linhaAberta) {
       abrirPainelDoExame(gavetaExame, escolhida, linhaAberta, alvo, fecharExame,
-                         (id) => comRegua(TELAS.cooperado.caminho(id)));
+                         (id) => comRegua(TELAS.cooperado.caminho(id)),
+                         coopApontado);
     }
+    oportunidades?.atualizar(a.oportunidades);
     pareto?.atualizar(a.pareto_cooperados);
     paretoProc?.atualizar(a.pareto_procedimentos);
     /* O Pareto redesenha com `cartao.replaceChildren`, e isso leva junto a

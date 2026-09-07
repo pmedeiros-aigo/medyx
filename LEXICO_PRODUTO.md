@@ -28,6 +28,7 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 | O número para a diretoria | **Síntese executiva** |
 | Régua da análise / do valor | **Parâmetros da análise** / **Critérios de valoração** |
 | taxa de exames por consulta | **índice de solicitação por consulta** |
+| exame (o objeto solicitado) | **procedimento** ·  ver a nota abaixo da tabela |
 | itens | **solicitações** (ou **eventos**) |
 | excedente | **variação excedente** (1ª menção: *variação de utilização acima da referência da área*) |
 | oportunidade bruta/qualificada | **oportunidade identificada / qualificada** (manter) |
@@ -65,6 +66,31 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 > O denominador não é enfeite: é a regra §1 do rigor estatístico. Um "32" solto
 > não diz se é a área inteira ou um punhado dela, e era assim que a frase
 > aparecia.
+
+> ### "exame" saiu do produto (2026-09-07)
+>
+> A UI dizia "exame" e "procedimento" para a MESMA coisa, às vezes na mesma tela:
+> a coluna "Exames por consulta" na tabela de cooperados e a coluna
+> "Procedimento" na tabela ao lado, o painel lateral falando "deste exame" sobre
+> um objeto que o título dele chama de procedimento.
+>
+> **A palavra é uma só: procedimento.** É o termo do setor (TUSS, rol da ANS,
+> autorização), é o que já estava em metade das superfícies, e "exame" exclui o
+> que não é diagnóstico. As consequências:
+>
+> | onde | era | é |
+> | --- | --- | --- |
+> | coluna da tabela de cooperados | Exames por consulta | **Solicitações por consulta** |
+> | medida do gráfico de distribuição | Exames | **Solicitações** |
+> | degrau da cascata | Com algum exame acima do critério | **Com algum procedimento acima do critério** |
+> | textos de apoio e hovers | "deste exame", "exame a exame" | **"deste procedimento", "procedimento a procedimento"** |
+>
+> Duas coisas NÃO mudam. As **chaves internas** (`exames` como chave da medida,
+> `taxa_exames_por_consulta` como nome de coluna do motor) seguem: são
+> identificadores, não vocabulário, e renomeá-las trocaria a URL e o gabarito do
+> smoke sem ninguém ler nada diferente na tela. E a **descrição que vem do dado**
+> ("Exame A Fresco Do Conteúdo Vaginal E Cervical") é o nome oficial do
+> procedimento na tabela de origem, não uma frase nossa.
 | o custo da inação | **impacto recorrente estimado** (por trimestre) |
 | dossiê | **dossiê analítico** (manter — é profissional) |
 | ÁREA DE TESTE — placeholder | **AMBIENTE DE HOMOLOGAÇÃO · classificação preliminar** |

@@ -91,7 +91,7 @@ PERFIS_AREA = {
     "Obstetrícia": "Predomínio obstétrico.",
     "Mastologia": "Mama.",
     "Reprodução": "Reprodução humana.",
-    "Ultrassonografista": "Perfil de execução: lauda exames, não os solicita.",
+    "Ultrassonografista": "Perfil de execução: lauda procedimentos, não os solicita.",
     "Geral": "Perfil de solicitação fora do escopo da especialidade; "
              "em triagem clínica.",
     AREA_INDEFINIDA: "Sem área de atuação atribuída: fora de comparação.",
@@ -524,6 +524,31 @@ MIN_PACIENTES_PAINEL = 5           # PROVISÓRIO
 # uma lista completa seria ilegível.
 MIN_NOMES_PAINEL = 3               # PROVISÓRIO
 MAX_NOMES_PAINEL = 10              # PROVISÓRIO
+
+
+# ---------------------------------------------------------------------------
+# PRINCIPAIS OPORTUNIDADES  —  DECISÃO DE PRODUTO  —  espec §Área
+# Quantos pares (cooperado × procedimento) o bloco mostra antes de a cauda ser
+# revelada sob demanda.
+#
+# CINCO, e não o núcleo dos 80% como no painel do exame: lá o corte responde
+# "quem concentra este excedente", uma pergunta sobre o exame; aqui o bloco é
+# uma fila de trabalho, e fila se dimensiona pelo que cabe numa sessão de
+# trabalho, não pela forma da cauda. Em Ginecologia os pares qualificados são
+# 38, e o núcleo dos 80% deles passaria de vinte: lista longa demais para o
+# lugar que ela ocupa na página, logo abaixo da Leitura da área.
+#
+# A cauda inteira viaja no payload e é revelada por link (§10, disclosure
+# progressivo). Nenhum par é escondido, só adiado.
+# ---------------------------------------------------------------------------
+N_OPORTUNIDADES_VISIVEIS = 5       # PROVISÓRIO
+# Quantos pares o bloco CARREGA. A cauda inteira não viaja: em Ginecologia são
+# 228 pares qualificados, e uma lista de 228 num cartão entre a Leitura da área
+# e as abas deixaria de ser fila de trabalho para virar uma terceira tabela,
+# fora do lugar em que as tabelas moram. Vinte é o que se revisa numa sessão.
+# O total continua declarado no cabeçalho do bloco ("5 de 228"), e a lista
+# exaustiva é a aba Cooperados, que existe exatamente para isso.
+N_OPORTUNIDADES_MAX = 20           # PROVISÓRIO
 
 # LIMIAR_CONCENTRACAO_PACIENTE — participação de UM paciente nas solicitações de
 # um exame a partir da qual ele é listado nominalmente no painel.

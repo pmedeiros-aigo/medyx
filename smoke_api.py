@@ -27,6 +27,10 @@ sys.path[:0] = [str(Path(__file__).resolve().parent)]
 import config  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent / 'app'))
 from utils.cascata import DEGRAUS as CASCATA_DEGRAUS  # noqa: E402
+# o MESMO formatador do motor: reimplementar "R$ 139 mil" aqui seria a prova
+# concordando com uma regra que ela própria inventou
+from utils import blocos  # noqa: E402
+from utils.blocos import fmt_reais  # noqa: E402
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8770"
 falhas = 0
@@ -630,6 +634,227 @@ checar("painel do exame · a lista corta no núcleo dos 80%",
 # a cauda é ADIADA, não escondida: o payload traz todos
 checar("painel do exame · a cauda viaja no payload (revelada sob demanda)",
        len(pnl["acima"]["linhas"]), pnl["acima"]["n"])
+
+
+print("\n7b. PRINCIPAIS OPORTUNIDADES · SÓ QUALIFICADOS, E CONCORDA COM O RESTO")
+# O bloco não calcula nada: ele junta e ordena o que os outros já produziram.
+# As checagens cobram exatamente isso — se alguma soma daqui divergir da do
+# Pareto ou do painel do procedimento, é porque nasceu um segundo cálculo do
+# mesmo número.
+_opo = gin["oportunidades"]
+checar("oportunidades · ordenado pelo custo excedente, do maior ao menor",
+       [l["excedente_reais"] for l in _opo["linhas"]]
+       == sorted((l["excedente_reais"] for l in _opo["linhas"]), reverse=True),
+       True)
+# a lista carrega um conjunto de trabalho, não a cauda inteira; o total continua
+# declarado no cabeçalho, e é ele que impede o bloco de parecer exaustivo
+checar("oportunidades · carga limitada, total declarado",
+       (len(_opo["linhas"]) <= config.N_OPORTUNIDADES_MAX,
+        _opo["n"] >= len(_opo["linhas"]),
+        f"de {_opo['n']} casos qualificados" in _opo["resumo"]),
+       (True, True, True))
+checar("oportunidades · o corte visível é o do config",
+       _opo["n_visiveis"], min(config.N_OPORTUNIDADES_VISIVEIS, _opo["n"]))
+# SÓ QUALIFICADOS: é o degrau que dá a cada linha a defesa pronta. Uma lista de
+# todos os que passam o critério poria em primeiro lugar quem tem fator de
+# contexto verificado explicando o volume.
+_qualif = next(d for d in gin["cascata"]["degraus"]
+               if d["chave"] == CASCATA_DEGRAUS[-1][0])
+checar("oportunidades · nenhum par além dos qualificados",
+       _opo["n"] <= _qualif["n_pares"], True)
+# AS TRÊS CÉLULAS DA MESMA LINHA FECHAM: frequência dividida pela referência é a
+# razão impressa ao lado. É a checagem que pega formatador com casas de menos —
+# "0,12" sobre "0,01" lê 12 onde a coluna diz 9,2×.
+# A LEITURA DA RAZÃO carrega o que saiu das colunas: a frequência do cooperado,
+# o denominador que a sustenta e a referência da área. É onde o denominador vive
+# desde que a tabela deixou de ter coluna para ele, e o guia exige que ele esteja
+# alcançável na leitura (§13), não que ocupe coluna.
+_num_da_leitura = re.compile(r"([\d.,]+) solicitações por consulta, em "
+                             r"([\d.,]+) consultas.*?referência[^:]*: ([\d.,]+)",
+                             re.S | re.I)
+_lidas = [(_num_da_leitura.search(l["leitura_razao"]), l) for l in _opo["linhas"]]
+checar("oportunidades · a leitura da razão traz frequência, consultas e referência",
+       all(m for m, _ in _lidas), True)
+# e as três se dividem no que a coluna Razão imprime: é a checagem que pega
+# formatador com casas de menos, como "0,004" para 0,0038, cuja divisão erra 6%.
+# Tolerância RELATIVA: o arredondamento vale 0,3 num par de razão 36 e seria
+# erro grosso num de razão 2.
+checar("oportunidades · o texto lido fecha com a razão impressa",
+       all(abs(num_ptbr(m.group(1)) / num_ptbr(m.group(3)) / l["razao"] - 1) < 0.05
+           for m, l in _lidas if m and l["razao"]), True)
+# A FATIA DE CADA CASO é o que o bloco acrescenta a uma lista ordenada: R$ 47 mil
+# não diz se vale uma conversa, 1,1% do excedente da área diz. Somadas, as fatias
+# do topo reproduzem a fração que o cabeçalho anuncia.
+_soma_fatias = sum(l["fracao_area"] for l in _opo["linhas"][:_opo["n_visiveis"]])
+checar("oportunidades · as fatias do topo somam a fração do cabeçalho",
+       f"{round(_soma_fatias * 100):.0f}%" in _opo["resumo"], True)
+# DOIS RESUMOS prontos, porque a lista tem dois tamanhos. O front alterna a
+# frase; recalcular a soma no navegador seria um segundo lugar produzindo o
+# mesmo número (Lei 1).
+checar("oportunidades · o resumo expandido fala da lista inteira",
+       (_opo["resumo"].startswith(f"{_opo['n_visiveis']} de "),
+        _opo["resumo_todos"].startswith(f"{len(_opo['linhas'])} de "),
+        bool(_opo["resumo_titulo"])), (True, True, True))
+# CONCORDA COM O PAINEL DO PROCEDIMENTO: o mesmo par, o mesmo R$. São duas
+# superfícies lendo a mesma soma, e divergir seria a tela contando duas
+# histórias sobre um caso.
+_l0 = _opo["linhas"][0]
+_, _pnl0 = get(f"/api/area/ginecologia/procedimento/{_l0['codigo']}")
+checar("oportunidades · o R$ do par bate com o do painel do procedimento",
+       next((c["reais_fmt"] for c in _pnl0["acima"]["linhas"]
+             if c["id"] == _l0["id"]), None), _l0["excedente_reais_fmt"])
+# SEGUE O RECORTE, como todo achado (Lei 0)
+_, _ach_op = get("/api/area/ginecologia/achados", perfil="opera")
+checar("oportunidades · o recorte de perfil reduz o conjunto",
+       _ach_op["oportunidades"]["n"] <= _opo["n"], True)
+# A REGRA DA QUALIFICAÇÃO é dita UMA VEZ, no rodapé, e nomeia o gatilho ativo:
+# ela vale para todas as linhas, e repeti-la em cada uma gastava três linhas de
+# texto por caso sem separar um caso do outro.
+checar("oportunidades · o rodapé declara a regra e nomeia o critério",
+       (_opo["notas"][0].startswith("Casos qualificados:"),
+        config.GATILHO_DEFAULT.upper() in _opo["notas"][0]), (True, True))
+# ÁREA SEM CRITÉRIO não produz o bloco: sem régua não há par acima do critério,
+# e uma lista vazia sugeriria área sem variação em vez de área sem medida.
+_, _mast = get("/api/area/mastologia")
+checar("oportunidades · área sem critério não publica o bloco",
+       _mast.get("oportunidades"), None)
+
+
+print("\n7c. PANORAMA · JUNTA PESSOAS E VALORES, NUNCA RÉGUAS")
+# O Panorama é o único lugar que soma as áreas. Ele não calcula nada: o
+# catálogo é o mesmo de /api/meta e o excedente de cada área é o da cascata
+# daquela área. As checagens cobram essa identidade — se algum número daqui
+# divergir do da tela de Área, nasceu um segundo lugar produzindo o mesmo
+# número, que é o defeito que a Lei 1 existe para impedir.
+_, pano = get("/api/panorama")
+_cartoes = {c["id"]: c for c in pano["areas"]["cartoes"]}
+_com_regua = {k: c for k, c in _cartoes.items() if c["comparavel"]}
+# TODA ÁREA VIRA CARTÃO, com régua ou sem. A tela é o catálogo da especialidade,
+# e área que não aparece é área que ninguém lembra de classificar. O que separa
+# as duas famílias é o CONTEÚDO do cartão, não a presença.
+_, _meta_areas = get("/api/meta")
+checar("panorama · toda área de atuação vira cartão",
+       sorted(_cartoes),
+       sorted(a["id"] for a in _meta_areas["areas"]
+              if a["id"] != blocos.slug(config.AREA_INDEFINIDA)))
+checar("panorama · e só as com régua trazem excedente",
+       sorted(_com_regua), ["ginecologia", "go"])
+# TODO CARTÃO DIZ AS MESMAS TRÊS COISAS, na mesma ordem: cartão que muda de
+# campos conforme a área obriga a reaprender o desenho a cada um, e some com a
+# comparação, que é a razão de eles estarem lado a lado.
+checar("panorama · todo cartão traz as mesmas medidas, na mesma ordem",
+       {tuple(l["rotulo"] for l in c["linhas"]) for c in _cartoes.values()},
+       {("Custo total", "Custo excedente")})
+# O CUSTO TOTAL é dado REAL e existe em toda área, com régua ou sem: ele não
+# depende de norma, é o que a área solicitou. Só o excesso depende.
+checar("panorama · o custo total aparece em todas as áreas",
+       [c["nome"] for c in _cartoes.values()
+        if c["linhas"][0]["valor_fmt"] == config.SEM_MEDIDA], [])
+# e onde a medida não existe, a ausência é DECLARADA com o motivo: nunca zero,
+# que afirmaria ausência de variação, nem célula vazia, que manda o leitor
+# procurar o número que não está lá (ajuste 4 do CLAUDE.md)
+checar("panorama · sem régua, o excesso é ausência declarada e não zero",
+       all(l["valor_fmt"] == config.SEM_MEDIDA and l["motivo"]
+           for c in _cartoes.values() if not c["comparavel"]
+           for l in c["linhas"][1:]), True)
+# NINGUÉM DESAPARECE: os cartões e a classificação pendente somam a
+# especialidade inteira. É a regra que impede a tela de esconder quem não pode
+# ser medido, que é justamente quem mais precisa aparecer.
+_pop = sum(int(num_ptbr(c["populacao"].split(" de ")[1])) for c in _cartoes.values())
+checar("panorama · ninguém desaparece da especialidade",
+       _pop + int(num_ptbr(pano["pendente"]["valor_fmt"])),
+       pano["totais"]["cooperados"])
+# O EXCEDENTE DE CADA ÁREA é o mesmo que a tela de Área imprime no destaque da
+# Leitura, sob o recorte default. Duas telas, um número.
+_linhas_gin = {l["rotulo"]: l["valor_fmt"]
+               for l in _com_regua["ginecologia"]["linhas"]}
+checar("panorama · o excedente da área bate com a tela de Área",
+       _linhas_gin["Custo excedente"], gin["leitura"]["destaque"]["valor_fmt"])
+# e o custo total, e a fração entre os dois: os três números do cartão são os
+# mesmos que a Leitura da área imprime, palavra por palavra
+checar("panorama · o custo total bate com a Leitura da área",
+       _linhas_gin["Custo total"],
+       linha_leitura(gin, "_custo_total")["valor_fmt"])
+# o % ANDA COM O VALOR, e é o mesmo que o destaque da Leitura imprime
+_apoio_gin = next(l["apoio"] for l in _com_regua["ginecologia"]["linhas"]
+                  if l["rotulo"] == "Custo excedente")
+checar("panorama · e o % excedente é o mesmo do destaque",
+       _apoio_gin in gin["leitura"]["destaque"]["apoio"], True)
+# as áreas COM RÉGUA vêm primeiro, e entre elas manda o excedente: sem ordem,
+# um cartão de uma pessoa se intercalaria com o que carrega R$ 2,9 mi
+_ordem = [c["comparavel"] for c in pano["areas"]["cartoes"]]
+checar("panorama · áreas com régua vêm primeiro",
+       _ordem == sorted(_ordem, reverse=True), True)
+# A RÉGUA NÃO É SOMADA. Percentil comparando médicos de áreas diferentes é o
+# pecado capital do método, e a prova é estrutural: nenhuma chave de posição
+# atravessa o payload desta tela.
+_proibidas = {"percentil", "posicao", "posto", "razao_vs_mediana", "razao_vs_alvo"}
+def _chaves(no):
+    if isinstance(no, dict):
+        for k, v in no.items():
+            yield k
+            yield from _chaves(v)
+    elif isinstance(no, list):
+        for v in no:
+            yield from _chaves(v)
+checar("panorama · nenhuma medida de posição atravessa as áreas",
+       sorted(_proibidas & set(_chaves(pano))), [])
+# OS DOIS PARETOS somam o MESMO total da especialidade, por eixos diferentes:
+# se divergirem, um dos dois está somando outra população.
+# DUAS AGREGAÇÕES do mesmo total: por área diz onde alocar auditoria, por
+# cooperado diz quantas conversas resolvem quanto. Trocar entre elas é LEITURA,
+# não recorte, e por isso as duas viajam prontas no mesmo payload.
+checar("panorama · a concentração agrupa por área e por cooperado",
+       ([o["chave"] for o in pano["concentracao"]["ordens"]],
+        pano["concentracao"]["rotulo_controle"]),
+       (["area", "cooperado"], "Agrupar por"))
+checar("panorama · as duas agregações somam o mesmo total",
+       {b["total_fmt"] for b in pano["concentracao"]["dados"].values()},
+       {fmt_reais(pano["totais"]["excedente_reais"])})
+_conc = pano["concentracao"]["dados"]["cooperado"]
+_trans = pano["transversais"]["dados"]["excedente"]
+checar("panorama · os dois Paretos somam o mesmo excedente",
+       (_conc["total_fmt"], _trans["total_fmt"]),
+       (fmt_reais(pano["totais"]["excedente_reais"]),) * 2)
+# e cada um se chama pelo que responde: com o mesmo total nos dois cabeçalhos, o
+# título genérico do Pareto era a mesma frase dita duas vezes lado a lado
+checar("panorama · cada Pareto tem nome próprio",
+       (_conc["titulo"], _trans["titulo"]),
+       ("Onde o excesso se concentra", "Procedimentos transversais"))
+# a leitura de cada linha diz de que régua ela veio: numa tela que cruza áreas,
+# a barra sozinha não diz contra o que a pessoa foi medida
+checar("panorama · a linha do cooperado declara a área dele",
+       _conc["linhas"][0]["detalhes"][0].startswith("Área de atuação:"), True)
+checar("panorama · e a do procedimento, em quantas áreas ele aparece",
+       _trans["linhas"][0]["detalhes"][0].startswith("Aparece em "), True)
+# O SELETOR DE ÁREA RECORTA a tela, não navega para fora dela: o Panorama existe
+# para comparar as áreas, e sair dele ao escolher uma é o oposto do que o
+# controle promete. A chave é `areas` porque `area` na raiz é rota legada, que o
+# servidor redireciona para /area/{id}.
+_, _pano_go = get("/api/panorama", areas="go")
+checar("panorama · o filtro de áreas recorta a tela",
+       (len(_pano_go["areas"]["cartoes"]),
+        _pano_go["totais"]["areas_com_referencia"]), (1, 1))
+# ESCOLHA MÚLTIPLA: comparar duas áreas de sete é a leitura que esta tela
+# existe para dar, e a escolha única não a expressa.
+_, _pano_duas = get("/api/panorama", areas="ginecologia,go")
+checar("panorama · o filtro aceita várias áreas",
+       len(_pano_duas["areas"]["cartoes"]), 2)
+# slug desconhecido é ignorado em vez de esvaziar a tela; seleção que não
+# alcança área nenhuma cai em todas, o estado que a página sempre desenha
+_, _pano_ruim = get("/api/panorama", areas="nao-existe")
+checar("panorama · seleção que não alcança nada cai em todas",
+       len(_pano_ruim["areas"]["cartoes"]), len(_cartoes))
+checar("panorama · e a soma acompanha o recorte",
+       _pano_go["totais"]["excedente_reais"] < pano["totais"]["excedente_reais"],
+       True)
+# com uma área só em cena, a coluna que diz de qual régua o caso veio some: ela
+# repetiria a mesma palavra em todas as linhas
+checar("panorama · com uma área só, a coluna da área não aparece",
+       _pano_go["oportunidades"]["mostrar_area"], False)
+# ETAPA 1: a tela declara o que ainda não tem. Quando a etapa 4 fechar, esta
+# chave passa a existir e a checagem inverte.
+checar("panorama · o funil ainda não foi publicado", "funil" in pano, False)
 
 
 print("\n8. TEXTO DE TELA  (LEXICO_PRODUTO.md, PADRÃO DE REDAÇÃO)")

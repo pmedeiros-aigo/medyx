@@ -46,14 +46,14 @@ const COLUNAS = [
   { nome: 'Procedimento', classe: 'col-txt' },
   { nome: 'Prevalência', direita: true, classe: 'col-num-md',
     def: 'Porcentagem dos cooperados comparáveis da área que solicitam este '
-       + 'exame. É régua da área e não se move com o recorte.',
+       + 'procedimento. É régua da área e não se move com o recorte.',
     ordem: 'prevalencia', valor: (l) => l.prevalencia },
   { nome: 'Solicitantes', direita: true, classe: 'col-num-md',
-    def: 'Solicitantes elegíveis que formam a referência deste exame. É régua '
+    def: 'Solicitantes elegíveis que formam a referência deste procedimento. É régua '
        + 'da área e não se move com o recorte.',
     ordem: 'solicitantes', valor: (l) => l.n_solicitantes_elegiveis },
   { nome: 'Referência', direita: true, classe: 'col-num-md',
-    def: 'Mediana do grupo neste exame, em solicitações por consulta. Taxas '
+    def: 'Mediana do grupo neste procedimento, em solicitações por consulta. Taxas '
        + 'raras aparecem por mil consultas. É régua da área e não se move com '
        + 'o recorte.' },
   { nome: 'Qualidade da referência', classe: 'col-txt',
@@ -65,11 +65,11 @@ const COLUNAS = [
      coluna que responde "o que a área mais pede", e ordenar por ela troca a
      lista do Pareto pela rotina da área. */
   { nome: 'Solicitações', direita: true, classe: 'col-num-md',
-    def: 'Solicitações deste exame somadas entre os cooperados em cena no '
+    def: 'Solicitações deste procedimento somadas entre os cooperados em cena no '
        + 'recorte, sinalizados ou não.',
     ordem: 'solicitacoes', valor: (l) => l.n_solicitacoes },
   { nome: 'Acima do critério', direita: true, classe: 'col-num-md',
-    def: 'Cooperados que passaram o critério de revisão neste exame, entre os '
+    def: 'Cooperados que passaram o critério de revisão neste procedimento, entre os '
        + 'que estão em cena no recorte.',
     ordem: 'acima', valor: (l) => l.n_acima_do_criterio },
   /* NOMES IGUAIS aos da tabela de Cooperados e aos dos KPIs (2026-08-20): eram
@@ -78,7 +78,7 @@ const COLUNAS = [
      "Excesso em R$". Três vocabulários para o mesmo par de números na mesma
      tela. */
   { nome: 'Excesso de solicitações', direita: true, classe: 'col-num-lg',
-    def: 'Solicitações a mais que a referência deste exame, somadas entre os '
+    def: 'Solicitações a mais que a referência deste procedimento, somadas entre os '
        + 'cooperados que passaram o critério nele.',
     ordem: 'excedente', valor: (l) => l.excedente_itens },
   { nome: 'Excesso em R$', direita: true, classe: 'col-num-md',

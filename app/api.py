@@ -785,7 +785,10 @@ def _resolver_area(resultado: dict, area_id: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.get("/api/panorama", tags=["tela panorama"])
-def panorama(p: ParametrosDep) -> dict[str, Any]:
+def panorama(p: ParametrosDep,
+             areas: Annotated[str | None, Query(
+                 description="ids de área (slugs) separados por vírgula; "
+                             "ausente = todas")] = None) -> dict[str, Any]:
     """O Panorama da especialidade: escopo, onde o excesso está, e quem ainda
     não pode ser medido.
 
@@ -810,20 +813,36 @@ def panorama(p: ParametrosDep) -> dict[str, Any]:
     não com o total de áreas nem com o de cooperados.
     """
     r = _rodar(p)
-    areas = _areas_resolvidas(r, p.criterio)
+    _todas = _areas_resolvidas(r, p.criterio)
+    # A ÁREA ESCOLHIDA no seletor RECORTA a tela, não navega para fora dela: o
+    # Panorama existe para comparar as áreas, e sair dele ao escolher uma era o
+    # oposto do que o controle promete. Área desconhecida cai em "todas", que é
+    # o estado que a tela sempre sabe desenhar.
+    # `areas`, e não `area`: a chave `area` na raiz é rota legada e o servidor a
+    # redireciona para /area/{id}, tirando o leitor do Panorama.
+    #
+    # LISTA, porque a escolha é MÚLTIPLA: comparar duas áreas de sete é uma
+    # leitura legítima. Slug desconhecido é ignorado em vez de esvaziar a tela;
+    # seleção que não alcança nenhuma área cai em todas, que é o estado que a
+    # página sempre sabe desenhar.
+    pedidas = {x for x in (areas or "").split(",") if x}
+    if pedidas:
+        recorte = [a for a in _todas if a["id"] in pedidas]
+        if recorte:
+            _todas = recorte
     # o CUSTO TOTAL de todas as áreas numa chamada só: ele não depende de régua
     # (é o que a área solicitou), então existe também para quem não sinaliza
     custos = dados.custo_por_area(p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
                                   p.criterio, p.referencia, p.incluir_ps)
 
-    totais = {a["id"]: {"custo_total": custos.get(a["nome"])} for a in areas}
+    totais = {a["id"]: {"custo_total": custos.get(a["nome"])} for a in _todas}
     # os pares das áreas COM RÉGUA, empilhados: é o que sustenta a lista de
     # oportunidades da especialidade inteira. Empilhar é legítimo porque cada
     # excedente já foi medido contra a referência da PRÓPRIA área — junta-se o
     # achado, nunca a régua.
     pares, rs_pares, confs, custo_pares = [], [], [], []
     reais_coop, custos_coop, area_do_coop = {}, {}, {}
-    for a in areas:
+    for a in _todas:
         if not a["comparavel"]:
             continue
         casc = _cascata_area(a["nome"], p.janela_ini, p.janela_fim, p.piso,
@@ -858,7 +877,7 @@ def panorama(p: ParametrosDep) -> dict[str, Any]:
             area_do_coop[coop] = a["titulo"]
 
     bloco = blocos.panorama_da_especialidade(
-        config.ESPECIALIDADE_MVP, areas, totais, config.AREA_INDEFINIDA)
+        config.ESPECIALIDADE_MVP, _todas, totais, config.AREA_INDEFINIDA)
     # PRINCIPAIS OPORTUNIDADES da especialidade: o MESMO bloco da tela de Área,
     # alimentado com os pares de todas as áreas com régua e com o excedente da
     # especialidade como denominador. Um bloco, duas escalas — o que muda é o
@@ -875,10 +894,10 @@ def panorama(p: ParametrosDep) -> dict[str, Any]:
         # cooperado) e quais procedimentos o puxam em mais de uma área.
         bloco["concentracao"] = blocos.concentracao_da_especialidade(
             reais_coop, custos_coop, area_do_coop,
-            {a["titulo"]: totais[a["id"]]["excedente_reais"] for a in areas
+            {a["titulo"]: totais[a["id"]]["excedente_reais"] for a in _todas
              if a["comparavel"]},
             {a["titulo"]: totais[a["id"]].get("custo_total") or 0.0
-             for a in areas if a["comparavel"]})
+             for a in _todas if a["comparavel"]})
         bloco["transversais"] = blocos.procedimentos_transversais(
             pd.concat(rs_pares),
             pd.concat(custo_pares) if any(len(c) for c in custo_pares) else None)
@@ -1101,7 +1120,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
     # na proveniência, nunca descartado em silêncio.
     fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
     resto_dias = dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim)
-    persistencia = None
+    persistencia = evolucao = None
     if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
         pers = dados.rodar_persistencia(
             fatias, p.piso, p.n_minimo, p.criterio, p.referencia, None,
@@ -1118,6 +1137,16 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
                 pers["por_janela_cooperado"]["ID_COOPERADO"]
                 .isin(posicao["ID_COOPERADO"])],
         }
+        # a série trimestral da ÁREA: o mesmo bloco do dossiê, somado sobre os
+        # cooperados dela. Os rótulos de mês saem das PRÓPRIAS fatias, como no
+        # dossiê — escritos à mão eles mentem sob outra janela.
+        cpj = pers.get("custo_por_janela")
+        if cpj is not None and len(cpj):
+            cpj = cpj[cpj["ID_COOPERADO"].isin(posicao["ID_COOPERADO"])]
+        evolucao = blocos.evolucao_da_area(
+            persistencia["por_janela_cooperado"], cpj,
+            [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias],
+            resto_dias)
 
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
                          p.criterio, p.referencia, p.incluir_ps)
@@ -1244,6 +1273,10 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
                                             casc["excedente_reais_coop"],
                                             piso=r["piso_aplicado"],
                                             custo_por_coop=custo_coop),
+        # A SÉRIE DA ÁREA no tempo, o mesmo desenho do dossiê. Não segue o
+        # recorte: ela responde "a área está estável ou piorando", e a
+        # pergunta é sobre a área inteira.
+        "evolucao": evolucao,
         # bloco experimental: quantidade no X, custo no Y, porte no tamanho
         "dispersao": blocos.dispersao(posicao, casc["valor_total_coop"],
                                       rotulos_posicao,

@@ -62,21 +62,101 @@ revisão · referência de adequação · confiança · (avançado) volume míni
 todos por argumento, nunca lidos do config dentro de função. Banner de homologação em
 toda página. Estado da tela na URL. Cache no servidor, não no navegador.
 
-## 1. PANORAMA DE OPORTUNIDADES (página inicial) [sessão 3]
+## 1. PANORAMA DA ESPECIALIDADE (página inicial)
 
-Pergunta: "onde está o dinheiro, por grupo — e o que eu olho hoje?"
+Pergunta: **"onde está o custo excedente, e por onde começar?"** É o nível acima da
+Área: primeiro se escolhe ONDE olhar, depois se olha.
 
-- Síntese executiva: faixa qualificada (referência mediana ↔ critério) + piso de
-confiança ← pipeline 2× + controlador. Selo de quarentena. [v0]
-- Cards por especialidade: n/elegíveis, mediana, acima do critério, consistentes,
-excedente ← pipeline por área. Estado de referência visível no card. [v0]
-- Cascata de qualificação (identificada → contexto → não persistente → referência
-frágil → qualificada) ← fila final. v0 tabela · v1 waterfall.
-- Ranking qualificado: caso, consistência n/n, faixa, piso, fatores de contexto,
-leitura de concentração; excluídos esmaecidos com motivo. [v0]
-- IDs de caso · estados com trilha · PDF executivo · economia vs baseline. [v1]
+**A regra que governa a página inteira: junta pessoas e valores, NUNCA réguas.** Todo
+excedente que chega aqui foi medido contra a referência da área do próprio cooperado,
+e é por isso que a unidade comum entre áreas é o excesso (solicitações e R$) e não a
+posição. Percentil comparando médicos de áreas diferentes é o pecado capital do
+método, e o smoke cobra estruturalmente que nenhuma chave de posição atravesse o
+payload desta tela.
 
+Construída em quatro etapas. **Etapa 1 entregue**; as demais estão declaradas na
+própria tela, no rodapé, até entrarem.
 
+### Etapa 1 · escopo, onde o excesso está, e quem não pode ser medido [v1]
+
+- **Linha de contexto** sob o título, mesma construção da tela de Área:
+  `200 cooperados · 118 comparáveis em 2 áreas com referência · 72 em classificação
+  pendente · 9 em áreas sem referência · 172.141 solicitações excedentes de 118
+  cooperados · R$ 5,3 mi`. Cada parte carrega a própria definição no hover.
+- **Um cartão por ÁREA DE ATUAÇÃO, todas elas, do MESMO tamanho.** A tela é o catálogo
+  da especialidade, e área que não aparece é área que ninguém lembra de classificar. O
+  que separa as duas famílias é o CONTEÚDO do cartão, não a presença nem o tamanho:
+  - **com régua** (2 de 7): custo excedente em destaque, solicitações, barra da fatia
+    no excedente da especialidade, população e casos qualificados.
+  - **sem régua** (5 de 7): a população no lugar do valor e o motivo de não sinalizar
+    no lugar da fatia. **Não imprime zero** — zero afirmaria ausência de variação onde
+    o que falta é contra quem medir.
+  - **Uma grade, um tamanho.** Houve uma versão com dois cartões grandes para as áreas
+    com régua: eles prometiam responder "onde o excesso está", e essa é pergunta de
+    Pareto, que tem seção própria na etapa 3. Cartão grande sobre uma lista de áreas
+    afirma concentração onde o desenho só cataloga. O que distingue as áreas é o
+    conteúdo do cartão e o recuo de quem não tem régua.
+  - O **título da seção é "Áreas de atuação"**, não "Onde o excesso está", pelo mesmo
+    motivo: um título que promete concentração sobre uma grade que lista faz o leitor
+    procurar ali uma resposta que o desenho não dá.
+  - A **barra é a fatia da área no excedente da especialidade**, não a fatia da maior:
+    a pergunta é quanto do problema mora ali, e normalizar pela maior faria a segunda
+    área parecer maior sempre que a primeira encolhesse.
+  - O motivo é **redigido no bloco do Panorama**, não herdado do estado da área: a
+    frase de lá termina em "motivos abaixo", apontando para a barra de composição, que
+    só existe na tela de Área.
+- **Classificação pendente em faixa própria.** 72 dos 200 cooperados, 36% da
+  especialidade, e é o único número da tela cuja ação não passa por comitê: é triagem
+  clínica, trabalho de cadastro. Como mais um cartão entre as áreas ele vira nota de
+  rodapé, e some justamente o que dá para resolver.
+- **Componentes reusados, nenhum novo**: o cartão é o `.kpi` do contrato (virou link e
+  ganhou barra de proporção), a faixa de pendência é a `.res-destaque` da Leitura da
+  área, e a linha de contexto é a mesma marcação do cabeçalho da Área.
+
+**Motor.** `blocos.panorama_da_especialidade` monta o bloco; `/api/panorama` agrega.
+**Nada nasce no endpoint**: o catálogo de áreas é o MESMO de `/api/meta`
+(`_areas_resolvidas`) e o excedente de cada área é o da cascata daquela área, pela
+mesma `_cascata_area` que a tela de Área usa. O smoke cobra a igualdade: o excedente
+do cartão de Ginecologia é, caractere a caractere, o destaque da Leitura da área.
+
+**Custo.** Paga a cascata de cada área COM RÉGUA, e só delas. São duas nesta base, e
+as duas ficam memoizadas — a tela de Área que o analista abrir em seguida não paga de
+novo. Escala com o número de áreas comparáveis, não com o total de áreas nem de
+cooperados.
+
+**"Acima do critério" não entra no cartão.** Esse degrau alcança 63 dos 63 comparáveis
+em Ginecologia e 55 dos 55 em GO, por construção do método (são centenas de percentis
+testados por área). Um cartão dizendo "63 de 63" não separa uma área da outra; o
+cartão traz o último degrau, que é o que sobra para trabalhar e o mesmo conjunto que a
+fila vai listar.
+
+### Etapa 2 · fila de casos cruzando as áreas [pendente]
+
+Chips de recorte, cards do recorte e a tabela com os cooperados de todas as áreas
+juntas, ordenada por excedente em R$. **A unidade é o COOPERADO**, e é isso que a
+distingue do bloco "Principais oportunidades" da Área, cuja unidade é o par: Panorama
+responde *com quem eu converso*, a Área responde *sobre o quê*.
+
+Sutileza a declarar na tela: o recorte é aplicado DENTRO de cada área e depois unido.
+"Qualificado" quer dizer qualificado na própria área, e o degrau "material" é o Pareto
+de 80% de cada área, não da especialidade.
+
+### Etapa 3 · procedimentos transversais [pendente]
+
+Procedimentos ordenados por excedente somado, com **em quantas áreas cada um aparece**.
+É a seção que só o Panorama pode dar: dos 259 procedimentos com excedente, 213 estão
+nas duas áreas e carregam **94% do excedente**. Muda a ação — excedente alto nas duas
+áreas é conversa de protocolo, não conversa individual.
+
+### Etapa 4 · funil da especialidade [pendente]
+
+Os degraus somados das áreas com régua, cada um clicável aplicando o recorte na fila.
+
+### Fora desta página
+
+Comparação entre especialidades (só há uma), posição ou percentil cruzando áreas
+(proibido pelo método), deltas contra o período anterior (a janela tem um ano),
+estados de caso e economia realizada [v1].
 
 ## 2. ÁREA DE ATUAÇÃO (o peer group visível) [sessão 1 — em construção]
 
@@ -86,6 +166,93 @@ Pergunta: "o que é normal aqui, e quem está fora?"
 (formam · abaixo do volume · fora da construção, com nome e motivo ao expandir) →
 **faixa de estatísticas sem moldura** (acima do critério · consistência · variação
 excedente · impacto estimado · peso na especialidade). [v0]
+- **Principais oportunidades** (entre a Leitura da área e as abas): uma linha por
+PAR (cooperado × procedimento), do maior custo excedente ao menor, entre os casos
+qualificados. [v1]
+  - **O degrau que faltava.** O guia de produto (§9) lista cinco perguntas que toda
+    página deve responder, e esta parava na quarta: o que está acontecendo (a
+    Leitura), por que (os gráficos), onde (as tabelas) e o que investigar (as
+    gavetas). "O que fazer agora" é este bloco.
+  - **O cruzamento que não existia.** O app já ordenava cooperados DENTRO de um
+    procedimento (o painel lateral) e procedimentos DENTRO de um cooperado (a tabela
+    do dossiê). Os pares de toda a área numa lista só não existiam em superfície
+    nenhuma.
+  - **Nenhuma medida nova.** Os pares, o custo excedente de cada um e a régua de cada
+    procedimento já viajavam prontos no mesmo endpoint. O bloco junta e ordena.
+  - **É uma TABELA**, com a moldura e os rótulos que a página já usa. A primeira
+    versão usou a entrada da gaveta lateral (um cartão de leitura vertical) e destoava
+    de tudo em volta: tipografia diferente, linhas altas demais, e três fatos
+    empilhados por caso onde a página inteira usa colunas.
+  - **Cada coluna argumenta a oportunidade**, e é só isso que entra: Cooperado ·
+    Procedimento · **Razão** (quanto está fora do padrão) · **Excesso de solicitações**
+    (quanto disso é volume) · **Excesso em R$** (quanto vale, e a ordem) · **% do
+    excedente da área** (quanto este caso move do problema inteiro).
+    - A última é a que separa o bloco de mais uma lista ordenada: R$ 47 mil não diz
+      por si se vale uma conversa, 1,1% do excedente da área diz.
+    - Saíram Consultas, Frequência e Referência, que a primeira versão copiou da
+      tabela do dossiê. Lá elas são o diagnóstico de um cooperado e a tela inteira é
+      sobre ele; aqui a pergunta é "vale trabalhar este caso", e três colunas para
+      reconstruir uma divisão que a quarta já entrega faziam o bloco ler como uma
+      quarta tabela da mesma família. As três viajam na **leitura da célula da
+      Razão**: o guia pede o denominador ALCANÇÁVEL no momento da leitura (§13), não
+      ocupando coluna própria.
+  - **Sem ordenação no cabeçalho**: a lista JÁ é a ordem por custo excedente, e é ela
+    que define quais casos entram. Uma seta prometeria reordenar o conjunto que foi
+    escolhido por essa ordem.
+  - **Só CASOS QUALIFICADOS**, o último degrau da cascata. Uma lista de todos os que
+    passam o critério poria em primeiro lugar o cooperado cujo fator de contexto
+    explica o volume, que é o pior caso para abrir uma conversa (rigor §4). Como a
+    condição vale para todas as linhas, ela é dita UMA VEZ no rodapé, nomeando o
+    critério ativo, e não repetida linha a linha.
+  - **As duas lentes e o denominador.** Ordem pelo custo excedente (magnitude) com a
+    razão na linha (intensidade), porque razão sozinha traz procedimento raro e custo
+    sozinho traz volume clínico (rigor §3). Frequência, referência da área e consultas
+    ao lado: número de indivíduo não se publica sem a referência do grupo (LEXICO,
+    princípio 6) nem sem o denominador (rigor §1).
+  - **As três células fecham na linha**: frequência ÷ referência é a razão impressa ao
+    lado, e o smoke cobra isso. Foi o que expôs o formatador: com três casas fixas
+    abaixo de 0,1, uma referência de 0,0038 saía "0,004" e a divisão errava 6%.
+    `fmt_frequencia` passou a manter três algarismos significativos em qualquer escala,
+    o que corrige junto a mesma coluna na tabela do dossiê.
+  - **Carga limitada** a `N_OPORTUNIDADES_MAX`, visíveis `N_OPORTUNIDADES_VISIVEIS`.
+    São 228 casos qualificados em Ginecologia, e uma lista desse tamanho num cartão
+    acima das abas viraria uma terceira tabela fora do lugar onde as tabelas moram. O
+    total vai declarado no cabeçalho ("5 de 228"), e a superfície exaustiva é a aba
+    Cooperados.
+  - **O cabeçalho acompanha a lista.** Ele soma o custo excedente do que está em cena
+    e o põe sobre o da área ("5 de 228 casos qualificados · R$ 356 mil, 9% do custo
+    excedente da área"); revelar o resto reescreve a frase ("20 de 228 · R$ 742 mil,
+    19%"). As duas versões vêm PRONTAS do motor e o front alterna a string: a soma e a
+    fração são números do método, e recalculá-las no navegador seria o segundo lugar
+    em que elas nascem (Lei 1). A leitura da frase declara a base do percentual.
+  - **Ressalva de preço com contagem**: a ordem é por dinheiro, e caso qualificado sem
+    preço apurado nas contas não pode ser ordenado. Sem a linha do rodapé o bloco
+    esconderia casos por falha de dado.
+  - **Segue o recorte** (Lei 0), como a Leitura e os dois Paretos. Recorte mais amplo
+    não muda nada, porque os qualificados já são o degrau mais estrito; recorte de
+    perfil reduz (em Ginecologia, "opera" leva de 228 para 48 casos).
+  - **Não é aba.** As duas abas da página são duas LENTES do mesmo conjunto; este
+    bloco é a conclusão tirada das duas. Como aba, ficaria atrás de um clique e no
+    mesmo nível de duas perguntas que ele responde.
+  - **Clicar na linha abre o painel do procedimento com o par APONTADO**; o nome e o
+    chevron vão para o dossiê. Dois destinos, os dois já construídos, o mesmo par de
+    gestos da tabela de Procedimentos. A linha carrega código e descrição, então o
+    painel não depende de a tabela estar montada nem de o procedimento estar visível
+    nela.
+    - Apontado nos DOIS desenhos do painel: a linha na lista "Acima do critério" e o
+      ponto no enxame da distribuição, com os demais recuando. Quem clica escolhe um
+      PAR, e um painel que abrisse sem dizer qual dos 54 pontos é o dele obrigaria a
+      procurar no gráfico o nome que se acabou de clicar. Se o cooperado estiver na
+      cauda da lista, ela é aberta e rolada até ele.
+    - A marca é a MESMA do fio de hover entre lista e gráfico: um segundo realce só
+      para este caso ensinaria duas gramáticas para a mesma ideia. O que muda é a
+      permanência — **o hover empresta o destaque e o devolve ao sair**, o apontado
+      fica. Sem esse retorno, passar o cursor por um nome qualquer apagava o caso que
+      o auditor veio investigar.
+    - E o realce só TROCA quando há para onde trocar: o enxame tem todos os que
+      solicitam o procedimento (54), a lista só os que passaram o critério (17).
+      Apontar um ponto sem linha correspondente apagava a linha apontada sem acender
+      nenhuma outra, e explorar o gráfico desfazia o estado do painel.
 - **Distribuição** (dentro do container de gráficos, aba "Distribuição"): 1 ponto
 por cooperado avaliável, haste do menor ao maior, faixa IQR do grupo que forma a
 referência, régua de referência e de critério. Clicar num ponto destaca a linha na
@@ -149,6 +316,18 @@ imprime as duas logo abaixo — a de solicitações como linha do grupo, o R$ co
 destaque, e as duas de novo na nota —, e a linha de contexto era a superfície em que
 elas diziam menos, sem denominador ao lado e sem declarar que não se movem com o
 recorte. O que a linha carrega é o ESCOPO, que nenhum outro bloco repete.
+- **Os Paretos não trazem subtítulo de população** (set/2026). Ele dizia "excedente
+somado sobre: comparáveis (63)" e era a terceira aparição do mesmo fato na mesma dobra:
+o chip de Recorte, logo acima, imprime o recorte ativo com a contagem, e a Leitura da
+área abre com o mesmo conjunto. Sobrou a leitura de concentração, que é o que só o
+Pareto diz. A frase continua no rodapé da tabela de Procedimentos, onde não há chip nem
+Leitura ao lado dela.
+- **A faixa de abas dos gráficos sobrevive ao redesenho do Pareto.** Ela mora DENTRO do
+cartão do gráfico em cena, e o Pareto se refaz com `replaceChildren` a cada troca de
+ordem ou de recorte. A troca de recorte já a devolvia, por fora; a de ordem acontece
+dentro do bloco e não tinha quem o fizesse, então ordenar apagava o caminho para
+Distribuição e Quantidade × custo e o cartão encolhia a altura da faixa. `montarPareto`
+passou a aceitar um retorno de redesenho, e a página devolve a faixa por ele.
 - **Aba Cooperados** (default): identidade · magnitude · evidência · desfecho.
 Colunas de evidência: procedimento que puxa (com razão), consistência por trimestre
 com direção, leitura de concentração, fatores de contexto. [v0]
