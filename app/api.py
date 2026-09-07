@@ -18,6 +18,7 @@ Rodar:
 from __future__ import annotations
 
 import re
+import secrets
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -32,10 +33,13 @@ for _p in (str(_RAIZ), str(_RAIZ / "app")):
 import pandas as pd  # noqa: E402
 from fastapi import (Depends, FastAPI, HTTPException, Path as PathParam,  # noqa: E402
                      Query, Request)
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse  # noqa: E402
+from fastapi.responses import (FileResponse, HTMLResponse,  # noqa: E402
+                               JSONResponse, RedirectResponse)
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
+from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
 
+import cognito  # noqa: E402
 import config  # noqa: E402
 import sessao  # noqa: E402
 from utils import apresentacao as apr  # noqa: E402
@@ -669,7 +673,12 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
     A régua não aparece em nenhum deles: são somas de excedente já medido
     contra a referência da área, que não se move.
     """
-    sub = blocos.subtitulo_recorte(rotulo, len(ids))
+    # SEM SUBTÍTULO nos dois Paretos (set/2026). Ele dizia "excedente somado
+    # sobre: comparáveis (63)", e a declaração de população que ele carregava
+    # passou a viver em dois lugares melhores: o chip de Recorte, logo acima,
+    # imprime o recorte ativo com a contagem, e a Leitura da área abre com o
+    # mesmo conjunto. Três frases para o mesmo fato na mesma dobra, e a do
+    # cartão era a que empurrava o gráfico para baixo.
     itens_por_coop = {l["id"]: (l.get("excedente_itens") or 0)
                       for l in linhas_coop}
     # magnitude por cooperado para os cards de média (SADT e custo por consulta)
@@ -681,7 +690,7 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
                                     itens_por_coop, ids, rotulo,
                                     n_comparaveis, base_por_coop)
     par_coop = blocos.pareto_cooperados(
-        casc["excedente_reais_coop"], linhas_coop, ids, sub,
+        casc["excedente_reais_coop"], linhas_coop, ids, None,
         casc["valor_total_coop"])
     # a concentração e o custo total saem do PARETO já montado: um número, um
     # lugar. O de custo total é a soma das linhas na ordem "custo".
@@ -711,7 +720,16 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
             (contexto or {}).get("gatilho"), (contexto or {}).get("n_formam", 0)),
         "pareto_cooperados": par_coop,
         "pareto_procedimentos": blocos.pareto_procedimentos(
-            casc["rs"], ids, sub, casc["custo_pares"]),
+            casc["rs"], ids, None, casc["custo_pares"]),
+        # O DEGRAU "o que eu faço agora" (§9 do guia de produto): a página
+        # respondia o que está acontecendo, por quê e onde, e parava antes da
+        # última pergunta. Segue o recorte como os demais achados.
+        "oportunidades": blocos.principais_oportunidades(
+            casc["pares"], casc["rs"], casc["conf"], ids,
+            (contexto or {}).get("excedente_reais_area"),
+            (contexto or {}).get("alvo", config.ALVO_DEFAULT),
+            (contexto or {}).get("gatilho"),
+            (contexto or {}).get("n_fatias", 0)),
     }
 
 
@@ -760,6 +778,95 @@ def _resolver_area(resultado: dict, area_id: str) -> str:
                           for a in resultado["posicao"]["AREA_ATUACAO"].unique()})
     raise HTTPException(404, f"área {area_id!r} não existe nesta janela, "
                              f"disponíveis: {disponiveis}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# /api/panorama — a porta de entrada, no nível da especialidade
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/panorama", tags=["tela panorama"])
+def panorama(p: ParametrosDep) -> dict[str, Any]:
+    """O Panorama da especialidade: escopo, onde o excesso está, e quem ainda
+    não pode ser medido.
+
+    ── o que ele soma, e o que ele NUNCA soma ──────────────────────────────
+    Soma pessoas e valores entre as áreas; não soma réguas. Cada excedente que
+    chega aqui foi medido contra a referência da área do próprio cooperado, e é
+    por isso que a unidade comum é o excesso, e não a posição: percentil
+    comparando médicos de áreas diferentes é o pecado capital do método.
+
+    ── de onde vêm os números ──────────────────────────────────────────────
+    Nada nasce nesta função. O catálogo de áreas é o MESMO de `/api/meta`
+    (`_areas_resolvidas`), e o excedente de cada área é o da cascata daquela
+    área, pela mesma `_cascata_area` que a tela de Área usa. Se os dois
+    divergirem, é porque nasceu um segundo cálculo do mesmo número, e o smoke
+    cobra exatamente essa igualdade.
+
+    ── custo ───────────────────────────────────────────────────────────────
+    Paga a cascata de cada área COM RÉGUA, e só delas: área sem critério não
+    sinaliza ninguém e não tem excedente a somar. São duas nesta base, e as duas
+    já estão memoizadas por parâmetro — a tela de Área que o analista abrir em
+    seguida não paga de novo. O custo escala com o número de áreas comparáveis,
+    não com o total de áreas nem com o de cooperados.
+    """
+    r = _rodar(p)
+    areas = _areas_resolvidas(r, p.criterio)
+    # o CUSTO TOTAL de todas as áreas numa chamada só: ele não depende de régua
+    # (é o que a área solicitou), então existe também para quem não sinaliza
+    custos = dados.custo_por_area(p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
+                                  p.criterio, p.referencia, p.incluir_ps)
+
+    totais = {a["id"]: {"custo_total": custos.get(a["nome"])} for a in areas}
+    # os pares das áreas COM RÉGUA, empilhados: é o que sustenta a lista de
+    # oportunidades da especialidade inteira. Empilhar é legítimo porque cada
+    # excedente já foi medido contra a referência da PRÓPRIA área — junta-se o
+    # achado, nunca a régua.
+    pares, rs_pares, confs = [], [], []
+    for a in areas:
+        if not a["comparavel"]:
+            continue
+        casc = _cascata_area(a["nome"], p.janela_ini, p.janela_fim, p.piso,
+                             p.n_minimo, p.criterio, p.referencia, p.incluir_ps)
+        por_degrau = {d["chave"]: d for d in casc["funil"]}
+        medidos = por_degrau.get(cascata.DEGRAUS[0][0], {})
+        # CASOS QUALIFICADOS, e não "acima do critério": este segundo degrau
+        # alcança 63 dos 63 comparáveis em Ginecologia e 55 dos 55 em GO, por
+        # construção do método (são centenas de percentis testados por área), e
+        # um cartão dizendo "63 de 63" não separa uma área da outra. O último
+        # degrau é o que sobra para trabalhar, e é o mesmo conjunto que a fila
+        # vai listar.
+        qualificados = por_degrau.get(cascata.DEGRAU_QUALIFICADO, {})
+        totais[a["id"]].update({
+            # o excedente da área INTEIRA, sem recorte: o Panorama descreve o
+            # alcance da medição, e o recorte é assunto da fila (etapa 2)
+            "excedente_itens": float(medidos.get("excedente_itens") or 0.0),
+            "excedente_reais": float(casc["excedente_reais"] or 0.0),
+            "n_qualificados": int(qualificados.get("n_cooperados") or 0),
+            "n_pares_qualificados": int(qualificados.get("n_pares") or 0),
+            "n_com_excedente": sum(
+                1 for v in casc["excedente_reais_coop"].values() if v > 0),
+        })
+        pares.append(casc["pares"])
+        rs_pares.append(casc["rs"])
+        if casc["conf"] is not None:
+            confs.append(casc["conf"])
+
+    bloco = blocos.panorama_da_especialidade(
+        config.ESPECIALIDADE_MVP, areas, totais, config.AREA_INDEFINIDA)
+    # PRINCIPAIS OPORTUNIDADES da especialidade: o MESMO bloco da tela de Área,
+    # alimentado com os pares de todas as áreas com régua e com o excedente da
+    # especialidade como denominador. Um bloco, duas escalas — o que muda é o
+    # conjunto que entra, não o desenho nem a conta.
+    if pares:
+        fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
+        bloco["oportunidades"] = blocos.principais_oportunidades(
+            pd.concat(pares), pd.concat(rs_pares),
+            pd.concat(confs) if confs else None, None,
+            bloco["totais"]["excedente_reais"], p.referencia, p.criterio,
+            len(fatias), escopo="da especialidade")
+    bloco["proveniencia"] = _proveniencia(p, r)
+    bloco["banner"] = config.BANNER_HOMOLOGACAO
+    return bloco
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1047,6 +1154,13 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
                      else float(norma_linha[gatilho])),
         "gatilho": gatilho,
         "n_formam": n_formam,
+        # trimestres completos da janela: o rodapé das oportunidades diz em
+        # quantos a variação se repetiu, e persistência sem denominador não é
+        # evidência
+        "n_fatias": len(fatias),
+        # a REFERÊNCIA ativa, para as oportunidades lerem dela a régua de cada
+        # procedimento em vez de supor a mediana
+        "alvo": p.referencia,
     }
     achado = _blocos_de_achado(casc, linhas_coop, ids, rotulo_rec, recorte,
                                int(posicao["avaliavel"].sum()), _contexto_area)
@@ -1186,7 +1300,8 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
 def area_achados(area_id: Annotated[str, PathParam(description="id da área (slug), de /api/meta")],
                  p: ParametrosDep,
                  recorte: RecorteQ = None, perfil: PerfilQ = None) -> dict[str, Any]:
-    """Só os blocos que SEGUEM O RECORTE: a Leitura da área e os dois Paretos.
+    """Só os blocos que SEGUEM O RECORTE: a Leitura da área, os dois Paretos e
+    as principais oportunidades.
 
     Existe para a troca de chip não ter de rebuscar a área inteira. Devolve
     exatamente as mesmas chaves que `/api/area/{id}` traz na carga inicial —
@@ -1195,7 +1310,7 @@ def area_achados(area_id: Annotated[str, PathParam(description="id da área (slu
     """
     return {k: v for k, v in area(area_id, p, recorte, perfil).items()
             if k in ("recorte", "leitura", "pareto_cooperados",
-                     "pareto_procedimentos")}
+                     "pareto_procedimentos", "oportunidades")}
 
 
 @app.get("/api/area/{area_id}/procedimentos", tags=["tela área"])
@@ -1779,6 +1894,7 @@ def conta(request: Request) -> dict[str, Any]:
         "classificacao": config.CLASSIFICACAO_VERSAO,
         "suporte": CONTATO_SUPORTE,
     }
+    cfg = cognito.configuracao() if identidade_ligada() else None
     if usuario is None:
         return {
             "autenticado": False,
@@ -1790,19 +1906,25 @@ def conta(request: Request) -> dict[str, Any]:
     return {
         "autenticado": True,
         "usuario": usuario.para_tela(),
-        # Tudo `None` enquanto não há provedor: a tela declara o estado em vez
-        # de oferecer botão que não leva a lugar nenhum.
+        # `provedor` e `url_senha` só existem quando há provedor de verdade. Com
+        # o override de desenvolvimento, `cfg` é `None` e a tela volta a
+        # declarar o estado em vez de oferecer um botão que não leva a lugar
+        # nenhum, que é exatamente o que ela fazia antes do Cognito.
+        #
+        # O nome do provedor é institucional, não técnico: quem lê a tela é
+        # médico ou gestor, e "Cognito" não diz nada a essa pessoa. O que ela
+        # precisa saber é que senha se troca em outro lugar.
         #
         # `duas_etapas` tem TRÊS valores, e a distinção é de produto:
         #   True  -> ativa
         #   False -> prevista na política de acesso, ainda não configurada
         #   None  -> FORA da política; a tela OMITE a linha
-        # O MVP vai SEM segundo fator (decisão de 29/ago), então aqui segue
-        # `None` mesmo depois que o provedor entrar. Vira `False` no dia em que
-        # a política do pool passar a prever MFA.
+        # O MVP vai SEM segundo fator (decisão de 29/ago), e o pool está com
+        # MFA desligado, então segue `None`. Vira `False` no dia em que a
+        # política do pool passar a prever MFA.
         "seguranca": {
-            "provedor": None,
-            "url_senha": None,
+            "provedor": "acesso institucional Medyx" if cfg else None,
+            "url_senha": cfg.url_senha if cfg else None,
             "url_duas_etapas": None,
             "duas_etapas": None,
         },
@@ -1812,15 +1934,108 @@ def conta(request: Request) -> dict[str, Any]:
 
 @app.get("/sair", include_in_schema=False)
 def sair(request: Request):
-    """Encerra a sessão e devolve à porta de entrada.
+    """Encerra a sessão aqui e no provedor, e devolve à porta de entrada.
 
-    Apaga o cookie mesmo quando não há provedor configurado: o dia em que
-    houver, só falta acrescentar o redirecionamento ao logout dele, e o resto
-    do caminho (botão, rota, limpeza) já estará provado em uso.
+    As duas pontas, e não só a nossa. Apagar apenas o cookie do Medyx deixaria
+    a sessão do Cognito de pé: o próximo clique em Entrar voltaria ao app sem
+    pedir senha, o que em consultório com máquina compartilhada é defeito de
+    segurança, não detalhe de fluxo.
+
+    Sem provedor configurado, continua fazendo o que fazia: limpa e volta para
+    a raiz.
     """
-    resposta = RedirectResponse("/", status_code=303)
+    sessao.encerrar(request)
+    cfg = cognito.configuracao()
+    destino = cognito.url_de_saida(cfg) if cfg else "/"
+    resposta = RedirectResponse(destino, status_code=303)
     resposta.delete_cookie(sessao.COOKIE_SESSAO, httponly=True, samesite="lax")
     return resposta
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# O fluxo de identidade — duas rotas, uma ida e uma volta
+# ─────────────────────────────────────────────────────────────────────────────
+# A tela de entrada (`/entrar`) é a porta VISUAL e não sabe nada de protocolo:
+# ela tem um link para `/auth/entrar`, e é aqui que o diálogo com o Cognito
+# começa. A separação é o que permite trocar de provedor sem redesenhar tela.
+
+# Onde o estado do login em curso espera pela volta. Vive na sessão do
+# navegador, não em memória do servidor: memória não sobrevive a reinício nem
+# a um segundo processo, e o login quebraria no dia do primeiro deploy sem
+# ninguém entender por quê.
+CHAVE_VERIFICADOR = "auth_verificador"
+CHAVE_ESTADO = "auth_estado"
+
+
+def identidade_ligada() -> bool:
+    """Há login neste ambiente?
+
+    São DUAS condições, e faltar qualquer uma desliga o login inteiro. O
+    provedor sozinho diria quem é a pessoa e não teria onde guardar a resposta;
+    a chave sozinha guardaria uma resposta que ninguém deu.
+
+    Separá-las custou um 500 em `/sair` na primeira versão: com provedor e sem
+    chave, o guardião fechava a porta e a rota de saída tentava limpar uma
+    sessão que não existia. A pessoa ficava trancada do lado de fora sem
+    conseguir nem sair.
+    """
+    return cognito.configurado() and sessao.chave_de_assinatura() is not None
+
+
+@app.get("/auth/entrar", include_in_schema=False)
+def auth_entrar(request: Request):
+    """Começa o login: guarda o segredo da ida e manda o navegador ao Cognito."""
+    cfg = cognito.configuracao() if identidade_ligada() else None
+    if cfg is None:
+        # Ambiente sem provedor. Devolve à porta visual, que já declara o
+        # estado; 503 aqui daria erro de servidor para uma configuração
+        # ausente, que não é falha do servidor.
+        return RedirectResponse("/entrar", status_code=303)
+
+    url, verificador, estado = cognito.iniciar(cfg)
+    request.session[CHAVE_VERIFICADOR] = verificador
+    request.session[CHAVE_ESTADO] = estado
+    return RedirectResponse(url, status_code=303)
+
+
+@app.get("/auth/callback", include_in_schema=False)
+def auth_callback(
+    request: Request,
+    code: Annotated[str | None, Query(include_in_schema=False)] = None,
+    state: Annotated[str | None, Query(include_in_schema=False)] = None,
+    error: Annotated[str | None, Query(include_in_schema=False)] = None,
+):
+    """A volta do Cognito: confere, troca o código por identidade, abre a sessão.
+
+    Toda saída que não é sucesso vai para `/entrar`. É deliberado: quem está no
+    navegador não tem o que fazer com "assinatura inválida" ou "state
+    divergente", e detalhe de falha de autenticação na tela ajuda quem está
+    sondando, não quem está trabalhando (DIRETRIZES §22). O diagnóstico fica no
+    log do servidor, onde alguém pode agir sobre ele.
+    """
+    cfg = cognito.configuracao() if identidade_ligada() else None
+    if cfg is None or error or not code:
+        return RedirectResponse("/entrar", status_code=303)
+
+    verificador = request.session.pop(CHAVE_VERIFICADOR, None)
+    esperado = request.session.pop(CHAVE_ESTADO, None)
+
+    # O `state` prova que esta volta responde a uma ida DESTE navegador. Sem a
+    # conferência, um terceiro poderia induzir o login de uma conta que não é a
+    # de quem está na frente da tela. `compare_digest` porque comparação de
+    # segredo com `==` vaza tempo.
+    if (not verificador or not esperado or not state
+            or not secrets.compare_digest(state, esperado)):
+        return RedirectResponse("/entrar", status_code=303)
+
+    try:
+        usuario = cognito.concluir(cfg, code, verificador)
+    except cognito.ErroDeIdentidade as erro:
+        print(f"[auth] login recusado: {erro}", file=sys.stderr)
+        return RedirectResponse("/entrar", status_code=303)
+
+    sessao.registrar(request, usuario)
+    return RedirectResponse("/", status_code=303)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1949,3 +2164,58 @@ async def _sem_cache_no_front(request, call_next):
     if not request.url.path.startswith("/api"):
         resposta.headers["Cache-Control"] = "no-cache"
     return resposta
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# A porta — quem entra, e por onde
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Caminhos que existem JUSTAMENTE para quem ainda não entrou. A tela de entrada
+# precisa dos estáticos para se desenhar, e o fluxo precisa de si mesmo; sem
+# esta lista, o guardião mandaria a tela de login para a tela de login.
+CAMINHOS_ABERTOS = ("/entrar", "/auth/", "/static/", "/sair", "/favicon")
+
+
+@app.middleware("http")
+async def _exigir_sessao(request: Request, call_next):
+    """Fecha o app para quem não está autenticado.
+
+    Só age quando o login está inteiro (`identidade_ligada`). Sem ele, o
+    comportamento é o de antes (app aberto, sessão ausente declarada na tela):
+    um guardião que barrasse sem ter porta trancaria o desenvolvimento fora do
+    próprio app.
+
+    A resposta muda com o tipo do pedido, e a distinção não é cosmética: tela
+    recebe redirecionamento, porque quem está no navegador precisa ir para
+    algum lugar; `/api` recebe 401, porque redirecionar uma chamada de dados
+    devolveria HTML onde o front espera JSON e o erro apareceria como "resposta
+    inválida" em vez de "sua sessão terminou".
+    """
+    caminho = request.url.path
+    if (not identidade_ligada()
+            or caminho.startswith(CAMINHOS_ABERTOS)
+            or sessao.usuario_da_requisicao(request) is not None):
+        return await call_next(request)
+    if caminho.startswith("/api"):
+        return JSONResponse({"detail": "Sessão ausente ou expirada."},
+                            status_code=401)
+    return RedirectResponse("/entrar", status_code=303)
+
+
+# A ORDEM destes dois registros importa, e ela é o inverso da leitura: o último
+# adicionado é o mais externo. `hidratar` lê `request.session`, então precisa
+# rodar POR DENTRO do middleware que decifra o cookie.
+if sessao.chave_de_assinatura():
+    app.middleware("http")(sessao.hidratar)
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=sessao.chave_de_assinatura(),
+        session_cookie=sessao.COOKIE_SESSAO,
+        max_age=sessao.DURACAO_SESSAO_SEGUNDOS,
+        same_site="lax",
+        # `lax` e não `strict`: o navegador volta do Cognito por uma navegação
+        # de outro site, e `strict` faria o cookie recém-escrito não ser
+        # enviado nessa primeira volta, deslogando quem acabou de entrar.
+        https_only=cognito.configuracao() is not None
+        and cognito.configuracao().url_base.startswith("https://"),
+    )

@@ -12,6 +12,19 @@
 fastapi==0.116.1
 uvicorn[standard]==0.35.0
 
+# Identidade (app/cognito.py, app/sessao.py) — set/2026.
+# Quatro, e nenhuma delas é framework de autenticação: o fluxo é escrito à mão
+# porque são duas rotas, e uma biblioteca de auth traria um modelo de usuário
+# concorrente com o `sessao.Usuario` que já existe (DIRETRIZES §3).
+#   httpx        troca o código por token, de servidor para servidor
+#   pyjwt        confere a assinatura do id_token
+#   cryptography é o que o pyjwt usa para validar RS256; sem ela, ele não valida
+#   itsdangerous assina o cookie de sessão (usada pelo SessionMiddleware)
+httpx==0.28.1
+pyjwt==2.10.1
+cryptography==46.0.3
+itsdangerous==2.2.0
+
 # Motor de análise (app/utils/pipeline.py, preparar_fato.py)
 pandas==2.2.3
 numpy==2.3.1
