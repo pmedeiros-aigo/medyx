@@ -223,8 +223,12 @@
   --ch-jitter:34px;
   --ch-ref-w:1px;               /* espessura das linhas de referência */
   --ch-ref-op:.78;
-  --ch-ref-style-median:solid;  /* mediana da área */
-  --ch-ref-style-criterion:dashed; /* critério de revisão */
+  /* CORRIGIDO 2026-09-07, replicar no Design: os dois valores estavam trocados
+     em relação ao que o CSS desenhava e ao que o artboard "Medyx Escala de Cor"
+     define. Contínua é a linha que JULGA (critério); tracejada é a que dá
+     CONTEXTO (referência). */
+  --ch-ref-style-median:dashed;    /* referência de adequação — contexto */
+  --ch-ref-style-criterion:solid;  /* critério de revisão — julgamento */
   /* A caixa interquartil é NEUTRA (Clean v3): ela é contexto, não dado. Em
      verde competia com a mediana, que é a referência de fato. */
   --ch-iqr-fill:var(--g-25);

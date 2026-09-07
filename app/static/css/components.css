@@ -791,14 +791,22 @@ th{vertical-align:middle}
 .plot .iqrband{position:absolute;top:26px;height:38px;background:var(--ch-iqr-fill);border:1px solid var(--ch-iqr-line);border-radius:3px}
 .plot .iqrlbl{display:none}   /* o rótulo "IQR" vive na legenda, não sobre a caixa */
 
-/* referências: tracejadas nas duas, com o rótulo em mono acima, sobre fundo
-   branco para nunca colidir com um ponto */
+/* AS DUAS RÉGUAS, com o rótulo acima sobre fundo do papel para nunca colidir
+   com um ponto. Elas se distinguem pelo TRAÇO, não pela cor — a tinta é a mesma
+   nas duas (`--g-900`), como manda o artboard "Medyx Escala de Cor":
+
+     contínua  = CRITÉRIO de revisão. É a linha que julga.
+     tracejada = REFERÊNCIA de adequação. Traço aberto porque é contexto.
+
+   Estava ao contrário até 2026-09-07 (referência contínua) e o critério vinha
+   em vermelho, que no mapa de cor do artboard deixou de significar severidade
+   de cooperado. Vermelho sai do dado; a régua é preta nos dois casos. */
 .plot .refline{position:absolute;top:14px;height:58px;bottom:auto;width:0;opacity:var(--ch-ref-op);z-index:1}
-.plot .refline.median{background:none;border-left:var(--ch-ref-w) dashed var(--g-900)}
-.plot .refline.criterion{border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--crit)}
+.plot .refline.median{background:none;border-left:var(--ch-ref-w) var(--ch-ref-style-median) var(--g-900)}
+.plot .refline.criterion{background:none;border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--g-900)}
 .plot .reflbl{position:absolute;top:0;transform:translateX(-50%);padding:0 4px;background:var(--surface);font-size:var(--ch-label-fs);font-weight:400;letter-spacing:.02em;white-space:nowrap;z-index:2}
 .plot .reflbl.median{color:var(--g-900)}
-.plot .reflbl.criterion{color:var(--crit)}
+.plot .reflbl.criterion{color:var(--g-900)}
 /* O ponto NEUTRO. Opacidade de .5 para .65 em 2026-08-19: em .5 o cinza saía
    quase branco sobre o canvas e o corpo da distribuição — que é a maioria dos
    pontos, e o contexto contra o qual se lê quem está fora — mal aparecia.
@@ -828,18 +836,23 @@ th{vertical-align:middle}
    0–100%, e uma perna sozinha produz valor negativo em metade do domínio —
    o que invalida a declaração inteira e derruba a cor para o cinza base.
    CORREÇÃO LOCAL 2026-08-20, replicar no Design. */
-.plot .pt{
-  --ramp-1:clamp(0%, calc(var(--i,0) * 200%), 100%);
-  --ramp-2:clamp(0%, calc((var(--i,0) - .5) * 200%), 100%);
-  background:color-mix(in oklab, var(--crit) var(--ramp-2),
-    color-mix(in oklab, var(--read-above) var(--ramp-1), var(--g-400)));
-  /* A opacidade acompanha a mesma intensidade: quem tem pouco dinheiro recua,
-     quem tem muito salta. Codificar a grandeza DUAS vezes (tinta e presença)
-     não é redundância inútil — é o que faz a leitura funcionar em tela ruim de
-     projetor e para quem não distingue âmbar de vermelho. Sem isso, metade da
-     nuvem cai no meio da rampa e o olho não sabe para onde ir. */
-  opacity:calc(.45 + var(--i,0) * .55);
-}
+/* VARIANTE E do artboard "Medyx Escala de Cor" ("sem escala e sem brilho"),
+   adotada em 2026-09-07 para TODOS os gráficos de distribuição do app. Dois
+   estados: dentro do padrão da área em cinza, acima do critério em verde
+   chapado. Sem rampa, sem halo.
+
+   O que saiu: a tinta era o excedente em R$ numa escala cinza-âmbar-vermelho.
+   Ela dizia dinheiro enquanto o eixo dizia frequência, e precisava de uma
+   legenda de três valores para ser lida. O artboard escolheu trocar isso por um
+   contraste que não se explica.
+
+   O que a variante cobra, e o artboard declara: a cor deixa de dizer QUANTO, e
+   o realce passa a depender só de matiz. É o Pareto ao lado que responde
+   "quanto", e é por isso que os dois vivem no mesmo cartão. */
+.plot .pt{background:var(--g-500);opacity:.6}
+.plot .pt.pt-acima{width:8px;height:8px;margin-left:-4px;
+  background:var(--acc);opacity:1;z-index:3}
+[data-tema="dark"] .plot .pt:not(.pt-acima){opacity:.75}
 .plot .pt:hover{background:var(--g-900);opacity:1}
 /* a barra da legenda mostra a rampa inteira, com os valores nas pontas */
 .legend .rampa{display:inline-flex;align-items:center;gap:6px}
@@ -860,6 +873,9 @@ th{vertical-align:middle}
 .legend i.read{background:var(--read-above)}
 .legend i.crit{background:var(--crit)}
 .legend i.band{width:14px;border-radius:2px;background:var(--ch-iqr-fill);border:1px solid var(--ch-iqr-line)}
+/* as marcas das duas réguas: o mesmo traço que o gráfico desenha, em 11px */
+.legend i.mk-ref{width:0;height:11px;border-radius:0;border-left:1px var(--ch-ref-style-median) var(--g-900);opacity:var(--ch-ref-op)}
+.legend i.mk-crit{width:0;height:11px;border-radius:0;border-left:1px var(--ch-ref-style-criterion) var(--g-900);opacity:var(--ch-ref-op)}
 .legend i.caveat{width:14px;border-radius:2px;background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line)}
 .barrow{display:grid;grid-template-columns:1fr 56px;gap:12px;align-items:center}
 .barrow .t{font-size:var(--fs-md)}
@@ -1825,6 +1841,21 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .vista:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .vista-painel{display:none;flex-direction:column;gap:16px}
 .vista-painel.on{display:flex}
+/* ── ALTURA ESTÁVEL entre as vistas de gráfico ──────────────────────────────
+   Concentração, Distribuição e Quantidade × custo tinham 516, 357 e 511px, e
+   trocar de vista sacudia a página inteira: a tabela logo abaixo subia 159px e
+   descia de volta. Quem está comparando duas leituras do mesmo grupo perde o
+   lugar a cada clique.
+
+   `min-height` no PAINEL, e não altura fixa no gráfico: cada desenho continua
+   com a altura que a leitura dele pede, e só o vão até o próximo bloco varia.
+   O valor é o do mais alto (o Pareto, com a lista em 300px), medido — não
+   arbitrado. Se algum gráfico passar disso, o painel cresce e nada quebra.
+
+   Só na FAIXA DE GRÁFICOS: as abas Cooperados/Procedimentos são conteúdos de
+   tamanhos legitimamente diferentes, e reservar a altura da maior deixaria um
+   vazio permanente sob a menor. */
+.graficos-vistas .vista-painel{min-height:var(--vista-h,516px)}
 
 /* ── recorte: segmented control (Clean v3) ──────────────────────────────────
    Trilho cinza contínuo, pastilha branca no ativo. Mesma construção do
@@ -2539,8 +2570,10 @@ label.nav-mod:focus-visible{outline:none;box-shadow:var(--focus-ring)}
 .pnl-mk-rot{display:inline-flex;align-items:center;gap:7px}
 .pnl-mk{width:8px;flex:none;display:inline-block}
 .pnl-mk.mk-pt{height:8px;border-radius:50%;background:var(--exc)}
-.pnl-mk.mk-ref{height:2px;border-radius:1px;background:var(--g-500)}
-.pnl-mk.mk-crit{height:0;border-top:1px dashed var(--g-500)}
+/* as marcas seguem o traço do gráfico logo acima: referência tracejada
+   (contexto), critério contínuo (julgamento) */
+.pnl-mk.mk-ref{height:0;border-top:1px dashed var(--g-900);opacity:var(--ch-ref-op)}
+.pnl-mk.mk-crit{height:2px;border-radius:1px;background:var(--g-900);opacity:var(--ch-ref-op)}
 
 .painel-x{width:28px;height:28px;flex:0 0 28px;display:flex;align-items:center;
   justify-content:center;border:0;border-radius:var(--r-sm);background:transparent;
@@ -2724,13 +2757,9 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    .75 vêm de lá e não têm token com par de tema (`--ch-dot-op-muted` é .55 e não
    se traduz no escuro); se a variante virar padrão dos outros gráficos, é ali
    que ela precisa nascer. */
-.plot-enxame .pt{width:7px;height:7px;margin-left:-3.5px;
-  background:var(--g-500);opacity:.6;z-index:1;box-shadow:none}
-.plot-enxame .pt.pt-acima{width:8px;height:8px;margin-left:-4px;
-  background:var(--acc);opacity:1;z-index:3}
-/* `:not(.pt-acima)` porque a regra do escuro vem DEPOIS e empataria em
-   especificidade com a do ponto verde, apagando-o para .75 */
-[data-tema="dark"] .plot-enxame .pt:not(.pt-acima){opacity:.75}
+/* a TINTA vem do `.plot .pt` base, que já é a variante E; aqui sobra a
+   geometria da gaveta, que é mais estreita que o gráfico da página */
+.plot-enxame .pt{width:7px;height:7px;margin-left:-3.5px;z-index:1;box-shadow:none}
 /* as marcas da legenda são os PRÓPRIOS pontos, no mesmo tamanho e na mesma
    tinta: legenda que desenha outra coisa obriga a traduzir duas vezes */
 .legend i.pt-mk-fundo{background:var(--g-500);opacity:.6}
@@ -2738,13 +2767,10 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 .plot-sm .haste{top:28px}
 .plot-sm .tampa{top:21px;height:15px}
 .plot-sm .iqrband{top:14px;height:28px}
-/* As duas linhas são NEUTRAS e se distinguem pelo TRAÇO, não pela cor: contínua
-   é a referência, tracejada é o critério. É a mesma gramática das marcas da
-   legenda logo abaixo (`.pnl-mk`), e é o que "discreto" significa aqui — num
-   painel de UM caso, a única tinta é a do ponto dele. */
-.plot-sm .refline{top:8px;height:40px;
-  border-left:var(--ch-ref-w) solid var(--g-500)}
-.plot-sm .refline.tracejada{border-left-style:dashed}
+/* Só GEOMETRIA: o traço e a tinta das duas linhas vêm do `.plot .refline`
+   base, para o painel e o gráfico da página nunca discordarem sobre qual delas
+   é contínua. */
+.plot-sm .refline{top:8px;height:40px}
 /* O ponto do cooperado: verde do dado, centrado na altura da caixa, com um anel
    da cor do papel que o separa da borda da caixa quando os dois coincidem.
    Precisa da especificidade de `.plot .pt` para vencer a rampa de cor da
@@ -2954,3 +2980,17 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
       animation:girar .6s linear infinite}
 /* quem pediu menos movimento no sistema continua vendo o estado, mais lento. */
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
+
+/* ── ENTRADA · porta de autenticação ---------------------------------------
+   O painel escuro comunica o produto; a coluna clara restringe a ação a um
+   único caminho, que encaminha a credencial ao Cognito. */
+.entrada{min-height:100vh;background:var(--surface)}
+.entrada-grade{min-height:100vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,36%)}
+.entrada-marca{display:flex;flex-direction:column;justify-content:space-between;gap:var(--s-7);padding:var(--s-7);background:var(--acc-deep);color:var(--ink-inv)}
+.entrada-logo{display:inline-flex;align-items:center;gap:var(--s-3);width:max-content;color:var(--ink-inv);font-size:var(--fs-xl);font-weight:600;text-decoration:none}
+.entrada-logo:hover{color:var(--ink-inv);text-decoration:none}.entrada-logo svg{width:var(--fs-3xl);height:var(--fs-3xl);fill:currentColor}
+.entrada-proposta{display:flex;flex-direction:column;gap:var(--s-4);max-width:42ch}.entrada-proposta h1{color:var(--ink-inv);font-size:var(--fs-2xl);font-weight:500;line-height:1.45;letter-spacing:-.01em}.entrada-proposta p{font-size:var(--fs-sm);color:var(--g-400)}.entrada-garantia{font-size:var(--fs-xs);color:var(--g-500)}
+.entrada-acesso{display:flex;flex-direction:column;justify-content:center;gap:var(--s-7);padding:var(--s-7) var(--s-6);background:var(--surface)}.entrada-cartao{display:flex;flex-direction:column;gap:var(--s-6)}
+.entrada-cliente{display:flex;align-items:center;gap:var(--s-3)}.entrada-cliente-marca{display:grid;place-items:center;width:calc(var(--s-5) + var(--s-4));height:calc(var(--s-5) + var(--s-4));border-radius:var(--r-md);background:var(--acc);color:var(--ink-inv);font-size:var(--fs-lg);font-weight:600}.entrada-cliente>div{display:flex;flex-direction:column;gap:var(--s-1)}.entrada-cliente strong{font-size:var(--fs-lg);font-weight:600;color:var(--g-900)}.entrada-cliente span:not(.entrada-cliente-marca){font-family:var(--font-num);font-size:var(--fs-xs);color:var(--g-400)}
+.entrada-conteudo{display:flex;flex-direction:column;gap:var(--s-5)}.entrada-acao{width:100%;height:var(--row-h);font-size:var(--fs-md)}.entrada-rodape{display:flex;justify-content:space-between;gap:var(--s-3);font-size:var(--fs-xs);color:var(--g-400)}.entrada-rodape a{color:var(--g-500)}.entrada-rodape a:hover{color:var(--acc-strong)}
+@media (max-width:800px){.entrada-grade{grid-template-columns:1fr}.entrada-marca{min-height:35vh;padding:var(--s-6)}.entrada-acesso{min-height:65vh;padding:var(--s-6) var(--s-5)}}

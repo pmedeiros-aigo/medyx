@@ -122,9 +122,12 @@ function distribuicao(destino, d) {
                                  g.haste.pos_pct + g.haste.largura_pct));
   }
   plot.appendChild(posicionado('div', 'iqrband', g.iqr.pos_pct, g.iqr.largura_pct));
-  plot.appendChild(posicionado('div', 'refline', g.referencia.pos_pct));
+  /* MESMAS classes do gráfico da página (`median`/`criterion`): contínua julga,
+     tracejada dá contexto. O vocabulário é um só no app desde 2026-09-07 —
+     antes o painel dizia o contrário do que o artboard define. */
+  plot.appendChild(posicionado('div', 'refline median', g.referencia.pos_pct));
   if (g.criterio) {
-    plot.appendChild(posicionado('div', 'refline tracejada', g.criterio.pos_pct));
+    plot.appendChild(posicionado('div', 'refline criterion', g.criterio.pos_pct));
   }
   corpo.appendChild(plot);
 

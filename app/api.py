@@ -1831,12 +1831,19 @@ def sair(request: Request):
 # `inicio.js` escolhe o módulo da página pela rota. Tela nova = um arquivo em
 # static/paginas/ + uma linha em inicio.js + uma rota aqui; o HTML não muda.
 PAGINA = ESTATICOS / "index.html"
+PAGINA_ENTRADA = ESTATICOS / "entrar.html"
 
 
 # ── as telas ────────────────────────────────────────────────────────────────
 # O CAMINHO diz o que se olha; a QUERY diz como (a régua da análise). Área e
 # cooperado são coisas e viajam no caminho; janela, critério e piso viajam na
 # query, iguais em toda tela. O mapa completo está em static/lib/rotas.js.
+
+@app.get("/entrar", include_in_schema=False)
+def entrar():
+    """Porta visual; o fluxo Cognito começa em `/auth/entrar`."""
+    return FileResponse(PAGINA_ENTRADA)
+
 
 @app.get("/", include_in_schema=False)
 def raiz(area: Annotated[str | None, Query(include_in_schema=False)] = None):

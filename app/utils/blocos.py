@@ -1281,7 +1281,8 @@ def _norma_da_medida(av: pd.DataFrame, valores: pd.Series, piso: int):
 def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
                      motivo_fora: str, av: pd.DataFrame, valores: pd.Series,
                      norma, rotulos_posicao: pd.Series, intensidade,
-                     exc: dict[str, float]) -> dict | None:
+                     exc: dict[str, float], gatilho: str | None = None,
+                     alvo: str = "mediana") -> dict | None:
     """Uma medida pronta para desenhar: escala, haste, caixa, eixo e pontos.
 
     Geometria em `pos_pct`, como o resto do bloco: o JavaScript posiciona, não
@@ -1299,6 +1300,13 @@ def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
         return float(norma[campo])
 
     p25, p75, mediana = _num("p25"), _num("p75"), _num("mediana")
+    # AS DUAS RÉGUAS da medida em cena: a referência de adequação (o alvo ativo)
+    # e o critério de revisão (o gatilho ativo). Saem da MESMA norma que produz
+    # a caixa — no índice é a norma publicada da área, nas duas de dinheiro é a
+    # construída sobre o mesmo grupo —, então a linha e a caixa nunca podem
+    # discordar sobre qual população estão descrevendo.
+    valor_ref = _num(alvo)
+    valor_crit = _num(gatilho) if gatilho else None
     n_caixa = 0 if norma is None else int(norma["n_na_norma"])
 
     # Estatística de grupo minúsculo é ANEDOTA (rigor §2). Abaixo do n que
@@ -1308,10 +1316,12 @@ def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
     # e só quando quase ninguém da área tem preço nas contas ou par acima do
     # critério; os PONTOS ficam todos, porque o outlier é o produto (rigor §7).
     if n_caixa < config.N_MINIMO_P75:
-        p25 = p75 = mediana = None
+        p25 = p75 = mediana = valor_ref = valor_crit = None
 
     observados = [float(v) for v in presentes]
-    escala = _escala(observados + [v for v in (p25, p75) if v is not None])
+    escala = _escala(observados
+                     + [v for v in (p25, p75, valor_ref, valor_crit)
+                        if v is not None])
 
     # todo número de indivíduo anda com a referência do grupo ao lado
     # (LEXICO_PRODUTO, princípio 6). No índice essa referência é o percentil
@@ -1343,6 +1353,10 @@ def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
             "consultas_fmt": fmt(linha["consultas_totais"], 0),
             "percentil": rotulo_pos,
             "leitura": traducao or leitura_padrao,
+            # ACIMA DO CRITÉRIO da medida em cena, e não do índice agregado: é o
+            # que a linha desenhada logo acima diz, e ponto verde à esquerda de
+            # uma linha tracejada seria o desenho contradizendo a si mesmo.
+            "acima": bool(valor_crit is not None and float(valor) > valor_crit),
         })
 
     menor, maior = observados[0], observados[-1]
@@ -1377,9 +1391,29 @@ def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
             "rotulo": "IQR", "de": round(p25, 4), "ate": round(p75, 4),
             "pos_pct": _pos(p25, escala),
             "largura_pct": round(_pos(p75, escala) - _pos(p25, escala), 2)},
-        # SEM linhas de referência e de critério (2026-08-20): o critério
-        # agregado não governa nada e a referência que conta é a de cada exame.
-        "referencias": [],
+        # AS DUAS LINHAS voltaram em 2026-09-07, pelo artboard "Medyx Area de
+        # Atuacao". Elas tinham saído em 2026-08-20 com o argumento de que o
+        # critério agregado não governa a sinalização — o que continua verdade,
+        # e por isso o rodapé do bloco diz de que grupo elas falam. O que mudou
+        # é o reconhecimento de que um enxame sem nenhuma marca não responde
+        # pergunta nenhuma: sem a régua, o leitor vê espalhamento e não sabe
+        # onde a área considera que o normal acaba.
+        "referencias": [r for r in (
+            (None if valor_ref is None else
+             {"classe": "median", "valor": round(valor_ref, 4),
+              "valor_fmt": formatar(valor_ref), "pos_pct": _pos(valor_ref, escala),
+              "rotulo": f"referência {formatar(valor_ref)}",
+              "titulo": ("Referência de adequação da área nesta medida "
+                         f"({_ROTULO_NIVEL.get(alvo, alvo)}). É dela que se mede "
+                         "o excedente.")}),
+            (None if valor_crit is None or not gatilho else
+             {"classe": "criterion", "valor": round(valor_crit, 4),
+              "valor_fmt": formatar(valor_crit), "pos_pct": _pos(valor_crit, escala),
+              "rotulo": f"{gatilho.upper()} {formatar(valor_crit)}",
+              "titulo": ("Critério de revisão da área nesta medida. Acima dele o "
+                         "caso entra na lista; a sinalização do método continua "
+                         "sendo por procedimento, não por este índice.")}),
+        ) if r],
         # extremos observados e as bordas da caixa: a única marca de grupo que
         # sobrou, e ela é descritiva
         "eixo": [{"valor": round(v, 4), "valor_fmt": formatar(v),
@@ -1477,7 +1511,7 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
                  else _norma_da_medida(av, valores, piso))
         bloco = _bloco_da_medida(chave, rotulo, titulo, grandeza, motivo_fora,
                                  av, valores, norma, rotulos_posicao,
-                                 _intensidade, exc)
+                                 _intensidade, exc, gatilho_usado, referencia)
         if bloco is not None:
             medidas.append(bloco)
     if not medidas:
@@ -1486,20 +1520,24 @@ def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | N
     return {
         "medida_padrao": medidas[0]["chave"],
         "medidas": medidas,
-        # ── a legenda da RAMPA, com valores ─────────────────────────────────
-        # "menor → maior" faria a cor virar sensação. As pontas e o meio em R$,
-        # e o método da escala declarado: sem isso o leitor supõe que o dobro de
-        # tinta é o dobro de dinheiro, e não é: é o dobro de posição na fila.
-        "rampa": None if len(ordem) < 2 else {
-            "rotulo": "excedente em R$",
-            "metodo": "tinta por ordem de excedente, não por valor",
-            "marcas": [
-                {"intensidade": 0.0, "valor_fmt": fmt_reais(ordem[0])},
-                {"intensidade": 0.5, "valor_fmt": fmt_reais(ordem[len(ordem) // 2])},
-                {"intensidade": 1.0, "valor_fmt": fmt_reais(ordem[-1])},
-            ],
-        },
-        "legenda": [{"classe": "band", "rotulo": "faixa P25–P75"}],
+        # ── A RAMPA SAIU (2026-09-07) ───────────────────────────────────────
+        # A tinta era o excedente em R$, por ordem, numa escala de cinza-âmbar-
+        # vermelho. Ela dizia uma coisa (dinheiro) enquanto o eixo dizia outra
+        # (frequência), e exigia uma legenda de três valores para ser decodifi-
+        # cada. O artboard "Medyx Escala de Cor" resolveu isso escolhendo a
+        # variante E, "sem escala e sem brilho": dois estados, e só. O que a
+        # cor deixa de dizer, a lista e o Pareto ao lado dizem melhor.
+        "rampa": None,
+        # A LEGENDA do artboard "Medyx Area de Atuacao", na ordem em que o olho
+        # precisa dela: o que é um ponto, o que é um ponto marcado, e as três
+        # marcas de grupo.
+        "legenda": [
+            {"classe": "pt-mk-fundo", "rotulo": "um cooperado comparável"},
+            {"classe": "pt-mk-acima", "rotulo": "acima do critério"},
+            {"classe": "band", "rotulo": "metade central do grupo"},
+            {"classe": "mk-ref", "rotulo": "referência da área"},
+            {"classe": "mk-crit", "rotulo": "critério de revisão"},
+        ],
     }
 
 

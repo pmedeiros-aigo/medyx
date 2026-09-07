@@ -98,9 +98,12 @@ function boxplot(g) {
   }
   plot.appendChild(posicionado('div', 'iqrband', g.iqr.pos_pct, g.iqr.largura_pct));
 
-  plot.appendChild(posicionado('div', 'refline', g.referencia.pos_pct));
+  /* MESMAS classes do gráfico da página (`median`/`criterion`): contínua julga,
+     tracejada dá contexto. O vocabulário é um só no app desde 2026-09-07 —
+     antes o painel dizia o contrário do que o artboard define. */
+  plot.appendChild(posicionado('div', 'refline median', g.referencia.pos_pct));
   if (g.criterio) {
-    plot.appendChild(posicionado('div', 'refline tracejada', g.criterio.pos_pct));
+    plot.appendChild(posicionado('div', 'refline criterion', g.criterio.pos_pct));
   }
 
   /* O ponto por último, para ficar por cima da caixa e das linhas. O anel da

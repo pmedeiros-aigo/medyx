@@ -137,6 +137,11 @@ await abrirPagina({
     { chave: 'distribuicao', rotulo: 'Distribuição' },
     { chave: 'dispersao', rotulo: 'Quantidade × custo' },
   ], (k) => { graficos.marcar(k); encaixar(k); }, { forma: 'seg' });
+  /* A MARCA que reserva a altura da vista mais alta (ver `.graficos-vistas` no
+     CSS): trocar de gráfico não pode sacudir a tabela logo abaixo. Fica na
+     página, e não no bloco de abas, porque é decisão desta tela — a faixa
+     Cooperados/Procedimentos usa o mesmo bloco e não quer isso. */
+  abas.paineis.cooperados.classList.add('graficos-vistas');
 
   /* A faixa de abas mora DENTRO do cartão do gráfico em cena, não acima dele:
      fora das bordas ela parecia uma segunda navegação de página, irmã da de

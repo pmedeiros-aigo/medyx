@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar · Medyx</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<script>
+  const baseDeEstilos = location.protocol === 'file:' ? 'css' : '/static/css';
+  document.write(`<link rel="stylesheet" href="${baseDeEstilos}/tokens.css">`);
+  document.write(`<link rel="stylesheet" href="${baseDeEstilos}/components.css">`);
+</script>
+</head>
+<body class="entrada">
+  <main class="entrada-grade">
+    <section class="entrada-marca" aria-labelledby="entrada-titulo">
+      <a class="entrada-logo" href="https://medyx.com.br/" aria-label="Medyx">
+        <svg viewBox="0 0 282 292" aria-hidden="true"><path d="M133.148 1.96015L75.8498 63.1601C71.2151 68.1101 68.6338 74.7001 68.6338 81.5501V212.45C68.6338 218.13 75.3609 220.95 79.2622 216.91L138.525 155.48V284.01C138.525 289.68 145.233 292.5 149.134 288.49L207.508 228.42C212.348 223.44 215.066 216.7 215.066 209.68V80.3902C215.066 74.7302 208.378 71.9001 204.467 75.9001L144.627 137.17L143.844 6.32015C143.815.620149 137.01-2.14985 133.157 1.97015L133.148 1.96015Z"/><path d="M74.0606 143.56L39.2908 109.19C36.8463 106.77 32.9548 106.82 30.5592 109.29L1.793 139.09C-.602554 141.57-.592776 145.55 1.793 148.02L30.5592 177.69C32.945 180.15 36.8268 180.2 39.2712 177.79L74.0508 143.55L74.0606 143.56Z"/><path d="M209.482 145.019L242.101 110.619C244.526 108.059 248.535 108.049 250.979 110.589L279.755 140.519C282.151 143.009 282.131 147.009 279.706 149.469L251.155 178.559C248.73 181.029 244.819 181.029 242.394 178.559L209.473 145.019H209.482Z"/></svg>
+        <span>Medyx</span>
+      </a>
+      <div class="entrada-proposta">
+        <h1 id="entrada-titulo">Análise de utilização com critérios declarados e trilha de auditoria completa.</h1>
+      </div>
+      <p class="entrada-garantia">Acesso restrito e auditado · dados hospedados no Brasil · LGPD.</p>
+    </section>
+    <section class="entrada-acesso" aria-labelledby="acesso-titulo">
+      <div class="entrada-cartao">
+        <div class="entrada-cliente">
+          <span class="entrada-cliente-marca" aria-hidden="true">U</span>
+          <div><strong>Unimed Natal</strong><span>portal.medyx.com.br</span></div>
+        </div>
+        <div class="entrada-conteudo">
+          <div class="stack g6"><h2 id="acesso-titulo">Entrar no portal</h2><p class="sub">Use seu acesso institucional para continuar.</p></div>
+          <a class="btn btn-primary entrada-acao" href="/auth/entrar">Entrar no portal</a>
+          <p class="note note-t">Este acesso é registrado na trilha de auditoria da cooperativa.</p>
+        </div>
+      </div>
+      <footer class="entrada-rodape"><a href="https://medyx.com.br/">← medyx.com.br</a><span>Portal operado por Medyx.</span></footer>
+    </section>
+  </main>
+</body>
+</html>

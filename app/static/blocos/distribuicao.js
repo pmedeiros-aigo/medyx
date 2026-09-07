@@ -65,13 +65,14 @@ import { posicionarEmEnxame } from '../lib/enxame.js';
 
 /** Um ponto: o cooperado, o valor e a leitura em linguagem comum. */
 function ponto(p, altura, aoClicar) {
-  /* A COR é o EXCEDENTE EM R$ (2026-08-20), e é a mesma nas três medidas.
-     `intensidade` (0–1) é dado do motor — posição do cooperado na ordem dos
-     excedentes —, e o CSS a converte em tinta. A paleta de severidade
-     (`pt-read`/`pt-crit`) saiu junto com as linhas de referência: ver a
-     docstring de `distribuicao()` no motor. */
-  const s = posicionado('span', 'pt', p.pos_pct);
-  s.style.setProperty('--i', String(p.intensidade ?? 0));
+  /* DOIS ESTADOS (variante E do artboard "Medyx Escala de Cor", set/2026):
+     cinza para quem está dentro do padrão da área, verde para quem passou o
+     critério da MEDIDA em cena. `acima` vem do motor, comparado contra a mesma
+     linha que o gráfico desenha — ponto verde à esquerda da régua seria o
+     desenho contradizendo a si mesmo.
+     A rampa por excedente em R$ saiu junto: ela pintava dinheiro num eixo de
+     frequência e exigia uma legenda de três valores para ser decodificada. */
+  const s = posicionado('span', `pt${p.acima ? ' pt-acima' : ''}`, p.pos_pct);
   s.style.bottom = `${altura}px`;
   s.tabIndex = 0;
 
@@ -85,7 +86,9 @@ function ponto(p, altura, aoClicar) {
      medidas são "por consulta", e é este número que diz se a posição do ponto
      é comportamento ou ruído de denominador pequeno. */
   dica.appendChild(el('em', null, `${p.consultas_fmt} consultas na janela`));
-  // o número que a COR representa, por extenso: tinta sozinha é sensação
+  /* O EXCEDENTE segue na dica, mas agora como informação e não como legenda de
+     cor: a tinta deixou de codificá-lo, e é aqui e no Pareto ao lado que a
+     pergunta "quanto" é respondida. */
   dica.appendChild(el('em', null, p.excedente_reais_fmt
     ? `Excedente na janela: ${p.excedente_reais_fmt}` : 'Sem excedente valorado'));
   s.appendChild(dica);
@@ -182,20 +185,10 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
   const plot = el('div', 'plot');
   corpo.appendChild(plot);
 
-  /* A legenda da RAMPA é do bloco, não da medida: a cor é o mesmo excedente em
-     R$ nas três, e redesenhá-la a cada troca sugeriria escala diferente. */
-  if (d.rampa || d.legenda?.length) {
+  /* A legenda é do BLOCO, não da medida: as marcas valem para as três, e o
+     redesenhá-la a cada troca sugeriria que a leitura muda com a medida. */
+  if (d.legenda?.length) {
     const legenda = el('div', 'legend');
-    /* A RAMPA com os valores nas pontas e no meio. "menor → maior" faria a cor
-       virar sensação; e o método da escala vai declarado porque a tinta é por
-       ORDEM, não por valor — o dobro de tinta não é o dobro de dinheiro. */
-    if (d.rampa) {
-      const faixa = el('span', 'rampa');
-      faixa.appendChild(el('i', 'rampa-barra'));
-      for (const m of d.rampa.marcas) faixa.appendChild(el('b', null, m.valor_fmt));
-      faixa.title = `${d.rampa.rotulo} · ${d.rampa.metodo}`;
-      legenda.appendChild(faixa);
-    }
     for (const item of d.legenda ?? []) {
       const s = document.createElement('span');
       s.append(el('i', item.classe), document.createTextNode(item.rotulo));
