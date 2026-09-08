@@ -143,6 +143,23 @@ def main() -> int:
                  .inner_text().startswith("Concentração"), True)
         checar("tabela de cooperados", pg.locator(".vista-painel tbody tr").count(), 63)
 
+        # A LATERAL RECOLHE, e recolhida sobra o essencial: a marca, o ícone de
+        # cada tela e o avatar. Nenhum destino some — o que sai é a etiqueta, e
+        # ela volta no `title`, senão o ícone sozinho é adivinhação.
+        largura = "() => document.querySelector('.shell-side').getBoundingClientRect().width"
+        aberta = pg.evaluate(largura)
+        pg.locator("[data-lateral-btn]").click()
+        pg.wait_for_timeout(250)
+        checar("a lateral recolhe", pg.evaluate(largura) < aberta / 2, True)
+        checar("e os destinos continuam todos lá",
+               pg.locator(".shell-side .navitem").count(), 4)
+        checar("com o rótulo no hover, já que o ícone fica sozinho",
+               pg.locator(".shell-side .navitem").first.get_attribute("title"),
+               "Panorama")
+        pg.locator("[data-lateral-btn]").click()
+        pg.wait_for_timeout(250)
+        checar("e volta ao expandir", pg.evaluate(largura), aberta)
+
         print("\n2. CHIPS DE RECORTE FILTRAM A TABELA E O GRÁFICO")
         for chave, linhas in (("todos", 64), ("qualificados", 21),
                               ("persistente", 38), ("comparaveis", 63)):

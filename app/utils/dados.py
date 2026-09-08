@@ -62,12 +62,25 @@ def carregar_perfil_beneficiarios() -> pd.DataFrame:
     isso vale no máximo um ano de imprecisão, que não move faixa de dez. Nenhum
     beneficiário aparece com duas idades na janela (verificado em set/2026).
     """
+    vazio = pd.DataFrame(columns=["ID_BENEFICIARIO", "idade", "sexo"])
+    # MART AUSENTE degrada igual a mart velho (set/2026). A guarda de colunas
+    # abaixo já existia com essa intenção declarada — "o motivo aparece na tela
+    # em vez de o app quebrar" —, mas o arquivo INEXISTENTE não passava por ela:
+    # `read_parquet` levantava antes, e o painel do procedimento voltava 500 no
+    # navegador com "não foi possível carregar".
+    #
+    # Aconteceu em produção: a máquina foi provisionada antes deste mart existir,
+    # e ele não é exigido no boot (`MARTS_EXIGIDOS`) justamente porque a carteira
+    # é opcional. Opcional na carga e obrigatório na leitura é a contradição que
+    # derrubava a tela.
+    if not config.CAMINHO_DIM_BENEFICIARIOS.exists():
+        return vazio
     dim = pd.read_parquet(config.CAMINHO_DIM_BENEFICIARIOS)
     faltando = [c for c in ("IDADE", "SEXO") if c not in dim.columns]
     if faltando:
         # mart de antes de set/2026: a carteira não é apresentada, e o motivo
         # aparece na tela em vez de o app quebrar
-        return pd.DataFrame(columns=["ID_BENEFICIARIO", "idade", "sexo"])
+        return vazio
     return (dim[["ID_BENEFICIARIO", "IDADE", "SEXO"]]
             .rename(columns={"IDADE": "idade", "SEXO": "sexo"}))
 

@@ -713,6 +713,22 @@ checar("oportunidades · o recorte de perfil reduz o conjunto",
 checar("oportunidades · o rodapé declara a regra e nomeia o critério",
        (_opo["notas"][0].startswith("Casos qualificados:"),
         config.GATILHO_DEFAULT.upper() in _opo["notas"][0]), (True, True))
+# A REFERÊNCIA DA FAIXA ETÁRIA só existe no nível do cooperado: no painel da
+# área o sujeito da barra É a área, e o traço cairia em cima dela.
+_, _pnl_area = get(f"/api/area/ginecologia/procedimento/{_cd}")
+checar("painel do exame · a faixa etária da área não desenha referência",
+       all(x["area_pct"] is None and x["area_fmt"] is None
+           for x in (_pnl_area.get("faixas") or {}).get("faixas", [])), True)
+# e no dossiê ela existe, porque ali o sujeito é outro: o cooperado contra a
+# área. É o mesmo bloco, e o que muda é quem está sendo descrito.
+_cd_coop = next((l["codigo"] for l in dossie["procedimentos"]["linhas"]), None)
+if _cd_coop:
+    _, _pnl_coop = get(f"/api/cooperado/{alvo['id']}/procedimento/{_cd_coop}")
+    _fx_coop = (_pnl_coop.get("faixas") or {}).get("faixas", [])
+    checar("dossiê · a faixa etária do cooperado compara com a área",
+           bool(_fx_coop) and all(x["area_fmt"] for x in _fx_coop), True)
+
+
 # ÁREA SEM CRITÉRIO não produz o bloco: sem régua não há par acima do critério,
 # e uma lista vazia sugeriria área sem variação em vez de área sem medida.
 _, _mast = get("/api/area/mastologia")

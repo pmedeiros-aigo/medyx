@@ -318,7 +318,7 @@ h3{font-size:var(--fs-lg);font-weight:600;color:var(--g-900)}
 .v1{font-size:var(--fs-xs);font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--g-500);border:1px solid var(--g-200);background:var(--g-50);border-radius:var(--r-sm);padding:2px 6px;white-space:nowrap}
 
 /* ---------- marca ---------- */
-.mark{display:block;fill:var(--g-900)}
+.mark,.mark-sim{display:block;fill:var(--g-900)}
 .mark-inv{fill:#fff}
 .appl{display:flex;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
 .appl>div{flex:1;padding:18px;display:flex;align-items:center;justify-content:center;border-right:1px solid var(--line);position:relative}
@@ -1113,7 +1113,11 @@ th{vertical-align:middle}
    salto do verde profundo que separava a coluna do conteúdo, e sem ele a
    separação precisa do traço. */
 .shell-side{border-right:1px solid var(--side-line)}
-.shell-side .mark{fill:var(--side-ink)}
+/* a MARCA da lateral, por extenso ou só o símbolo, usa a tinta da lateral: ela
+   tem fundo próprio (`--shell-side-bg`), e o --g-900 do contrato é a tinta do
+   conteúdo, não a dela. Sem o `.mark-sim` aqui, o símbolo nascia preto sobre o
+   fundo escuro quando a barra recolhia. */
+.shell-side .mark,.shell-side .mark-sim{fill:var(--side-ink)}
 .shell-brand .nm b{color:var(--side-ink)}
 .shell-brand .nm span{color:var(--side-ink-3)}
 .nav-lbl{color:var(--side-ink-3)}
@@ -2883,52 +2887,38 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 .evo-corpo-nu .evo-plot{max-width:48px}
 
 /* ── TABELA DE VOLUME sob o gráfico do exame ────────────────────────────────
-   Rótulo em cima, valores embaixo. A versão anterior tinha COLUNA de rótulos à
-   esquerda, e para os números caírem sob as barras o gráfico precisava recuar a
-   largura dela (88px): o bloco inteiro começava mais à direita que todo o resto
-   da aba lateral.
+   TABELA DE VERDADE desde set/2026: rótulo numa coluna, um trimestre por
+   coluna, com cabeçalho. Antes o rótulo ocupava a linha inteira e os valores
+   vinham na linha de baixo, para os números caírem exatamente sob as barras do
+   gráfico. O alinhamento funcionava, mas o preço era alto: "acima da
+   referência" atravessava a largura toda, passando por cima do espaço da
+   primeira coluna, e cada métrica gastava duas linhas sem nada dizer a que
+   trimestre pertencia cada número.
 
-   Sem a coluna, o rótulo ocupa a linha cheia a partir da borda da seção, e só a
-   faixa de valores herda a calha do eixo (`--evo-calha`) — que passa a ser
-   apenas o que as marcas do eixo pedem. Tudo começa na mesma vertical e cada
-   número continua exatamente sob a sua barra.
+   O que se perde: os números não caem mais exatamente sob as barras. O que se
+   ganha: cada coluna se identifica sozinha (T1–T4 no cabeçalho), o rótulo tem
+   lugar próprio, e a tabela se lê sem depender do gráfico acima.
 
-   A conta do alinhamento: gráfico e faixa de valores têm a MESMA calha à
-   esquerda, o MESMO número de colunas de 1fr e o MESMO vão de 12px. */
-.evo-tab{display:flex;flex-direction:column;gap:3px;padding-top:10px;
-  border-top:1px solid var(--line-soft)}
-.evo-tab-k{font-size:var(--fs-xs);color:var(--g-500)}
-.evo-tab-k:not(:first-child){margin-top:7px}
-.evo-tab-v{display:grid;grid-template-columns:repeat(var(--evo-cols,4),1fr);
-  gap:12px;padding-left:var(--evo-calha);align-items:center;
-  font-size:var(--fs-sm);color:var(--g-900);text-align:center}
-/* o quadrado da consistência centrado na coluna, como os números */
-.evo-tab-v .spark{justify-content:center;height:auto}
+   A primeira coluna é `auto` e não fixa: os rótulos vão de "solicitações" a
+   "contribuição para o excedente do ano", e largura fixa cortaria o segundo ou
+   desperdiçaria espaço com o primeiro. */
+.evo-tab{display:grid;
+  grid-template-columns:auto repeat(var(--evo-cols,4),minmax(0,1fr));
+  gap:6px 12px;padding-top:10px;border-top:1px solid var(--line-soft);
+  align-items:baseline}
+.evo-tab-k{font-size:var(--fs-xs);color:var(--g-500);white-space:nowrap;
+  padding-right:4px}
+/* CABEÇALHO com o trimestre, à direita como os números que ele encima: rótulo
+   de coluna numérica alinhado à esquerda sobre número à direita é o desencontro
+   mais visível de uma tabela. */
+.evo-tab-h{font-size:var(--fs-xs);color:var(--g-400);text-align:right}
+.evo-tab-v{font-size:var(--fs-sm);color:var(--g-900);text-align:right;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+/* o quadrado da consistência não é número: centra na coluna */
+.evo-tab-v .spark{justify-content:flex-end;height:auto}
 
 .evo-corpo-nu .evo-plot{max-width:48px}
 
-/* ── TABELA DE VOLUME sob o gráfico do exame ────────────────────────────────
-   Rótulo em cima, valores embaixo. A versão anterior tinha COLUNA de rótulos à
-   esquerda, e para os números caírem sob as barras o gráfico precisava recuar a
-   largura dela (88px): o bloco inteiro começava mais à direita que todo o resto
-   da aba lateral.
-
-   Sem a coluna, o rótulo ocupa a linha cheia a partir da borda da seção, e só a
-   faixa de valores herda a calha do eixo (`--evo-calha`), que passa a ser
-   apenas o que as marcas do eixo pedem. Tudo começa na mesma vertical e cada
-   número continua exatamente sob a sua barra.
-
-   A conta do alinhamento: gráfico e faixa de valores têm a MESMA calha à
-   esquerda, o MESMO número de colunas de 1fr e o MESMO vão de 12px. */
-.evo-tab{display:flex;flex-direction:column;gap:3px;padding-top:10px;
-  border-top:1px solid var(--line-soft)}
-.evo-tab-k{font-size:var(--fs-xs);color:var(--g-500)}
-.evo-tab-k:not(:first-child){margin-top:7px}
-.evo-tab-v{display:grid;grid-template-columns:repeat(var(--evo-cols,4),1fr);
-  gap:12px;padding-left:var(--evo-calha);align-items:center;
-  font-size:var(--fs-sm);color:var(--g-900);text-align:center}
-/* o quadrado da consistência centrado na coluna, como os números */
-.evo-tab-v .spark{justify-content:center;height:auto}
 /* pista mais alta que os 120px iniciais: com quatro linhas de régua em 120px,
    rótulo e linha disputavam o mesmo pixel.
    A calha do eixo é a MESMA coluna de rótulos da grade de volume: uma calha só
@@ -3201,3 +3191,50 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    de flex não encolhe abaixo do conteúdo sem isso, e a lista voltaria a empurrar
    o rodapé para fora. */
 .pano-duplas > .tbl > .pareto{flex:1;min-height:0;max-height:none}
+
+/* ── LATERAL RECOLHÍVEL (set/2026) -------------------------------------------
+   Recolhida sobra o essencial: a marca, o ícone de cada tela e o avatar. Nada
+   some da navegação — o que sai é a etiqueta, e o alvo continua no mesmo lugar
+   vertical, o que é a razão de o ícone não se mexer entre os dois estados.
+
+   O ESTADO É UMA CLASSE no `.shell`, e a largura é o próprio token da grade
+   redefinido ali dentro. Assim a coluna do conteúdo se ajusta sozinha, sem
+   ninguém calcular largura: `grid-template-columns: var(--shell-side-w) 1fr` já
+   estava no contrato esperando isso.
+
+   SEM TRANSIÇÃO na grade, e é por defeito do motor: `grid-template-columns` vai
+   de `256px 1fr` para `56px 1fr`, e o navegador não interpola `fr` — a coluna
+   ficava presa em 256px ao alternar ao vivo, e só assumia a largura nova num
+   recarregamento. Animar a lateral exigiria registrar o token com `@property`
+   para ele virar um comprimento animável; recolher instantâneo é mais barato e
+   não tem estado intermediário para dar errado. */
+.shell.curta{--shell-side-w:56px}
+/* quem some: as etiquetas de texto. `display:none` e não `opacity`, para não
+   deixarem alvo de clique nem largura fantasma numa coluna de 56px */
+.shell.curta .nav-lbl,
+.shell.curta .navitem .cnt,
+.shell.curta .side-user .nm,
+.shell.curta .side-user .car{display:none}
+/* o TEXTO do item é nó solto ao lado do ícone; some pelo tamanho de fonte, que
+   é o que dá para fazer sem envolvê-lo numa tag só para escondê-lo */
+.shell.curta .navitem{font-size:0;justify-content:center;padding:8px 0;gap:0}
+.shell.curta .navitem svg{font-size:var(--fs-md)}
+.shell.curta .nav,
+.shell.curta .side-ft{padding:12px 8px}
+.shell.curta .side-user{justify-content:center;padding:8px 0;gap:0}
+/* a marca: por extenso aberta, símbolo recolhida */
+.mark-sim{display:none}   /* a tinta vem de `.mark,.mark-sim`, lá em cima */
+.shell-brand .mark{flex:none}
+.shell.curta .shell-brand{justify-content:center;padding:20px 0 14px}
+.shell.curta .shell-brand .mark{display:none}
+.shell.curta .mark-sim{display:block}
+/* o botão da barra de cima mostra o gesto que VEM: recolher quando aberta,
+   expandir quando recolhida. Mesma regra do alternador de tema ao lado, e a
+   MESMA tinta: o SVG entra sem `stroke` próprio (é o padrão dos ícones do app,
+   para a tinta vir do token), então sem esta linha ele desenha invisível. */
+.lat-btn svg{stroke:var(--g-600);fill:none}
+.lat-btn .ico-abre{display:none}
+.shell.curta .lat-btn .ico-fecha{display:none}
+.shell.curta .lat-btn .ico-abre{display:block}
+/* o gatilho é o primeiro da barra e a migalha vem depois, com respiro */
+.topbar .lat-btn{flex:none;margin-right:4px}

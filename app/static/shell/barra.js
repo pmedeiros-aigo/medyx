@@ -112,6 +112,63 @@ export function ligarTema() {
   b.addEventListener('click', () => tema.alternar());
 }
 
+/** Chave da preferência de lateral recolhida, no armazenamento do navegador. */
+const CHAVE_LATERAL = 'medyx:lateral-curta';
+
+/**
+ * Liga o botão que recolhe a barra lateral.
+ *
+ * Recolhida sobra a marca, o ícone de cada tela e o avatar. O botão NÃO desenha
+ * nada: alterna a classe `curta` no `.shell`, e o CSS faz o resto — os dois
+ * ícones dele já vivem na marcação, como no alternador de tema ao lado.
+ *
+ * ── o rótulo de cada item vira `title` quando recolhe ────────────────────
+ * Sem a etiqueta, um ícone sozinho é adivinhação. O texto já está no DOM, ao
+ * lado do ícone; recolhido ele é copiado para o `title`, que o balão do app
+ * mostra no hover. Assim nenhum nome é escrito duas vezes no código: o `title`
+ * é sempre o que a etiqueta diz.
+ *
+ * ── a escolha PERSISTE ──────────────────────────────────────────────────
+ * Quem recolhe a lateral quer trabalhar com mais largura, e não quer repetir o
+ * gesto a cada tela. Fica no armazenamento do navegador, e não na URL: é
+ * preferência de quem lê, não estado do que está sendo lido, e um link de
+ * evidência não deve carregar o gosto de quem o mandou.
+ */
+export function ligarLateral() {
+  const b = document.querySelector('[data-lateral-btn]');
+  const shell = document.querySelector('.shell');
+  if (!b || !shell) return;
+
+  const itens = [...document.querySelectorAll('.shell-side .navitem')];
+  const rotulos = itens.map((a) => a.textContent.trim());
+
+  const aplicar = (curta) => {
+    shell.classList.toggle('curta', curta);
+    b.setAttribute('aria-expanded', String(!curta));
+    const txt = curta ? 'Expandir a barra lateral' : 'Recolher a barra lateral';
+    b.setAttribute('aria-label', txt);
+    b.title = txt;
+    itens.forEach((a, i) => {
+      if (curta) a.title = rotulos[i];
+      else a.removeAttribute('title');
+    });
+  };
+
+  let inicial = false;
+  try {
+    inicial = localStorage.getItem(CHAVE_LATERAL) === '1';
+  } catch { /* navegador sem armazenamento: abre expandida, que é o padrão */ }
+  aplicar(inicial);
+
+  b.addEventListener('click', () => {
+    const curta = !shell.classList.contains('curta');
+    aplicar(curta);
+    try {
+      localStorage.setItem(CHAVE_LATERAL, curta ? '1' : '0');
+    } catch { /* sem armazenamento, a escolha vale só nesta tela */ }
+  });
+}
+
 /**
  * Navegação lateral: o item ativo vem da ROTA, e a régua viaja nos links.
  *

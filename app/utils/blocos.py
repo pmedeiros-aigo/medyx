@@ -2643,7 +2643,8 @@ def carteira_atendida(minha: dict | None, da_area: dict | None) -> dict | None:
     }
 
 
-def faixas_do_exame(bruto: dict | None) -> dict | None:
+def faixas_do_exame(bruto: dict | None,
+                    com_referencia: bool = True) -> dict | None:
     """A repartição etária das solicitações de um exame, pronta para desenhar.
 
     Mesma forma de `carteira_atendida` de propósito: a tela reusa a barra com o
@@ -2652,6 +2653,14 @@ def faixas_do_exame(bruto: dict | None) -> dict | None:
 
     A CONTAGEM é o número que o analista pediu; a FATIA é o que compara, porque
     contagem de indivíduo não tem contrapartida no grupo.
+
+    ── A REFERÊNCIA SÓ EXISTE NO NÍVEL DO COOPERADO (set/2026) ─────────────
+    `com_referencia=False` no painel da ÁREA, e não é preferência: ali o sujeito
+    da barra É a área, e a linha de referência cairia em cima da própria barra.
+    Traço que marca o mesmo lugar da barra não compara nada, e ainda sugere que
+    há um segundo conjunto ali — o leitor procura a diferença entre dois números
+    idênticos. Comparar contra a área só diz alguma coisa quando o sujeito é
+    outro, que é o caso do painel do dossiê.
 
     SEM PISO DE VOLUME, e é decisão. Houve um (MIN_SOLICITACOES_FAIXA), com o
     argumento de que "8% numa faixa" pode ser uma solicitação só. O argumento
@@ -2664,7 +2673,8 @@ def faixas_do_exame(bruto: dict | None) -> dict | None:
     total = bruto["total"]
 
     pcts = _maior_resto([f["fracao"] or 0.0 for f in bruto["faixas"]])
-    pcts_area = _maior_resto([f["fracao_area"] or 0.0 for f in bruto["faixas"]])
+    pcts_area = (_maior_resto([f["fracao_area"] or 0.0 for f in bruto["faixas"]])
+                 if com_referencia else None)
     faixas = []
     for i, f in enumerate(bruto["faixas"]):
         faixas.append({
@@ -2672,8 +2682,9 @@ def faixas_do_exame(bruto: dict | None) -> dict | None:
             "n": f["n"], "n_fmt": fmt(f["n"], 0),
             "fracao_fmt": f"{pcts[i]}%",
             "largura_pct": round((f["fracao"] or 0.0) * 100, 2),
-            "area_fmt": f"referência: {pcts_area[i]}%",
-            "area_pct": round((f["fracao_area"] or 0.0) * 100, 2),
+            "area_fmt": (f"referência: {pcts_area[i]}%" if pcts_area else None),
+            "area_pct": (round((f["fracao_area"] or 0.0) * 100, 2)
+                         if com_referencia else None),
             "titulo": (f"{fmt(f['n'], 0)} de {fmt(total, 0)} solicitações "
                        f"deste procedimento no período"),
         })

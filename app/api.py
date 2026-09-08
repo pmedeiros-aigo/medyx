@@ -1609,11 +1609,14 @@ def area_painel_procedimento(
             dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim))
     painel["evolucao"] = evolucao
 
-    # REPARTIÇÃO ETÁRIA das solicitações do exame na área: contexto, nunca
-    # cálculo. `cooperado=""` pede a leitura da ÁREA — a mesma função que o
-    # painel do dossiê usa para produzir a coluna de comparação.
-    painel["faixas"] = blocos.faixas_do_exame(dados.rodar_solicitacoes_por_faixa(
-        p.janela_ini, p.janela_fim, nome, cd, tuple(ids), p.incluir_ps))
+    # REPARTIÇÃO ETÁRIA das solicitações do procedimento na área: contexto,
+    # nunca cálculo. SEM REFERÊNCIA: aqui o sujeito da barra é a própria área, e
+    # o traço cairia em cima dela. Comparar contra a área só informa quando o
+    # sujeito é outro, que é o painel do dossiê.
+    painel["faixas"] = blocos.faixas_do_exame(
+        dados.rodar_solicitacoes_por_faixa(
+            p.janela_ini, p.janela_fim, nome, cd, tuple(ids), p.incluir_ps),
+        com_referencia=False)
     painel["recorte"] = {"chave": recorte, "rotulo": rotulo_rec, "n": len(ids)}
     painel["proveniencia"] = _proveniencia(p, r)
     return painel

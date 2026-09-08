@@ -433,12 +433,14 @@ function faixas(destino, d) {
   const f = d.faixas;
   if (!f?.faixas?.length) return;
   const { cartao, corpo } = secao('Solicitações por faixa etária',
-    'Repartição das solicitações deste procedimento pela idade de quem as recebeu, '
-    + 'ao lado da mesma repartição na área de atuação.', { figura: true });
+    'Repartição das solicitações deste procedimento pela idade de quem as '
+    + 'recebeu.', { figura: true });
 
-  /* MESMA marcação do painel do dossiê (`.cart-faixas`): a barra é a fatia do
-     recorte e o traço é a da área. Quando o recorte é a área inteira os dois
-     coincidem, e a comparação some sozinha, sem caso especial. */
+  /* MESMA marcação do painel do dossiê (`.cart-faixas`), SEM o traço da
+     referência: aqui o sujeito da barra é a própria área, e a marca cairia em
+     cima dela. O motor não publica `area_pct` neste painel, e as três peças da
+     comparação (traço, rótulo e legenda) somem juntas — comparação pela metade
+     é pior que comparação nenhuma. */
   const grade = el('div', 'cart-faixas');
   for (const x of f.faixas) {
     const item = el('div', 'cart-f');
@@ -459,24 +461,30 @@ function faixas(destino, d) {
     trilho.title = x.titulo;
     item.appendChild(trilho);
 
-    const ref = el('span', 'cart-f-a tem-hover', x.area_fmt);
-    ref.title = 'Fatia desta faixa etária entre todas as solicitações deste '
-      + 'procedimento na área de atuação, sob a mesma janela e o mesmo recorte de '
-      + 'consultas.';
-    item.appendChild(ref);
+    if (x.area_fmt) {
+      const ref = el('span', 'cart-f-a tem-hover', x.area_fmt);
+      ref.title = 'Fatia desta faixa etária entre todas as solicitações deste '
+        + 'procedimento na área de atuação, sob a mesma janela e o mesmo '
+        + 'recorte de consultas.';
+      item.appendChild(ref);
+    }
     grade.appendChild(item);
   }
   corpo.appendChild(grade);
 
-  const legenda = el('div', 'legend');
-  const marca = (classe, texto) => {
-    const sp = document.createElement('span');
-    sp.append(el('i', classe), document.createTextNode(texto));
-    legenda.appendChild(sp);
-  };
-  marca('cart-mk-eu', 'Neste recorte');
-  marca('cart-mk-area', 'Referência da área');
-  corpo.appendChild(legenda);
+  /* A LEGENDA só existe para distinguir DUAS marcas. Com uma barra só ela
+     nomearia o óbvio, e legenda de um item ensina o leitor a não ler legenda. */
+  if (f.faixas.some((x) => x.area_pct != null)) {
+    const legenda = el('div', 'legend');
+    const marca = (classe, texto) => {
+      const sp = document.createElement('span');
+      sp.append(el('i', classe), document.createTextNode(texto));
+      legenda.appendChild(sp);
+    };
+    marca('cart-mk-eu', 'Neste recorte');
+    marca('cart-mk-area', 'Referência da área');
+    corpo.appendChild(legenda);
+  }
   destino.appendChild(cartao);
 }
 
@@ -551,19 +559,22 @@ function evolucao(destino, d) {
     + 'quatro somam o custo excedente do ano.', { figura: true });
   montarSerieTrimestral(corpo, d.evolucao, { semCartao: true });
 
-  /* O VOLUME QUE PRODUZIU CADA BARRA, na MESMA grade do painel do dossiê: uma
-     barra de R$ 44 mil não diz se são 800 pedidos ou 80, e é essa a diferença
-     entre tendência e ruído. Rótulo em cima, valores embaixo, cada um sob a sua
-     barra pela calha compartilhada (`--evo-calha`). */
+  /* O VOLUME QUE PRODUZIU CADA BARRA, numa TABELA: uma barra de R$ 44 mil não
+     diz se são 800 pedidos ou 80, e é essa a diferença entre tendência e ruído.
+     Cabeçalho com o trimestre, rótulo na primeira coluna, um valor por coluna. */
   const grade = el('div', 'evo-tab');
   grade.style.setProperty('--evo-cols', String(linhas.length));
+  grade.appendChild(el('span', 'evo-tab-k'));
+  for (const l of linhas) {
+    const h = el('span', 'evo-tab-h', l.rotulo ?? '');
+    if (l.meses) h.title = l.meses;
+    grade.appendChild(h);
+  }
   const linha = (rot, valores) => {
     grade.appendChild(el('span', 'evo-tab-k', rot));
-    const faixa = el('div', 'evo-tab-v');
     for (let i = 0; i < linhas.length; i += 1) {
-      faixa.appendChild(el('span', null, valores[i] ?? ''));
+      grade.appendChild(el('span', 'evo-tab-v', valores[i] ?? ''));
     }
-    grade.appendChild(faixa);
   };
   linha('custo total', linhas.map((l) => l.custo_fmt ?? ''));
   if (linhas.some((l) => l.excedente_reais_fmt)) {

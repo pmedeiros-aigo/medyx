@@ -206,21 +206,22 @@ function montarEvolucaoDoExame(destino, d) {
      mais o cabeçalho T1..T4 — o rótulo da barra logo acima já nomeia a coluna.
      Repetido, ele punha duas linhas de T1..T4 desalinhadas a 40px uma da outra,
      e era isso que fazia o leitor conferir de qual trimestre era cada número. */
-  /* ── O QUE PRODUZIU CADA BARRA, alinhado sob ela ──────────────────────────
-     RÓTULO EM CIMA, valores embaixo, e não rótulo à esquerda: a coluna de
-     rótulos obrigava o GRÁFICO a recuar 88px para casar com ela, e o bloco
-     inteiro começava mais à direita que todo o resto da aba. Sem a coluna, o
-     rótulo ocupa a linha cheia a partir da borda da seção, e as quatro colunas
-     de valor herdam a mesma calha do eixo (`--evo-calha`), que agora é só o que
-     as marcas do eixo pedem. Resultado: tudo começa na mesma vertical e cada
-     número continua exatamente sob a sua barra. */
+  /* O VOLUME QUE PRODUZIU CADA BARRA, numa TABELA: uma barra de R$ 44 mil não
+     diz se são 800 pedidos ou 80, e é essa a diferença entre tendência e ruído.
+     Cabeçalho com o trimestre, rótulo na primeira coluna, um valor por coluna. */
   const grade = el('div', 'evo-tab');
   grade.style.setProperty('--evo-cols', String(linhas.length));
-  const linha = (rot, montarCelula) => {
+  grade.appendChild(el('span', 'evo-tab-k'));
+  for (const l of linhas) {
+    const h = el('span', 'evo-tab-h', l.rotulo ?? '');
+    if (l.meses) h.title = l.meses;
+    grade.appendChild(h);
+  }
+  const linha = (rot, valores) => {
     grade.appendChild(el('span', 'evo-tab-k', rot));
-    const faixa = el('div', 'evo-tab-v');
-    for (let i = 0; i < linhas.length; i += 1) faixa.appendChild(montarCelula(i));
-    grade.appendChild(faixa);
+    for (let i = 0; i < linhas.length; i += 1) {
+      grade.appendChild(el('span', 'evo-tab-v', valores[i] ?? ''));
+    }
   };
   const texto = (valores) => (i) => el('span', null, valores[i] ?? '');
 
