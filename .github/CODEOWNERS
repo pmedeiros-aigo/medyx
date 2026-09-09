@@ -1,0 +1,11 @@
+# Dono de revisão do repositório.
+#
+# Com "Require review from Code Owners" ligado na proteção de `main`, nenhum PR
+# entra sem a aprovação de quem está listado aqui. É isso — e não o "require 1
+# approval" sozinho — que garante que a aprovação seja SUA: com dois outros
+# contribuidores, um aprovaria o PR do outro e o requisito de 1 aprovação
+# estaria satisfeito sem você ver.
+#
+# Este arquivo só tem efeito quando está na branch default (`main`).
+
+* @pmedeiros-aigo
