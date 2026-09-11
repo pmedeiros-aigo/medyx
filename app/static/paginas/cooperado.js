@@ -88,6 +88,17 @@ function montarIdentidade(destino, d) {
     contexto.textContent = resumo;
   }
   topo.appendChild(contexto);
+
+  /* TIPOS DE ATENDIMENTO, numa linha (set/2026): "rotina ginecológica 41% ·
+     cirurgia / patologia 23%". É o retrato do que ele atende, sem comparação e
+     sem juízo — a comparação vive nos blocos abaixo, onde há régua. A nota no
+     hover diz de onde vem e de que período. */
+  const tipos = d.cooperado.tipos_de_atendimento;
+  if (tipos?.linha) {
+    const t = el('span', 'sub', `Tipos de atendimento · ${tipos.linha}`);
+    t.title = tipos.nota;
+    topo.appendChild(t);
+  }
   destino.appendChild(topo);
 
   /* A FAIXA DE SETE KPIs saiu daqui (set/2026) e virou o bloco "Leitura do

@@ -2077,6 +2077,42 @@ def direcao_da_serie(serie: list[dict] | None) -> dict | None:
     }
 
 
+# Tipos de atendimento com pelo menos esta fração das consultas entram na linha
+# do cabeçalho; abaixo disso é cauda, e cauda numa linha só vira ruído.
+FRACAO_MIN_TIPO_ATENDIMENTO = 0.10
+
+
+def tipos_de_atendimento(flags_coop) -> dict | None:
+    """A composição do atendimento do cooperado, numa linha: os tipos com
+    >= FRACAO_MIN_TIPO_ATENDIMENTO das consultas, do maior ao menor.
+
+    Vem das colunas `pratica_*` da dim v2 (fração das consultas de cada família
+    de atendimento). Deliberadamente SEM comparação com a área e sem estabilidade:
+    é o retrato do que ele atende, não um juízo. O período é o da classificação
+    (a dim não segue a janela da barra), e a nota diz isso.
+    """
+    if flags_coop is None:
+        return None
+    tipos = []
+    for coluna, valor in flags_coop.items():
+        if not str(coluna).startswith("pratica_") or pd.isna(valor):
+            continue
+        if float(valor) >= FRACAO_MIN_TIPO_ATENDIMENTO:
+            nome = str(coluna).removeprefix("pratica_").split(" (")[0]
+            tipos.append({"tipo": nome, "fracao": round(float(valor), 3),
+                          "fracao_fmt": f"{float(valor):.0%}"})
+    if not tipos:
+        return None
+    tipos.sort(key=lambda t: -t["fracao"])
+    return {
+        "tipos": tipos,
+        "linha": " · ".join(f"{t['tipo']} {t['fracao_fmt']}" for t in tipos),
+        "nota": ("Tipos de atendimento inferidos do conjunto de procedimentos de "
+                 "cada consulta, no período da classificação "
+                 f"{config.CLASSIFICACAO_VERSAO}."),
+    }
+
+
 def _em_revisao(flags_coop) -> dict | None:
     """Etiqueta de classificação na linha. Vazia na v2 (set/2026, decisão do
     usuário): a v1 marcava 3 cooperados com rótulo em revisão pelo médico; a

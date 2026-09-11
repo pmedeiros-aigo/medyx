@@ -1710,6 +1710,12 @@ def area_painel_procedimento(
     return painel
 
 
+def _flags_do_cooperado(cooperado_id: str):
+    """A linha da dim da classificação deste cooperado, ou None."""
+    flags = dados.carregar_classificacao().set_index("ID_COOPERADO")
+    return flags.loc[cooperado_id] if cooperado_id in flags.index else None
+
+
 @app.get("/api/cooperado/{cooperado_id}", tags=["tela dossiê"])
 def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do cooperado (ex.: cooperado_85)")],
                      p: ParametrosDep) -> dict[str, Any]:
@@ -1826,6 +1832,8 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
         "cooperado": {
             "id": cooperado_id,
             "area": base["area"],
+            "tipos_de_atendimento": blocos.tipos_de_atendimento(
+                _flags_do_cooperado(cooperado_id)),
             "sub_perfis": linha["sub_perfis"],
             "postos_perfil": linha["postos_perfil"],
             "em_revisao": linha["em_revisao"],
