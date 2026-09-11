@@ -413,7 +413,7 @@ print(f"      P90: {n_stat} acima do critério   ->   P75: {n75_stat}")
 checar("P75 · estatística == tabela", (n75_stat, n75_tab), (n75_stat, n75_stat))
 checar("P75 sinaliza mais que P90", n75_stat > n_stat, True)
 checar("P75 · carimbo de proveniência acompanha",
-       "gatilho p75" in gin75["proveniencia"]["carimbo"], True)
+       "gatilho P75" in gin75["proveniencia"]["carimbo"], True)
 
 print("\n4. ESTADOS DE BORDA — sem terceiro componente")
 for area_id, estado_esperado, variante, tem_grafico in (

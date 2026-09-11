@@ -207,8 +207,8 @@ def _bloco_desvios(p: Parametros) -> dict:
     pct = lambda v: f"{v:.0%}"                                        # noqa: E731
     desvios = [d for d in (
         _desvio("janela", p.rotulo_janela, config.JANELA_DEFAULT, "janela"),
-        _desvio("criterio", p.criterio, config.GATILHO_DEFAULT, "critério", str.upper),
-        _desvio("referencia", p.referencia, config.ALVO_DEFAULT, "referência"),
+        _desvio("criterio", p.criterio, config.GATILHO_DEFAULT, "critério", _nivel_fmt),
+        _desvio("referencia", p.referencia, config.ALVO_DEFAULT, "referência", _nivel_fmt),
         _desvio("confianca", p.confianca, config.NIVEL_CONFIANCA_DEFAULT, "confiança", pct),
         _desvio("piso", p.piso, config.PISO_CONSULTAS_ANO["_default"], "volume mínimo"),
         _desvio("n_minimo", p.n_minimo, config.N_MINIMO_PEER_GROUP, "n mínimo"),
@@ -258,6 +258,13 @@ def _leitura_da_janela(p: Parametros) -> dict:
     }
 
 
+def _nivel_fmt(nivel: str) -> str:
+    """Um nível de régua na tela: percentil em maiúscula ("P90"), a mediana por
+    extenso. Critério e referência usam o MESMO formato onde quer que apareçam;
+    "P90" ao lado de "p90" lia como duas grandezas."""
+    return nivel.upper() if nivel.startswith("p") else nivel
+
+
 def _faixa_criterios(p: Parametros, desvios: list[dict]) -> list[dict]:
     """Os seis pares rótulo/valor da faixa de critérios do cabeçalho.
 
@@ -278,8 +285,8 @@ def _faixa_criterios(p: Parametros, desvios: list[dict]) -> list[dict]:
     meses = config.JANELAS_UI.get(p.rotulo_janela)
     pares = [
         ("janela", "Janela", f"{meses} meses" if meses else p.rotulo_janela),
-        ("criterio", "Critério de revisão", p.criterio.upper()),
-        ("referencia", "Referência do grupo", p.referencia),
+        ("criterio", "Critério de revisão", _nivel_fmt(p.criterio)),
+        ("referencia", "Referência do grupo", _nivel_fmt(p.referencia)),
         ("confianca", "Confiança exigida", f"{p.confianca:.0%}"),
         ("piso", "Volume mínimo", f"{p.piso} {UNIDADE_PISO}"),
         ("n_minimo", "Solicitantes mín.", f"{p.n_minimo} por procedimento"),
@@ -293,20 +300,21 @@ def _proveniencia(p: Parametros, resultado: dict) -> dict:
     """Governança visível como texto (léxico): o carimbo que fecha toda tela."""
     return {
         "carimbo": apr.carimbo_proveniencia(p.janela_ini, p.janela_fim, resultado["base"],
-                                            p.criterio, p.referencia, p.confianca),
+                                            _nivel_fmt(p.criterio), _nivel_fmt(p.referencia),
+                                            p.confianca),
         # A RÉGUA ATIVA — o que o analista escolheu e pode mudar. É isto que sobe
         # para a barra superior. Pipeline, período, base e versão da classificação
         # NÃO entram aqui: são carimbo de proveniência, e o léxico os define como
         # texto de rodapé. Misturar os dois estoura a barra e some com o breadcrumb.
         "chips_criterio": [
-            {"rotulo": f"critério {p.criterio.upper()}", "alerta": False},
-            {"rotulo": f"referência {p.referencia}", "alerta": False},
+            {"rotulo": f"critério {_nivel_fmt(p.criterio)}", "alerta": False},
+            {"rotulo": f"referência {_nivel_fmt(p.referencia)}", "alerta": False},
             {"rotulo": f"confiança {p.confianca:.0%}", "alerta": False},
             {"rotulo": f"janela {p.rotulo_janela}", "alerta": False},
         ],
         "tags": [
-            {"rotulo": f"critério {p.criterio.upper()}", "alerta": False},
-            {"rotulo": f"referência {p.referencia}", "alerta": False},
+            {"rotulo": f"critério {_nivel_fmt(p.criterio)}", "alerta": False},
+            {"rotulo": f"referência {_nivel_fmt(p.referencia)}", "alerta": False},
             {"rotulo": f"confiança {p.confianca:.0%}", "alerta": False},
             {"rotulo": f"pipeline {config.PIPELINE_VERSAO}", "alerta": False},
             {"rotulo": f"dados {p.janela_ini} → {p.janela_fim}", "alerta": False},
@@ -967,14 +975,15 @@ def meta(p: ParametrosDep) -> dict[str, Any]:
                        "ajuda": ("Período de solicitações somado no cálculo. "
                                  "Janelas curtas oscilam mais.")},
             "criterio": {"opcoes": _opcoes(config.GATILHOS_UI, config.GATILHO_DEFAULT,
-                                           str.upper),
+                                           _nivel_fmt),
                          "ativo": p.criterio, "recomendado": config.GATILHO_DEFAULT,
                          "rotulo": "Critério de revisão",
                          "ajuda": ("Distância dos pares a partir da qual o "
                                    "cooperado entra na lista.")},
             "referencia": {"opcoes": _opcoes(
                 [a for a in config.ALVOS_UI
-                 if _ORDEM_NIVEL[a] <= _ORDEM_NIVEL[p.criterio]], config.ALVO_DEFAULT),
+                 if _ORDEM_NIVEL[a] <= _ORDEM_NIVEL[p.criterio]], config.ALVO_DEFAULT,
+                _nivel_fmt),
                 "ativo": p.referencia, "recomendado": config.ALVO_DEFAULT,
                 "rotulo": "Referência do grupo",
                 # A terceira frase ("Nunca acima do critério de revisão") saiu
@@ -1303,7 +1312,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
         "estado": estado,
         "justificativa": apr.linha_justificativa(
             rotulo_titulo, int(posicao["avaliavel"].sum()), r["base"],
-            gatilho, p.referencia,
+            gatilho, _nivel_fmt(p.referencia),
             sum(1 for linha in linhas_coop if linha["em_revisao"])),
         "composicao": composicao,
         # o contexto fixo da área, em UMA linha sob o título. Era a faixa de

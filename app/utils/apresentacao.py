@@ -109,7 +109,9 @@ def linha_justificativa(area: str, n_comparaveis: int, base: str,
         f"{flag.removeprefix('sub_').replace('_', ' ')} em {area_regra}"
         for flag, area_regra, _ in config.EXCLUSOES_SUBPERFIL
     ) or "nenhuma exclusão por par ativa"
-    gatilho_txt = gatilho_efetivo if gatilho_efetivo else "não aplicável (grupo pequeno)"
+    # percentil em maiúscula, como em toda a tela ("P90"); a mediana por extenso
+    gatilho_txt = (gatilho_efetivo.upper() if gatilho_efetivo
+                   else "não aplicável (grupo pequeno)")
     return {
         # Sem a versão da classificação: o status de homologação é GOVERNANÇA, e
         # o lugar dela é o banner da página e o carimbo de proveniência, não a
