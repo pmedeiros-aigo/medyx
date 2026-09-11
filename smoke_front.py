@@ -161,8 +161,8 @@ def main() -> int:
         checar("e volta ao expandir", pg.evaluate(largura), aberta)
 
         print("\n2. CHIPS DE RECORTE FILTRAM A TABELA E O GRÁFICO")
-        for chave, linhas in (("todos", 55), ("qualificados", 14),
-                              ("persistente", 27), ("comparaveis", 45)):
+        for chave, linhas in (("todos", 55), ("qualificados", 15),
+                              ("persistente", 25), ("comparaveis", 45)):
             chip(pg, chave).click()
             pg.wait_for_function(
                 "n => document.querySelectorAll('.vista-painel tbody tr').length === n", arg=linhas,
@@ -174,7 +174,7 @@ def main() -> int:
         checar("gráfico recuado no recorte",
                pg.locator(".plot.com-recorte").count(), 1)
         checar("pontos em cena no gráfico = linhas da tabela",
-               pg.locator(".pt-no-recorte").count(), 14)
+               pg.locator(".pt-no-recorte").count(), 15)
 
         # TROCAR A ORDEM DO PARETO não pode levar a faixa de abas junto. Ela mora
         # DENTRO do cartão do gráfico em cena, e o Pareto se redesenha com
@@ -346,7 +346,7 @@ def main() -> int:
         # NINGUÉM DESAPARECE: as áreas sem régua continuam na tela, recuadas e
         # com o motivo no lugar dos números que não existem.
         checar("as áreas sem referência continuam na tela",
-               pg.locator(".kpi-sem-regua").count(), 5)
+               pg.locator(".kpi-sem-regua").count(), 6)
         # O CARTÃO NÃO É LINK: ele descreve a área, e o gesto útil da tela é
         # comparar as áreas entre si, não entrar numa delas.
         checar("e o cartão de área não é link",
@@ -386,7 +386,7 @@ def main() -> int:
                pg.locator("tbody tr").count(), 883)
         checar("e a ordem de entrada é a variação excedente",
                pg.locator("tbody tr").first.locator("td").first.inner_text(),
-               "Rm - Pelve (Não Inclui Articulações Coxofemorais)")
+               "Procedimento Diagnóstico Em Peça Anatômica Ou Cirú")
         # A COLUNA QUE SÓ ESTA TELA DÁ: excedente em mais de uma área é conversa
         # de protocolo, e não conversa individual.
         checar("com a coluna de áreas com excedente",
@@ -413,10 +413,10 @@ def main() -> int:
         pg.locator("tbody tr td a").first.click()
         pg.wait_for_selector(".res-grupo", timeout=60_000)
         checar("a lista abre o procedimento",
-               caminho_de(pg.url).split("?")[0], "/procedimento/41101189")
+               caminho_de(pg.url).split("?")[0], "/procedimento/40601200")
         checar("com a leitura do procedimento",
                pg.locator("h2").first.inner_text(),
-               "Rm - Pelve (Não Inclui Articulações Coxofemorais)")
+               "Procedimento Diagnóstico Em Peça Anatômica Ou Cirú")
         # A SEÇÃO QUE SÓ ESTA TELA DÁ: as réguas lado a lado. Ela é o que impede
         # que o excedente somado seja lido como se houvesse uma régua única.
         checar("as réguas das áreas aparecem lado a lado",

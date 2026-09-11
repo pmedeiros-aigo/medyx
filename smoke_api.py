@@ -80,19 +80,21 @@ checar("area · distribuição serve as três medidas",
 # O que mudou é o reconhecimento de que enxame sem marca nenhuma não responde
 # pergunta: o leitor vê espalhamento e não sabe onde a área diz que o normal
 # acaba. As duas saem da MESMA norma que desenha a caixa.
-checar("area · as três medidas desenham referência e critério",
+# P90/P90 por padrão (set/2026): referência e critério coincidem e o bloco
+# desenha UMA linha com UM rótulo, em vez de dois rótulos sobrepostos.
+checar("area · as três medidas desenham a régua (referência e critério coincidem)",
        [[r["classe"] for r in m["referencias"]] for m in _medidas_gin.values()],
-       [["median", "criterion"]] * 3)
+       [["criterion coincide"]] * 3)
 # a linha do critério ANUNCIA qual gatilho está em cena: régua sem nome é régua
 # que o leitor supõe.
 checar("area · a régua do critério nomeia o gatilho ativo",
-       {m["referencias"][1]["rotulo"].split()[0] for m in _medidas_gin.values()},
+       {m["referencias"][-1]["rotulo"].split()[0] for m in _medidas_gin.values()},
        {config.GATILHO_DEFAULT.upper()})
 # o ponto marcado e a régua contam a MESMA história: verde à esquerda da linha
 # do critério seria o desenho contradizendo a si mesmo.
 checar("area · pontos marcados são exatamente os acima do critério",
        [sum(p["acima"] for p in m["pontos"])
-        == sum(p["valor"] > m["referencias"][1]["valor"] for p in m["pontos"])
+        == sum(p["valor"] > m["referencias"][-1]["valor"] for p in m["pontos"])
         for m in _medidas_gin.values()], [True, True, True])
 # a rampa de cor do excedente saiu junto (variante E do artboard "Medyx Escala
 # de Cor"): dois estados, sem escala e sem brilho.
@@ -122,7 +124,7 @@ checar("area · topo por razão vs mediana",
        tuple(linha["id"] for linha in
              sorted((l for l in endo["cooperados"]["linhas"] if l["razao_vs_mediana"]),
                     key=lambda l: -l["razao_vs_mediana"])[:3]),
-       config.SMOKE_TOPO_RAZAO)
+       config.SMOKE_TOPO_RAZAO_AREA)
 
 print("\n2. COERÊNCIA ENTRE OS BLOCOS (mesmo parâmetro, mesmo conjunto)")
 comp = gin["composicao"]
@@ -404,7 +406,7 @@ checar("nenhuma classificação em revisão sai no degrau de artefato",
        [])
 
 print("\n3. TROCA DE CRITÉRIO P90 -> P75 (aceite 5)")
-_, gin75 = get(f"/api/area/{AREA_REF}", criterio="p75")
+_, gin75 = get(f"/api/area/{AREA_REF}", criterio="p75", referencia="p75")
 n75_stat = parte(gin75, "em_revisao")["valor"]
 n75_tab = sum(1 for linha in gin75["cooperados"]["linhas"] if linha["acima_do_criterio"])
 print(f"      P90: {n_stat} acima do critério   ->   P75: {n75_stat}")
@@ -414,23 +416,6 @@ checar("P75 · estatística == tabela", (n75_stat, n75_tab), (n75_stat, n75_stat
 checar("P75 sinaliza mais que P90", n75_stat > n_stat, True)
 checar("P75 · carimbo de proveniência acompanha",
        "gatilho P75" in gin75["proveniencia"]["carimbo"], True)
-
-print("\n3b. A REFERÊNCIA ACOMPANHA O CRITÉRIO DEGRADADO (referência <= critério efetivo)")
-# Endoscopia Ginecológica tem 18 formadores: o critério P90 degrada a P75. Uma
-# referência P90 pedida tem de ser rebaixada junto — senão o gráfico desenharia
-# a referência acima do critério e o excedente seria medido acima de um nível
-# que ninguém é sinalizado por cruzar.
-_, endo90 = get(f"/api/area/{blocos.slug(config.SMOKE_AREA_SINALIZADOS)}",
-                criterio="p90", referencia="p90")
-_ex90 = next(m for m in endo90["distribuicao"]["medidas"] if m["chave"] == "exames")
-_ref, _crit = _ex90["referencias"][0]["valor"], _ex90["referencias"][1]["valor"]
-checar("referência não fica acima do critério efetivo", _ref <= _crit, True)
-checar("critério efetivo declarado como P75", _ex90["referencias"][1]["rotulo"].split()[0], "P75")
-checar("a justificativa diz que a referência foi ajustada",
-       "ajustada ao tamanho do grupo" in endo90["justificativa"]["detalhes"][1]["valor"], True)
-checar("nenhum sinalizado sem excedente medido",
-       sum(1 for l in endo90["cooperados"]["linhas"]
-           if l["acima_do_criterio"] and l["excedente_fmt"] == config.SEM_MEDIDA), 0)
 
 print("\n4. ESTADOS DE BORDA — sem terceiro componente")
 for area_id, estado_esperado, variante, tem_grafico in (
@@ -777,7 +762,7 @@ checar("panorama · toda área de atuação vira cartão",
        sorted(a["id"] for a in _meta_areas["areas"]
               if a["id"] != blocos.slug(config.AREA_INDEFINIDA)))
 checar("panorama · e só as com régua trazem excedente",
-       sorted(_com_regua), ["endoscopia-ginecologica", "ginecologia-geral", "obstetricia"])
+       sorted(_com_regua), ["ginecologia-geral", "obstetricia"])
 # TODO CARTÃO DIZ AS MESMAS TRÊS COISAS, na mesma ordem: cartão que muda de
 # campos conforme a área obriga a reaprender o desenho a cada um, e some com a
 # comparação, que é a razão de eles estarem lado a lado.

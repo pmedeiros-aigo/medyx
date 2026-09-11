@@ -263,7 +263,11 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
     }
     for (const r of medida.referencias ?? []) {
       plot.appendChild(posicionado('div', `refline ${r.classe}`, r.pos_pct));
-      plot.appendChild(posicionado('div', `reflbl ${r.classe}`, r.pos_pct, null, r.rotulo));
+      const lbl = posicionado('div', `reflbl ${r.classe}`, r.pos_pct, null, r.rotulo);
+      /* o hover diz o que a linha é e, quando o critério foi ajustado ao
+         tamanho do grupo, por quê — o rótulo só tem espaço para "· ajustado" */
+      if (r.titulo) lbl.title = r.titulo;
+      plot.appendChild(lbl);
     }
 
     plot.appendChild(el('div', 'axisline'));

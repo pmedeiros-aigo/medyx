@@ -345,27 +345,21 @@ porque é literalmente um percentil daquela métrica, naquela janela, naquele pe
 analista escolhe *qual* percentil na UI; o *valor* do corte é resultado do pipeline. Default em
 `GATILHO_DEFAULT`.
 
-### 6.1 O critério degrada com o tamanho do grupo
+### 6.1 O critério só vale onde o grupo o sustenta — e nunca é substituído por outro
 
 Um percentil só é usado como critério de revisão quando o número de formadores da referência o
-sustenta. Com grupo pleno, vale o percentil padrão; em grupo intermediário, o critério degrada
-automaticamente para o percentil imediatamente inferior, e o fato da degradação é exibido; abaixo
-do mínimo, **não há sinalização** — apenas leitura descritiva por posto.
+sustenta (`N_MINIMO_P90`, `N_MINIMO_P75` no `config.py`). Abaixo do mínimo **não há sinalização**
+— apenas leitura descritiva por posto — e a tela declara o estado "grupo insuficiente".
 
-A justificativa é aritmética: o percentil extremo de um grupo muito pequeno é, na prática, o
-segundo maior valor do grupo — sorteio, não régua; alguém seria apontado por construção. Os
-mínimos de cada percentil são constantes do `config.py` (`N_MINIMO_P90`, `N_MINIMO_P75`).
+**Decisão (set/2026): o critério que o analista escolhe é o que se calcula, em toda área e em
+todo procedimento.** A versão anterior degradava P90 para P75 em grupos de 10 a 19 formadores;
+isso mostrava uma régua no controle e aplicava outra no cálculo, e foi removido. A justificativa
+do mínimo é aritmética: o percentil extremo de um grupo muito pequeno é, na prática, o segundo
+maior valor do grupo — sorteio, não régua; alguém seria apontado por construção.
 
-O critério efetivamente aplicado (`gatilho_usado`) viaja com todo resultado e é sempre exibido.
+O critério aplicado (`gatilho_usado`: o pedido, ou nenhum) viaja com todo resultado.
 **No nível do procedimento, a degradação usa o n daquele procedimento**, não o da área: uma área
 grande pode ter procedimentos com poucos solicitantes.
-
-**A referência de adequação acompanha a degradação.** A regra "referência ≤ critério" vale contra
-o critério *efetivo*: se o critério degrada de P90 para P75 e a referência pedida é P90, ela é
-rebaixada a P75 naquela área ou naquele procedimento (`alvo_usado`, `alvo_valor`), e a tela diz
-"ajustada ao tamanho do grupo". Sem isso o excedente seria medido acima de um nível que ninguém é
-sinalizado por cruzar, e o gráfico desenharia a referência acima do critério. Sem critério (grupo
-sem régua), a referência pedida permanece: nada é sinalizado, o excedente é só leitura.
 
 ### 6.2 Estados de disponibilidade de referência
 

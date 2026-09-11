@@ -66,14 +66,14 @@ def pacientes_distintos(fato, janela_ini, janela_fim,
 
 
 def _gatilho_efetivo(n, gatilho, n_min_p90, n_min_p75):
-    """Degrada o gatilho pelo n de elegíveis que sustenta o percentil:
-    'p90' exige n >= n_min_p90; com n_min_p75 <= n < n_min_p90 degrada para
-    'p75'; abaixo de n_min_p75 não há régua defensável, não sinaliza (None).
-    Retorna array por linha (vira a coluna gatilho_usado: o EFETIVO, não o pedido)."""
+    """O critério pedido vale onde o n de elegíveis o sustenta; onde não
+    sustenta, NÃO há critério (None): sem sinalização, posição só descritiva.
+    Nunca se substitui o percentil pedido por outro (decisão 2026-09-11: o que
+    o controle mostra é o que se calcula). Retorna array por linha (coluna
+    gatilho_usado)."""
     n = pd.Series(n).fillna(0).to_numpy(dtype=float)
-    if gatilho == "p90":
-        return np.select([n >= n_min_p90, n >= n_min_p75], ["p90", "p75"], default=None)
-    return np.where(n >= n_min_p75, "p75", None)
+    minimo = n_min_p90 if gatilho == "p90" else n_min_p75
+    return np.where(n >= minimo, gatilho, None)
 
 
 def norma_por_area(
@@ -260,29 +260,6 @@ def norma_por_procedimento(
     return norma
 
 
-_ORDEM_NIVEL = {"mediana": 0, "p75": 1, "p90": 2}
-
-
-def alvo_efetivo(alvo, gatilho_usado):
-    """A referência de adequação que VALE numa linha: `alvo <= gatilho` é regra
-    contra o critério EFETIVO, não contra o pedido. Quando o gatilho degrada de
-    P90 para P75 (grupo de 10 a 19 formadores), uma referência P90 pedida vira
-    P75 ali — senão a tela mediria o excesso acima de um nível que ninguém é
-    sinalizado por cruzar, e desenharia a referência acima do critério.
-    Sem gatilho (None: grupo sem régua), a referência pedida fica como está:
-    nada é sinalizado e o excedente é só leitura.
-
-    Aceita um escalar ou uma Series de `gatilho_usado`; devolve na mesma forma.
-    """
-    def _um(g):
-        if g is None or (isinstance(g, float) and np.isnan(g)) or g not in _ORDEM_NIVEL:
-            return alvo
-        return g if _ORDEM_NIVEL[alvo] > _ORDEM_NIVEL[g] else alvo
-    if isinstance(gatilho_usado, pd.Series):
-        return gatilho_usado.map(_um)
-    return _um(gatilho_usado)
-
-
 def posicao_vs_norma_procedimento(
     taxa_por_procedimento,
     norma_proc,
@@ -345,12 +322,9 @@ def posicao_vs_norma_procedimento(
     _limiar = np.where(df["gatilho_usado"] == "p90", df["p90"].to_numpy(dtype=float),
               np.where(df["gatilho_usado"] == "p75", df["p75"].to_numpy(dtype=float), np.nan))
     df["sinalizado"] = np.greater(df[col_taxa].to_numpy(dtype=float), _limiar)
-    # a referência acompanha o critério efetivo (alvo <= gatilho, por linha)
-    df["alvo_usado"] = alvo_efetivo(alvo, df["gatilho_usado"])
-    df["alvo_valor"] = np.select(
-        [df["alvo_usado"] == "p90", df["alvo_usado"] == "p75"],
-        [df["p90"].to_numpy(dtype=float), df["p75"].to_numpy(dtype=float)],
-        df["mediana"].to_numpy(dtype=float))
+    # a referência pedida é a que vale, em toda linha (nunca substituída)
+    df["alvo_usado"] = alvo
+    df["alvo_valor"] = df[alvo].to_numpy(dtype=float)
     df["excedente_itens"] = (df[col_taxa] - df["alvo_valor"]).clip(lower=0) * df[col_vol]
     # A MESMA razão, medida contra a REFERÊNCIA ATIVA (o alvo escolhido), e não
     # contra a mediana. As duas coincidem no default (alvo = mediana), e é por

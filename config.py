@@ -227,7 +227,7 @@ GATILHO_DEFAULT = "p90"
 # Recomendação de método: a mediana da área — norma plausível que NÃO embute o
 # próprio desvio que se quer eliminar.
 # ---------------------------------------------------------------------------
-ALVO_DEFAULT = "mediana"
+ALVO_DEFAULT = "p90"
 
 
 # ---------------------------------------------------------------------------
@@ -646,7 +646,7 @@ ESPECIALIDADE_MVP = "Ginecologia & Obstetrícia"   # rótulo fixo do seletor (MV
 JANELAS_UI = {"3m": 3, "6m": 6, "12m": 12}        # rótulo -> meses (ancorados no fim da amostra)
 JANELA_DEFAULT = "12m"
 GATILHOS_UI = ("p75", "p90")                      # ver GATILHO_DEFAULT
-ALVOS_UI = ("mediana", "p75", "p90")              # ver ALVO_DEFAULT; regra: alvo <= gatilho EFETIVO (pipeline.alvo_efetivo)
+ALVOS_UI = ("mediana", "p75", "p90")              # ver ALVO_DEFAULT; regra: alvo <= gatilho
 NIVEIS_CONFIANCA_UI = (0.80, 0.90, 0.95)          # ver NIVEL_CONFIANCA_DEFAULT
 
 
@@ -709,9 +709,14 @@ SMOKE_N_TOTAL_AREA = 55
 # Pares (cooperado, procedimento) que passam os TRÊS portões (avaliavel &
 # apresentavel & sinalizado — pipeline.filtrar_sinalizados). Positivos trazem a
 # contagem de procedimentos sinalizados; negativos exigem zero. cooperado_85 e
-# cooperado_71 são de Endoscopia Ginecológica (critério p75, 18 formadores).
-SMOKE_AREA_SINALIZADOS = "Endoscopia Ginecológica"   # área dos positivos e do topo por razão
-SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 52, "cooperado_71": 73}
+# cooperado_79 e cooperado_70 são de Obstetrícia.
+# Re-baseline 2026-09-11 (P90/P90 por padrão, sem substituição de critério):
+# Endoscopia Ginecológica (18 formadores) fica sem régua, e cooperado_85/71
+# (52/73 procedimentos sob P75) deixam de ser sinalizados. Os positivos passam
+# a Obstetrícia (49 formadores, P90 pleno).
+SMOKE_AREA_SINALIZADOS = "Obstetrícia"   # área dos positivos e do topo por razão da tela
+SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_79": 49, "cooperado_70": 46}
+SMOKE_TOPO_RAZAO_AREA = ('cooperado_70', 'cooperado_64', 'cooperado_103')   # topo por razão DENTRO da área acima (tela de Área)
 SMOKE_NAO_SINALIZADOS_ESPERADOS = ("cooperado_61", "cooperado_116")
 # Referência agregada da MESMA janela: avaliáveis e o topo por razão — ancoram a
 # migração no lado agregado, não só na norma. Os dois atravessaram a v2 intactos.

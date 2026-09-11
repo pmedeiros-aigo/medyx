@@ -1389,22 +1389,8 @@ def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
         # é o reconhecimento de que um enxame sem nenhuma marca não responde
         # pergunta nenhuma: sem a régua, o leitor vê espalhamento e não sabe
         # onde a área considera que o normal acaba.
-        "referencias": [r for r in (
-            (None if valor_ref is None else
-             {"classe": "median", "valor": round(valor_ref, 4),
-              "valor_fmt": formatar(valor_ref), "pos_pct": _pos(valor_ref, escala),
-              "rotulo": f"referência {formatar(valor_ref)}",
-              "titulo": ("Referência de adequação da área nesta medida "
-                         f"({_ROTULO_NIVEL.get(alvo, alvo)}). É dela que se mede "
-                         "o excedente.")}),
-            (None if valor_crit is None or not gatilho else
-             {"classe": "criterion", "valor": round(valor_crit, 4),
-              "valor_fmt": formatar(valor_crit), "pos_pct": _pos(valor_crit, escala),
-              "rotulo": f"{gatilho.upper()} {formatar(valor_crit)}",
-              "titulo": ("Critério de revisão da área nesta medida. Acima dele o "
-                         "caso entra na lista; a sinalização do método continua "
-                         "sendo por procedimento, não por este índice.")}),
-        ) if r],
+        "referencias": _linhas_de_regua(valor_ref, valor_crit, alvo, gatilho,
+                                        escala, formatar),
         # extremos observados e as bordas da caixa: a única marca de grupo que
         # sobrou, e ela é descritiva
         "eixo": [{"valor": round(v, 4), "valor_fmt": formatar(v),
@@ -1417,6 +1403,44 @@ def _bloco_da_medida(chave: str, rotulo: str, titulo: str, grandeza: str,
         "n_na_caixa": n_caixa,
         "nota": " · ".join(nota),
     }
+
+
+def _linhas_de_regua(valor_ref, valor_crit, alvo, gatilho,
+                     escala, formatar) -> list[dict]:
+    """As réguas desenhadas sobre a distribuição: referência de adequação e
+    critério de revisão. Quando as duas COINCIDEM (P90 e P90, o padrão), sai
+    UMA linha com UM rótulo — "P90 6,99" —, e não dois rótulos um sobre o
+    outro dizendo o mesmo número (set/2026, pedido do usuário).
+    """
+    linhas = []
+    coincidem = (valor_ref is not None and valor_crit is not None and gatilho
+                 and abs(valor_ref - valor_crit) < 1e-9)
+    if coincidem:
+        linhas.append({
+            "classe": "criterion coincide", "valor": round(valor_crit, 4),
+            "valor_fmt": formatar(valor_crit), "pos_pct": _pos(valor_crit, escala),
+            "rotulo": f"{gatilho.upper()} {formatar(valor_crit)}",
+            "titulo": (f"Referência de adequação e critério de revisão coincidem em "
+                       f"{gatilho.upper()}: acima desta linha o caso entra na lista, e "
+                       "é dela que se mede o excedente.")})
+        return linhas
+    if valor_ref is not None:
+        linhas.append({
+            "classe": "median", "valor": round(valor_ref, 4),
+            "valor_fmt": formatar(valor_ref), "pos_pct": _pos(valor_ref, escala),
+            "rotulo": f"referência {formatar(valor_ref)}",
+            "titulo": ("Referência de adequação da área nesta medida "
+                       f"({_ROTULO_NIVEL.get(alvo, alvo)}). É dela que se mede "
+                       "o excedente.")})
+    if valor_crit is not None and gatilho:
+        linhas.append({
+            "classe": "criterion", "valor": round(valor_crit, 4),
+            "valor_fmt": formatar(valor_crit), "pos_pct": _pos(valor_crit, escala),
+            "rotulo": f"{gatilho.upper()} {formatar(valor_crit)}",
+            "titulo": ("Critério de revisão da área nesta medida. Acima dele o "
+                       "caso entra na lista; a sinalização do método continua "
+                       "sendo por procedimento, não por este índice.")})
+    return linhas
 
 
 def distribuicao(posicao_area: pd.DataFrame, norma_linha, gatilho_usado: str | None,
