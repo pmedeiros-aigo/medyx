@@ -57,8 +57,8 @@ function entrada(x) {
   a.className = 'chev';
   a.href = comRegua(TELAS.cooperado.caminho(x.id));
   a.textContent = '\u203a';
-  a.title = 'Abrir o dossiê analítico deste cooperado.';
-  a.setAttribute('aria-label', `abrir dossiê analítico de ${x.id}`);
+  a.title = 'Abrir a página deste cooperado.';
+  a.setAttribute('aria-label', `abrir cooperado ${x.id}`);
   hd.appendChild(a);
 
   l.appendChild(hd);

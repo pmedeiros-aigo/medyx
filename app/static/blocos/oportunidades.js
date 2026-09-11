@@ -84,7 +84,7 @@ function paraODossie(id, href, texto, classe) {
   if (classe) a.className = classe;
   a.href = href;
   a.textContent = texto;
-  a.title = 'Abrir o dossiê analítico deste cooperado.';
+  a.title = 'Abrir a página deste cooperado.';
   /* O nome e o chevron levam ao dossiê; a LINHA abre o procedimento na área.
      São dois destinos na mesma linha, e o clique no link não pode disparar os
      dois. */
@@ -136,7 +136,7 @@ function linha(l, aoAbrir, hrefDoCooperado, comArea) {
   const acao = el('td', 'col-chev');
   if (hrefDoCooperado) {
     const chev = paraODossie(l.id, hrefDoCooperado(l.id), '›', 'chev');
-    chev.setAttribute('aria-label', `abrir dossiê analítico de ${l.id}`);
+    chev.setAttribute('aria-label', `abrir cooperado ${l.id}`);
     acao.appendChild(chev);
   }
   tr.appendChild(acao);

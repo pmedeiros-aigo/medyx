@@ -278,8 +278,8 @@ function celulaChevron(l) {
   a.className = 'chev';
   a.href = enderecoDoDossie(l.id);
   a.textContent = '\u203a';
-  a.title = 'Abrir o dossiê analítico deste cooperado.';
-  a.setAttribute('aria-label', `abrir dossiê analítico de ${l.id}`);
+  a.title = 'Abrir a página deste cooperado.';
+  a.setAttribute('aria-label', `abrir cooperado ${l.id}`);
   td.appendChild(a);
   return td;
 }

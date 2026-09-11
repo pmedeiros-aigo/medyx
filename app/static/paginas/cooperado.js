@@ -456,7 +456,7 @@ function montarProcedimentos(destino, d) {
 /* ── montagem ──────────────────────────────────────────────────────────────── */
 
 await abrirPagina({
-  titulo: `Dossiê · ${idCooperado}`,
+  titulo: `Cooperado · ${idCooperado}`,
   /* Trocar a área aqui leva à ÁREA escolhida: um cooperado pertence a uma área
      só, então seguir para "o dossiê dele em outra área" não existe. */
   aoTrocarArea: (id) => TELAS.area.caminho(id),

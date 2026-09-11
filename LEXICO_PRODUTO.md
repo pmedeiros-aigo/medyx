@@ -92,7 +92,7 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 > ("Exame A Fresco Do Conteúdo Vaginal E Cervical") é o nome oficial do
 > procedimento na tabela de origem, não uma frase nossa.
 | o custo da inação | **impacto recorrente estimado** (por trimestre) |
-| dossiê | **dossiê analítico** (manter — é profissional) |
+| dossiê | **Cooperado** — a página do cooperado chama-se só "Cooperado" (set/2026); "dossiê" saiu da tela |
 | ÁREA DE TESTE — placeholder | **AMBIENTE DE HOMOLOGAÇÃO · classificação preliminar** |
 | trilha de estados | **estados do caso**: *em análise → em tratativa → pertinência justificada → adequação em curso → mitigado* |
 | concentração alta na margem intensiva | **case-mix a investigar** |

@@ -280,8 +280,8 @@ function acima(destino, d, hrefDoCooperado, plot, coopAlvo) {
       link.className = 'chev';
       link.href = hrefDoCooperado(l.id);
       link.textContent = '\u203a';
-      link.title = 'Abrir o dossiê analítico deste cooperado.';
-      link.setAttribute('aria-label', `abrir dossiê analítico de ${l.id}`);
+      link.title = 'Abrir a página deste cooperado.';
+      link.setAttribute('aria-label', `abrir cooperado ${l.id}`);
       hd.appendChild(link);
     }
     ent.appendChild(hd);

@@ -1119,13 +1119,21 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
     que o cooperado não está na base — que é exatamente o beco que esta busca
     veio resolver. A tela o mostra como opção não escolhível (`.opt.opt-na`).
 
-    NENHUM NÚMERO, nem de contagem. Esta lista é uma PORTA: quem procura um
-    cooperado quer achá-lo e entrar. Número aqui seria ruído, e pior, convidaria
-    a ler a lista como ranking — e ranquear cooperados de áreas diferentes é a
-    comparação entre peer groups que o CLAUDE.md proíbe. Quem quer medida abre o
-    dossiê, onde há régua; quem quer fila por oportunidade usa o Panorama.
+    Três números ABSOLUTOS por cooperado (decisão de produto, set/2026):
+    consultas, solicitações e custo total no período. São volumes, não
+    comparações — nenhum passa por régua de área, e por isso podem atravessar
+    as áreas numa lista só. Excedente, percentil e posição continuam onde há
+    régua: a página do cooperado e a tela de Área.
     """
-    ativos = set(_rodar(p)["posicao"]["ID_COOPERADO"])
+    r = _rodar(p)
+    posicao = r["posicao"].set_index("ID_COOPERADO")
+    ativos = set(posicao.index)
+    # o MESMO custo_coop da tabela da área (memoizado): valor total solicitado
+    # a preço mediano interno, sob a mesma quarentena de preço
+    custo_coop = dados.rodar_pipeline_execucao(
+        p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
+        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia,
+        p.incluir_ps)["custo_coop"].set_index("ID_COOPERADO").to_dict("index")
     cls = dados.carregar_classificacao()
 
     def ordem(id_coop: str) -> tuple:
@@ -1140,6 +1148,10 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
         id_coop = str(r["ID_COOPERADO"])
         disponivel = id_coop in ativos
         area = str(r["especialidade"])
+        consultas = int(posicao.loc[id_coop, "consultas_totais"]) if disponivel else None
+        itens = int(posicao.loc[id_coop, "total_itens"]) if disponivel else None
+        custo = (custo_coop.get(id_coop) or {}).get("valor_total_solicitado")
+        custo = None if custo is None or pd.isna(custo) else round(float(custo), 2)
         linhas.append({
             "id": id_coop,
             "area": apr.rotulo_exibicao(area),
@@ -1148,6 +1160,14 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
             "area_id": blocos.slug(area),
             "disponivel": disponivel,
             "motivo": None if disponivel else "sem atividade no período",
+            "consultas": consultas,
+            "consultas_fmt": None if consultas is None else blocos.fmt(consultas, 0),
+            "solicitacoes": itens,
+            "solicitacoes_fmt": None if itens is None else blocos.fmt(itens, 0),
+            # None (célula vazia) quando não há preço apurado: soma zerada leria
+            # como "não custa nada"
+            "custo_total": custo,
+            "custo_total_fmt": None if custo is None else blocos.fmt_reais(custo),
         })
     linhas.sort(key=lambda l: ordem(l["id"]))
     return {"cooperados": linhas, "total": len(linhas),

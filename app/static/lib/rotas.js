@@ -33,7 +33,7 @@ export const TELAS = {
   panorama: { rotulo: 'Panorama', caminho: () => '/' },
   area: { rotulo: 'Área de Atuação', caminho: (id) => `/area/${encodeURIComponent(id)}` },
   cooperados: { rotulo: 'Cooperados', caminho: () => '/cooperados' },
-  cooperado: { rotulo: 'Dossiê do Cooperado',
+  cooperado: { rotulo: 'Cooperado',
                caminho: (id) => `/cooperado/${encodeURIComponent(id)}` },
   procedimentos: { rotulo: 'Procedimentos', caminho: () => '/procedimentos' },
   procedimento: { rotulo: 'Procedimento',
