@@ -360,6 +360,13 @@ O critério efetivamente aplicado (`gatilho_usado`) viaja com todo resultado e �
 **No nível do procedimento, a degradação usa o n daquele procedimento**, não o da área: uma área
 grande pode ter procedimentos com poucos solicitantes.
 
+**A referência de adequação acompanha a degradação.** A regra "referência ≤ critério" vale contra
+o critério *efetivo*: se o critério degrada de P90 para P75 e a referência pedida é P90, ela é
+rebaixada a P75 naquela área ou naquele procedimento (`alvo_usado`, `alvo_valor`), e a tela diz
+"ajustada ao tamanho do grupo". Sem isso o excedente seria medido acima de um nível que ninguém é
+sinalizado por cruzar, e o gráfico desenharia a referência acima do critério. Sem critério (grupo
+sem régua), a referência pedida permanece: nada é sinalizado, o excedente é só leitura.
+
 ### 6.2 Estados de disponibilidade de referência
 
 Nem todo grupo sustenta comparação. O método distingue três situações, e o sistema declara qual

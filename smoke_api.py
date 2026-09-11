@@ -415,6 +415,23 @@ checar("P75 sinaliza mais que P90", n75_stat > n_stat, True)
 checar("P75 · carimbo de proveniência acompanha",
        "gatilho P75" in gin75["proveniencia"]["carimbo"], True)
 
+print("\n3b. A REFERÊNCIA ACOMPANHA O CRITÉRIO DEGRADADO (referência <= critério efetivo)")
+# Endoscopia Ginecológica tem 18 formadores: o critério P90 degrada a P75. Uma
+# referência P90 pedida tem de ser rebaixada junto — senão o gráfico desenharia
+# a referência acima do critério e o excedente seria medido acima de um nível
+# que ninguém é sinalizado por cruzar.
+_, endo90 = get(f"/api/area/{blocos.slug(config.SMOKE_AREA_SINALIZADOS)}",
+                criterio="p90", referencia="p90")
+_ex90 = next(m for m in endo90["distribuicao"]["medidas"] if m["chave"] == "exames")
+_ref, _crit = _ex90["referencias"][0]["valor"], _ex90["referencias"][1]["valor"]
+checar("referência não fica acima do critério efetivo", _ref <= _crit, True)
+checar("critério efetivo declarado como P75", _ex90["referencias"][1]["rotulo"].split()[0], "P75")
+checar("a justificativa diz que a referência foi ajustada",
+       "ajustada ao tamanho do grupo" in endo90["justificativa"]["detalhes"][1]["valor"], True)
+checar("nenhum sinalizado sem excedente medido",
+       sum(1 for l in endo90["cooperados"]["linhas"]
+           if l["acima_do_criterio"] and l["excedente_fmt"] == config.SEM_MEDIDA), 0)
+
 print("\n4. ESTADOS DE BORDA — sem terceiro componente")
 for area_id, estado_esperado, variante, tem_grafico in (
         ("mastologia", "grupo_insuficiente", "grupo_pequeno", False),

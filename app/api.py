@@ -258,6 +258,15 @@ def _leitura_da_janela(p: Parametros) -> dict:
     }
 
 
+def _rotulo_referencia(referencia: str, gatilho_usado: str | None) -> str:
+    """A referência que VALE na área, com a ressalva quando ela foi rebaixada
+    junto com o critério (pl.alvo_efetivo)."""
+    efetiva = pl.alvo_efetivo(referencia, gatilho_usado)
+    if efetiva == referencia:
+        return _nivel_fmt(efetiva)
+    return f"{_nivel_fmt(efetiva)} (ajustada ao tamanho do grupo; pedida {_nivel_fmt(referencia)})"
+
+
 def _nivel_fmt(nivel: str) -> str:
     """Um nível de régua na tela: percentil em maiúscula ("P90"), a mediana por
     extenso. Critério e referência usam o MESMO formato onde quer que apareçam;
@@ -503,9 +512,10 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
 
     # piso de confiança: bootstrap só nos pares que chegam ao degrau anterior
     parcial = cascata.qualificar(sinal, persist, len(fatias), confundidores, None)
-    pares_boot = (parcial[parcial["sem_fator_de_contexto"]]
-                  [["ID_COOPERADO", "CD_PROCEDIMENTO", referencia]]
-                  .rename(columns={referencia: "alvo_valor"}))
+    # `alvo_valor` é a referência EFETIVA de cada par (acompanha o critério
+    # degradado), a mesma contra a qual o excedente foi medido
+    pares_boot = parcial[parcial["sem_fator_de_contexto"]][
+        ["ID_COOPERADO", "CD_PROCEDIMENTO", "alvo_valor"]]
     conf = None
     if len(pares_boot):
         conf = pl.controlador_confiabilidade(
@@ -1329,7 +1339,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
         "estado": estado,
         "justificativa": apr.linha_justificativa(
             rotulo_titulo, int(posicao["avaliavel"].sum()), r["base"],
-            gatilho, _nivel_fmt(p.referencia)),
+            gatilho, _rotulo_referencia(p.referencia, gatilho)),
         "composicao": composicao,
         # o contexto fixo da área, em UMA linha sob o título. Era a faixa de
         # três números-herói até 2026-08-19: mesmo conteúdo, sem o tamanho.
@@ -1355,7 +1365,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
         # `custo_coop` é a MESMA fonte da coluna "Custo por consulta" da tabela,
         # já buscada acima: gráfico e lista não podem discordar do mesmo número.
         "distribuicao": blocos.distribuicao(posicao, norma_linha, gatilho,
-                                            rotulos_posicao, p.referencia,
+                                            rotulos_posicao, pl.alvo_efetivo(p.referencia, gatilho),
                                             casc["excedente_reais_coop"],
                                             piso=r["piso_aplicado"],
                                             custo_por_coop=custo_coop),

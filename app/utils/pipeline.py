@@ -260,6 +260,29 @@ def norma_por_procedimento(
     return norma
 
 
+_ORDEM_NIVEL = {"mediana": 0, "p75": 1, "p90": 2}
+
+
+def alvo_efetivo(alvo, gatilho_usado):
+    """A referência de adequação que VALE numa linha: `alvo <= gatilho` é regra
+    contra o critério EFETIVO, não contra o pedido. Quando o gatilho degrada de
+    P90 para P75 (grupo de 10 a 19 formadores), uma referência P90 pedida vira
+    P75 ali — senão a tela mediria o excesso acima de um nível que ninguém é
+    sinalizado por cruzar, e desenharia a referência acima do critério.
+    Sem gatilho (None: grupo sem régua), a referência pedida fica como está:
+    nada é sinalizado e o excedente é só leitura.
+
+    Aceita um escalar ou uma Series de `gatilho_usado`; devolve na mesma forma.
+    """
+    def _um(g):
+        if g is None or (isinstance(g, float) and np.isnan(g)) or g not in _ORDEM_NIVEL:
+            return alvo
+        return g if _ORDEM_NIVEL[alvo] > _ORDEM_NIVEL[g] else alvo
+    if isinstance(gatilho_usado, pd.Series):
+        return gatilho_usado.map(_um)
+    return _um(gatilho_usado)
+
+
 def posicao_vs_norma_procedimento(
     taxa_por_procedimento,
     norma_proc,
@@ -322,8 +345,13 @@ def posicao_vs_norma_procedimento(
     _limiar = np.where(df["gatilho_usado"] == "p90", df["p90"].to_numpy(dtype=float),
               np.where(df["gatilho_usado"] == "p75", df["p75"].to_numpy(dtype=float), np.nan))
     df["sinalizado"] = np.greater(df[col_taxa].to_numpy(dtype=float), _limiar)
-    df["excedente_itens"] = (df[col_taxa] - df[alvo]).clip(lower=0) * df[col_vol]
-    df["alvo_usado"] = alvo
+    # a referência acompanha o critério efetivo (alvo <= gatilho, por linha)
+    df["alvo_usado"] = alvo_efetivo(alvo, df["gatilho_usado"])
+    df["alvo_valor"] = np.select(
+        [df["alvo_usado"] == "p90", df["alvo_usado"] == "p75"],
+        [df["p90"].to_numpy(dtype=float), df["p75"].to_numpy(dtype=float)],
+        df["mediana"].to_numpy(dtype=float))
+    df["excedente_itens"] = (df[col_taxa] - df["alvo_valor"]).clip(lower=0) * df[col_vol]
     # A MESMA razão, medida contra a REFERÊNCIA ATIVA (o alvo escolhido), e não
     # contra a mediana. As duas coincidem no default (alvo = mediana), e é por
     # isso que a diferença ficou invisível até a tela rodar em `referencia=p75`:
@@ -332,7 +360,7 @@ def posicao_vs_norma_procedimento(
     # não fecha. Toda superfície cujo rótulo diz "a referência" lê ESTA coluna;
     # `razao_vs_mediana` fica para quem quer a intensidade fixa, que não se move
     # quando o analista troca o alvo.
-    df["razao_vs_alvo"] = df[col_taxa] / df[alvo]
+    df["razao_vs_alvo"] = df[col_taxa] / df["alvo_valor"]
     return df.sort_values("excedente_itens", ascending=False)
 
 
@@ -722,7 +750,7 @@ def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_
             cesta = c[["ID_COOPERADO", "CD_PROCEDIMENTO", "preco_mediano"]].copy()
             # o ALVO é a taxa contra a qual o excedente do ano foi medido; em R$,
             # ele vira "quanto de dinheiro por consulta a referência prevê"
-            cesta["alvo_x_preco"] = c[alvo].astype(float) * c["preco_mediano"]
+            cesta["alvo_x_preco"] = c["alvo_valor"].astype(float) * c["preco_mediano"]
             k_por_cooperado = (cesta.groupby("ID_COOPERADO")["alvo_x_preco"].sum()
                                .rename("k_referencia").reset_index())
 

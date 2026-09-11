@@ -646,7 +646,7 @@ ESPECIALIDADE_MVP = "Ginecologia & Obstetrícia"   # rótulo fixo do seletor (MV
 JANELAS_UI = {"3m": 3, "6m": 6, "12m": 12}        # rótulo -> meses (ancorados no fim da amostra)
 JANELA_DEFAULT = "12m"
 GATILHOS_UI = ("p75", "p90")                      # ver GATILHO_DEFAULT
-ALVOS_UI = ("mediana", "p75", "p90")              # ver ALVO_DEFAULT; regra: alvo <= gatilho
+ALVOS_UI = ("mediana", "p75", "p90")              # ver ALVO_DEFAULT; regra: alvo <= gatilho EFETIVO (pipeline.alvo_efetivo)
 NIVEIS_CONFIANCA_UI = (0.80, 0.90, 0.95)          # ver NIVEL_CONFIANCA_DEFAULT
 
 
