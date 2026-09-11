@@ -483,9 +483,8 @@ await abrirPagina({
     const procs = { abrir: null };
     montarCusto(conteudo, d, (cd) => procs.abrir?.(cd));
     procs.abrir = montarProcedimentos(conteudo, d)?.abrirPorCodigo;
-
-    if (d.proveniencia?.carimbo) {
-      conteudo.appendChild(el('span', 'note', d.proveniencia.carimbo));
-    }
+    /* O carimbo de proveniência não fecha esta página (set/2026, pedido do
+       usuário): a régua está na barra de critérios e o período no seletor; o
+       payload continua carregando `proveniencia` para export e API. */
   },
 });
