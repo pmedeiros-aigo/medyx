@@ -386,7 +386,7 @@ def main() -> int:
                pg.locator("tbody tr").count(), 883)
         checar("e a ordem de entrada é a variação excedente",
                pg.locator("tbody tr").first.locator("td").first.inner_text(),
-               "Procedimento Diagnóstico Por Captura Híbrida")
+               "Rm - Pelve (Não Inclui Articulações Coxofemorais)")
         # A COLUNA QUE SÓ ESTA TELA DÁ: excedente em mais de uma área é conversa
         # de protocolo, e não conversa individual.
         checar("com a coluna de áreas com excedente",
@@ -413,10 +413,10 @@ def main() -> int:
         pg.locator("tbody tr td a").first.click()
         pg.wait_for_selector(".res-grupo", timeout=60_000)
         checar("a lista abre o procedimento",
-               caminho_de(pg.url).split("?")[0], "/procedimento/40601293")
+               caminho_de(pg.url).split("?")[0], "/procedimento/41101189")
         checar("com a leitura do procedimento",
                pg.locator("h2").first.inner_text(),
-               "Procedimento Diagnóstico Por Captura Híbrida")
+               "Rm - Pelve (Não Inclui Articulações Coxofemorais)")
         # A SEÇÃO QUE SÓ ESTA TELA DÁ: as réguas lado a lado. Ela é o que impede
         # que o excedente somado seja lido como se houvesse uma régua única.
         checar("as réguas das áreas aparecem lado a lado",
