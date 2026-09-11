@@ -146,6 +146,17 @@ O grupo de pares de sinalização é a **área de atuação registrada na classi
 especialidade daquela classificação, e nada mais fino que ela. Sub-áreas e sub-perfis não criam
 grupos próprios (ver §5.8).
 
+**Classificação vigente (v2.0, set/2026).** A área não vem mais de um rótulo dado por médico: cada
+consulta recebe uma **família de atendimento** pelo pacote de procedimentos que contém (pré-natal,
+rotina, cirurgia, dor pélvica, mama…), consultas próximas da mesma paciente formam um atendimento,
+e o cooperado é a **mistura** das suas consultas. A área principal é a maior família específica com
+pelo menos 15% das consultas; sem nenhuma, o cooperado é "Ginecologia Geral". A `area_mvp` agrupa
+as áreas finas em nomes de especialidade (`config.ESPECIALIDADES`) e é o peer group do app. A
+mistura, as áreas secundárias e a execução são identidade visível, nunca subdivisão de régua. A
+regra completa e reproduzível está em `unimed_natal/classificacao_cooperados.ipynb`; o dicionário
+das colunas em `unimed_natal/marts/LEIAME_classificacao_v2.md`. A decisão GO × Ginecologia abaixo
+é história da v1 e permanece registrada como método.
+
 Quando duas especialidades vizinhas são candidatas a fusão — o caso de Ginecologia e
 Obstetrícia/Ginecologia (GO) —, a decisão não se toma por conveniência nem por julgamento
 isolado: compara-se, para os procedimentos de maior volume comuns às duas, a razão entre as
@@ -289,9 +300,10 @@ urgência (`STRING_URGENCIA`) em **qualquer** item, OU contendo o pacote de urg�
 ### 5.7 Quem FORMA a norma ≠ quem é MEDIDO contra ela
 
 A referência de um grupo é construída **apenas** com os cooperados marcados como elegíveis na
-classificação vigente (`elegivel_norma`). São inelegíveis, entre outros: perfil de execução (quem
-executa e não solicita), classificação de baixa confiança, classificação em revisão, e cooperados
-sob alerta de triagem pendente.
+classificação vigente (`elegivel_norma`). Na v2.0 são inelegíveis: quem não tem área principal
+(volume insuficiente, prática pouco visível, só pronto-socorro), quem tem a execução como prática
+principal (realiza mais do que solicita), cadastro agregado (um quarto ou mais de pacientes homens)
+e classificação de confiança baixa (menos de 100 consultas com pedido).
 
 **Todos os demais continuam sendo medidos contra essa referência** — inclusive os inelegíveis.
 Formar a régua e ser avaliado por ela são coisas separadas: a inelegibilidade tira o cooperado da
@@ -303,9 +315,9 @@ execução; ou provisória e pendente de triagem clínica).
 
 ### 5.8 Exclusão por par: o sub-perfil retira o portador apenas da cesta que ele explica
 
-Sub-perfis (opera, perfil de alto risco, plantão/PS, PTGI, ultrassonografia própria) **não
-subdividem o peer group** — subdividir produziria grupos pequenos demais para sustentar qualquer
-referência.
+Sub-perfis (na v2: faz cirurgia, faz mastologia, área secundária, executa, carteira jovem ou de
+climatério) **não subdividem o peer group** — subdividir produziria grupos pequenos demais para
+sustentar qualquer referência.
 
 O sub-perfil age no nível do **par (cooperado × procedimento)**: quem tem o sub-perfil X é
 retirado da *construção* da referência **apenas dos procedimentos que X explica**, e continua
@@ -316,7 +328,9 @@ rotina.
 O corte só é ativado onde o dado mostra distorção: compara-se a referência do procedimento com e
 sem os portadores do sub-perfil, e ativa-se apenas onde a mediana se desloca materialmente
 (`LIMIAR_DISTORCAO_EXCLUSAO`; os pares ativos vivem em `EXCLUSOES_SUBPERFIL`). Corte sem
-evidência de distorção não se aplica.
+evidência de distorção não se aplica. **Na v2.0 a lista está vazia**: as áreas já separam as
+práticas que a v1 tratava por exclusão (cirurgia em Endoscopia Ginecológica, alto risco em
+Obstetrícia). O mecanismo permanece no motor.
 
 Na interface, o sub-perfil é **recorte de leitura**, nunca base de comparação: destacar os membros
 de um sub-perfil não troca a régua — apenas filtra quem aparece, e acrescenta o posto interno ao

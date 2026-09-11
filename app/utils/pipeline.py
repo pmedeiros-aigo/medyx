@@ -243,7 +243,7 @@ def norma_por_procedimento(
     if exclusoes:
         # Mov 5: portadores de sub-perfil não FORMAM a norma dos pares onde distorcem
         # (>LIMIAR_DISTORCAO_EXCLUSAO); seguem medidos contra ela. Ativado:
-        # sub_alto_risco em GO, 2 pares de sub_opera em Gin. Limiar PROVISÓRIO —
+        # (v1: sub_alto_risco em GO, sub_opera em Gin; v2: nenhuma). Limiar PROVISÓRIO —
         # re-roda na homologação.
         _k = zip(elegiveis["ID_COOPERADO"], elegiveis[col_area], elegiveis[col_proc])
         elegiveis = elegiveis[[t not in exclusoes for t in _k]]

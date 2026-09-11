@@ -56,8 +56,9 @@ DEGRAUS = (
     # produto — a defesa pronta é "eu nem sou dessa área". A tela o declara
     # como exclusão, com a contagem, em vez de escondê-lo numa queda.
     ("classificacao_firme", "Com classificação de área resolvida", "artefato",
-     "A área de atuação registrada não está em revisão. Enquanto estiver, a "
-     "comparação com os pares desta área não se sustenta."),
+     "A área de atuação registrada não está em observação (perto do corte, ou "
+     "perfil que mudou no período). Enquanto estiver, a comparação com os pares "
+     "desta área não se sustenta."),
     ("sem_fator_de_contexto", "Sem explicação de contexto", "contexto",
      "Não há urgência nem atendimento de pronto-socorro que explique o volume "
      "solicitado."),
@@ -93,7 +94,8 @@ def _pareto_material(pares: pd.DataFrame, fracao: float) -> pd.Series:
 def qualificar(sinal: pd.DataFrame, persistencia: pd.DataFrame | None,
                n_fatias: int, confundidores: set[str] | None,
                confiabilidade: pd.DataFrame | None,
-               fracao_material: float = config.FRACAO_PARETO_MATERIAL) -> pd.DataFrame:
+               fracao_material: float = config.FRACAO_PARETO_MATERIAL,
+               em_observacao: frozenset | set | None = None) -> pd.DataFrame:
     """Marca cada par (cooperado, procedimento) com o degrau CUMULATIVO alcançado.
 
     Parâmetros:
@@ -105,6 +107,8 @@ def qualificar(sinal: pd.DataFrame, persistencia: pd.DataFrame | None,
         confiabilidade: saída do controlador_confiabilidade (coluna 'calculavel');
             None = não avaliado.
         fracao_material: fração do Pareto que define material.
+        em_observacao: IDs cujo rótulo de área é frágil (dados.classificacao_em_observacao:
+            perto do corte ou perfil que mudou no ano); None = ninguém.
 
     Retorna: `sinal` + uma coluna booleana por degrau, cada uma já CUMULATIVA
     (quem é 'material' também é 'persistente' e 'acima_do_criterio').
@@ -133,7 +137,7 @@ def qualificar(sinal: pd.DataFrame, persistencia: pd.DataFrame | None,
     if len(persist):
         df.loc[persist.index, "material"] = _pareto_material(persist, fracao_material)
 
-    em_revisao = set(config.COOPERADOS_CLASSIFICACAO_EM_REVISAO)
+    em_revisao = set(em_observacao or ())
     df["classificacao_firme"] = df["material"] & ~df["ID_COOPERADO"].isin(em_revisao)
 
     df["sem_fator_de_contexto"] = df["classificacao_firme"]

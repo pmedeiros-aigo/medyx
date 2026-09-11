@@ -35,7 +35,7 @@ from utils.pipeline import filtrar_sinalizados, norma_por_area
 # Estados de uma área — governam o que a tela pode mostrar (espec funcional, regra 5).
 # Cada um tem tratamento visual próprio no guia; nenhum é silencioso.
 #
-# Área SEM NENHUM formador de norma (Reprodução, Ultrassonografista) NÃO é um
+# Área SEM NENHUM formador de norma (Ultrassonografia, Patologia) NÃO é um
 # quarto estado: o tratamento de tela é idêntico ao de grupo pequeno em tudo que
 # importa — sem gráfico, sem percentil, sem sinalização, lista com posto. Um
 # estado a mais obrigaria o usuário a aprender outra regra para algo que se
@@ -55,59 +55,65 @@ VARIANTE_SEM_FORMADORES = "sem_formadores"      # zero formadores
 # ─────────────────────────────────────────────────────────────────────────────
 # O motivo é OBRIGATÓRIO e precisa distinguir naturezas opostas:
 #   definitiva — exclusão por desenho da análise; não há o que corrigir;
-#   provisoria — exclusão por regra da classificação v1.0 ainda em validação;
-#                quando se sabe que a regra produz falso positivo naquela área,
-#                o status de triagem pendente aparece na tela e alimenta o loop
-#                de correção da classificação (o app não esconde a pendência).
+#   provisoria — exclusão por regra da classificação v2.0 ainda em validação
+#                clínica; a pendência aparece na tela e alimenta o loop de
+#                correção da classificação (o app não esconde a pendência).
 # Nenhum destes cooperados sai da análise: seguem MEDIDOS contra a referência.
 
-MOTIVO_ULTRASSONOGRAFISTA = "perfil_ultrassonografista"
+MOTIVO_EXECUCAO = "perfil_execucao"
 MOTIVO_ALERTA_MASCULINO = "alerta_perfil_masculino"
 MOTIVO_CONFIANCA_BAIXA = "confianca_baixa"
 MOTIVO_CLASSIFICACAO_PENDENTE = "classificacao_pendente"
-MOTIVO_DIVERGENCIA = "classificacao_em_revisao"
 MOTIVO_VOLUME = "volume_abaixo_do_minimo"
-MOTIVO_PERFIL_FORA_DA_ESPECIALIDADE = "perfil_fora_da_especialidade"
+# Observação (não é exclusão): o rótulo de área é frágil. A etiqueta na linha
+# declara isso; o cooperado forma e é medido normalmente.
+MOTIVO_PERTO_DO_CORTE = "area_perto_do_corte"
+MOTIVO_PERFIL_MUDOU = "perfil_mudou_no_periodo"
 
 _CATALOGO_MOTIVOS = {
-    MOTIVO_ULTRASSONOGRAFISTA: {
-        "rotulo": "perfil de execução: não solicita",
+    MOTIVO_EXECUCAO: {
+        "rotulo": "perfil de execução: realiza mais do que solicita",
         "natureza": "definitiva",
-        "detalhe": ("Atua no lado da execução; a referência mede solicitação. "
-                    "Exclusão por desenho da análise: não é achado sobre o "
-                    "cooperado, e não há classificação a corrigir."),
+        "detalhe": ("A execução (ultrassonografia, citopatologia) é a prática "
+                    "principal; a referência mede solicitação. Exclusão por "
+                    "desenho da análise: não é achado sobre o cooperado, e não "
+                    "há classificação a corrigir."),
     },
     MOTIVO_ALERTA_MASCULINO: {
-        "rotulo": "alerta de perfil (pacientes homens)",
+        "rotulo": "cadastro agregado (pacientes homens)",
         "natureza": "provisoria",
-        "detalhe": ("Fração atípica de pacientes homens para a área. Regra "
-                    "provisória da classificação v1.0, em validação clínica."),
+        "detalhe": ("Um quarto ou mais das pacientes são homens: o cadastro "
+                    "parece agregar mais de um profissional, e a solicitação "
+                    "não descreve uma prática ginecológica. Confirmação "
+                    "pendente com a operadora."),
     },
     MOTIVO_CONFIANCA_BAIXA: {
         "rotulo": "confiança baixa da classificação",
         "natureza": "provisoria",
-        "detalhe": ("A classificação de área foi atribuída com confiança baixa; "
-                    "até a validação, o cooperado não define a referência."),
+        "detalhe": ("Menos de 100 consultas com pedido no período: a área foi "
+                    "atribuída com confiança baixa e, até a validação, o "
+                    "cooperado não define a referência."),
     },
     MOTIVO_CLASSIFICACAO_PENDENTE: {
-        "rotulo": "classificação pendente",
+        "rotulo": "sem área de atuação",
         "natureza": "provisoria",
-        "detalhe": ("Sem área de atuação atribuída: sem cooperados contra quem comparar, "
-                    "fora de comparação até a triagem clínica."),
+        "detalhe": ("Sem área principal: volume insuficiente ou prática pouco "
+                    "visível nas solicitações. Sem cooperados contra quem "
+                    "comparar, fora de comparação."),
     },
-    MOTIVO_DIVERGENCIA: {
-        "rotulo": "classificação em revisão (divergência com o médico)",
-        "natureza": "provisoria",
-        "detalhe": ("O rótulo do médico diverge da leitura estatística; o caso "
-                    "voltou ao médico. Artefato de classificação, não achado."),
+    MOTIVO_PERTO_DO_CORTE: {
+        "rotulo": "área perto do corte",
+        "natureza": "observacao",
+        "detalhe": ("A frente que define a área responde por uma fatia das "
+                    "consultas perto do corte de classificação: o rótulo de "
+                    "área é frágil. Não altera número nenhum."),
     },
-    MOTIVO_PERFIL_FORA_DA_ESPECIALIDADE: {
-        "rotulo": "perfil de solicitação fora da especialidade",
-        "natureza": "provisoria",
-        "detalhe": ("O que este cooperado solicita não pertence ao escopo da "
-                    "especialidade classificada. Possível erro de classificação, "
-                    "não achado sobre a prática: até a triagem clínica decidir, "
-                    "ele não forma referência nenhuma."),
+    MOTIVO_PERFIL_MUDOU: {
+        "rotulo": "perfil mudou no período",
+        "natureza": "observacao",
+        "detalhe": ("A composição do atendimento mudou de forma relevante entre "
+                    "os semestres do período; a área reflete o ano inteiro. "
+                    "Não altera número nenhum."),
     },
     MOTIVO_VOLUME: {
         "rotulo": "volume abaixo do mínimo para avaliação",
@@ -131,60 +137,35 @@ def _motivo(codigo: str, detalhe_extra: str | None = None,
 def motivos_por_cooperado(classificacao: pd.DataFrame) -> dict[str, list[dict]]:
     """ID_COOPERADO -> motivos estruturados de não formar a referência.
 
-    O alerta de perfil masculino recebe tratamento especial nas especialidades
-    em que o paciente homem é assinatura da prática
-    (config.ESPECIALIDADES_PACIENTE_MASCULINO_ESPERADO): a exclusão permanece ,
-    a regra v1.0 vigora e não se burla regra em silêncio, mas viaja marcada
-    como falso positivo previsível, com o status de triagem clínica pendente que
-    alimenta o loop de correção da classificação.
+    Os motivos são os da regra de `elegivel_norma` da dim v2, na mesma ordem
+    em que a regra os aplica; cada um carrega a natureza (definitiva por desenho,
+    ou provisória e pendente de confirmação). O cadastro agregado viaja com o
+    status de triagem pendente que alimenta o loop de correção da classificação.
     """
     saida: dict[str, list[dict]] = {}
     for _, linha in classificacao.iterrows():
         coop = linha["ID_COOPERADO"]
-        especialidade = linha.get("especialidade")
         motivos = []
-        if linha.get("sub_ultrassonografista"):
-            motivos.append(_motivo(MOTIVO_ULTRASSONOGRAFISTA))
-        if linha.get("alerta_perfil_masculino"):
-            esperado = especialidade in config.ESPECIALIDADES_PACIENTE_MASCULINO_ESPERADO
+        if linha.get("especialidade") == config.AREA_INDEFINIDA:
             motivos.append(_motivo(
-                MOTIVO_ALERTA_MASCULINO,
-                detalhe_extra=(
-                    f"Em {especialidade}, o paciente masculino é assinatura da "
-                    "especialidade (espermograma), não anomalia. A regra v1.0 "
-                    "que gerou esta exclusão é provisória e produz aqui um falso "
-                    "positivo previsível."
-                ) if esperado else None,
-                revisao={
-                    "pendente": True,
-                    "rotulo": "triagem clínica pendente",
-                    "falso_positivo_previsivel": True,
-                    "acao": ("confirmar com o médico e reclassificar; "
-                             "alimenta o loop de correção da classificação"),
-                } if esperado else None,
+                MOTIVO_CLASSIFICACAO_PENDENTE,
+                detalhe_extra=(f"Situação na classificação: {linha['situacao']}. "
+                               "Sem área principal, sem cooperados contra quem "
+                               "comparar: fora de comparação."),
             ))
+        if linha.get("execucao_principal"):
+            motivos.append(_motivo(MOTIVO_EXECUCAO))
+        if linha.get("alerta_perfil_masculino"):
+            motivos.append(_motivo(MOTIVO_ALERTA_MASCULINO, revisao={
+                "pendente": True,
+                "rotulo": "confirmação pendente",
+                "falso_positivo_previsivel": False,
+                "acao": ("confirmar com a operadora se o cadastro agrega mais "
+                         "de um profissional; alimenta o loop de correção da "
+                         "classificação"),
+            }))
         if linha.get("confianca") == "baixa":
             motivos.append(_motivo(MOTIVO_CONFIANCA_BAIXA))
-        if especialidade == config.AREA_INDEFINIDA:
-            motivos.append(_motivo(MOTIVO_CLASSIFICACAO_PENDENTE))
-        if coop in config.COOPERADOS_CLASSIFICACAO_EM_REVISAO:
-            motivos.append(_motivo(MOTIVO_DIVERGENCIA, revisao={
-                "pendente": True,
-                "rotulo": "classificação em revisão",
-                "falso_positivo_previsivel": False,
-                "acao": "aguardando retorno do médico sobre a divergência",
-            }))
-        # Mesma fila das divergências acima, motivo diferente: lá o rótulo do
-        # médico diverge da leitura estatística; aqui o perfil de solicitação
-        # não pertence à especialidade inteira.
-        if coop in config.COOPERADOS_PERFIL_FORA_DA_ESPECIALIDADE:
-            motivos.append(_motivo(MOTIVO_PERFIL_FORA_DA_ESPECIALIDADE, revisao={
-                "pendente": True,
-                "rotulo": "triagem clínica pendente",
-                "falso_positivo_previsivel": False,
-                "acao": ("confirmar a especialidade com o médico; o que ele "
-                         "solicita é de outra área"),
-            }))
         saida[coop] = motivos
     return saida
 
@@ -1678,13 +1659,26 @@ def dispersao(posicao_area: pd.DataFrame, valor_por_coop: dict[str, float],
 # §04 — Tabela "Cooperados da área"
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Colunas booleanas derivadas da dim v2 em dados.carregar_classificacao, na
+# ordem em que os badges aparecem. O rótulo de "tem_secundaria" e "executa"
+# é completado com a área (ver _rotulo_do_badge): "também obstetrícia" diz mais
+# do que "área secundária".
 _BADGES = (
-    ("sub_opera", "opera"),
-    ("sub_alto_risco", "alto risco"),
-    ("sub_plantao_ps", "plantão"),
-    ("sub_ptgi", "ptgi"),
-    ("sub_ultrassonografista", "ultrassonografia"),
+    ("faz_cirurgia", "cirurgia"),
+    ("faz_mastologia", "mastologia"),
+    ("tem_secundaria", "área secundária"),
+    ("executa", "executa"),
+    ("carteira_jovem", "carteira jovem"),
+    ("carteira_climaterio", "carteira climatério"),
 )
+
+
+def _rotulo_do_badge(coluna: str, rotulo: str, flags_coop) -> str:
+    if coluna == "tem_secundaria":
+        return f"também {flags_coop.get('area_secundaria')}"
+    if coluna == "executa":
+        return f"executa {flags_coop.get('area_execucao')}"
+    return rotulo
 
 
 def _sub_perfis(flags_coop) -> list[dict]:
@@ -1692,13 +1686,12 @@ def _sub_perfis(flags_coop) -> list[dict]:
     ausência de atributo NÃO vira etiqueta, a célula fica vazia.
 
     Cada badge viaja com a frase que diz o que ele MUDA na comparação
-    (config.AJUDA_SUBPERFIL). Sem ela, "opera" é um rótulo de duas palavras que
-    não informa se o cooperado entra ou não na referência — e a resposta é "entra,
-    menos numa cesta", que ninguém adivinha.
+    (config.AJUDA_SUBPERFIL) — na v2, nada; e é preciso dizer isso, porque um
+    rótulo de duas palavras não informa se o cooperado entra ou não na referência.
     """
     if flags_coop is None:
         return []
-    return [{"chave": coluna, "rotulo": rotulo,
+    return [{"chave": coluna, "rotulo": _rotulo_do_badge(coluna, rotulo, flags_coop),
              "ajuda": config.AJUDA_SUBPERFIL.get(coluna)}
             for coluna, rotulo in _BADGES if bool(flags_coop.get(coluna))]
 
@@ -2102,21 +2095,24 @@ def direcao_da_serie(serie: list[dict] | None) -> dict | None:
     }
 
 
-def _em_revisao(coop: str) -> dict | None:
-    """O cooperado está na fila de triagem clínica? Motivo do catálogo.
+def _em_revisao(flags_coop) -> dict | None:
+    """O rótulo de área deste cooperado é frágil? Motivo do catálogo.
 
-    Duas listas, um estado: divergência entre o rótulo do médico e a leitura
-    estatística, e perfil de solicitação fora do escopo da especialidade. As
-    duas voltaram para o médico e nenhuma é achado sobre a prática dele.
+    Dois sinais que a própria classificação v2 traz por dado: a frente que
+    define a área está perto do corte, ou a composição mudou muito entre os
+    semestres. Nenhum é achado sobre a prática; a etiqueta declara que a
+    CLASSIFICAÇÃO está em observação, não o número.
     """
-    if coop in config.COOPERADOS_CLASSIFICACAO_EM_REVISAO:
-        codigo = MOTIVO_DIVERGENCIA
-    elif coop in config.COOPERADOS_PERFIL_FORA_DA_ESPECIALIDADE:
-        codigo = MOTIVO_PERFIL_FORA_DA_ESPECIALIDADE
+    if flags_coop is None:
+        return None
+    if bool(flags_coop.get("no_limiar")):
+        codigo = MOTIVO_PERTO_DO_CORTE
+    elif bool(flags_coop.get("perfil_instavel_no_ano")):
+        codigo = MOTIVO_PERFIL_MUDOU
     else:
         return None
     m = _CATALOGO_MOTIVOS[codigo]
-    return {"rotulo": "classificação em revisão",
+    return {"rotulo": "classificação em observação",
             "motivo": m["rotulo"], "detalhe": m["detalhe"]}
 
 
@@ -2313,7 +2309,7 @@ def linhas_cooperados(posicao_area: pd.DataFrame, norma_linha,
             # da referência — 3 dos 4 casos da fila nunca apareciam. A etiqueta
             # na linha não muda número nenhum: declara que a CLASSIFICAÇÃO
             # daquele cooperado está sob revisão, não o número dele.
-            "em_revisao": _em_revisao(coop),
+            "em_revisao": _em_revisao(flags.loc[coop] if coop in flags.index else None),
             "origem_excedente": (origem or {}).get(coop),
             "concentracao": (concentracao or {}).get(coop),
             "consistencia": _consistencia_do_cooperado(

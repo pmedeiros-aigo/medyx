@@ -28,15 +28,26 @@ A aplicação espera encontrar os dados numa pasta **irmã** do repositório:
 └── unimed_natal/     ← os dados (NÃO versionado, ~1 GB)
     ├── dados_iniciais/    bases brutas em CSV
     ├── marts/             fato e dimensões em Parquet
-    └── dados/             classificacao_v1.csv
+    └── classificacao_cooperados.ipynb   a classificação v2 (gera a dim em marts/)
 ```
 
 O caminho é resolvido em `config.py` como `Path(__file__).parent.parent /
 "unimed_natal"`. A aplicação lê **quatro** arquivos, todos em `marts/`:
 `fato_solicitacoes.parquet`, `contas.parquet`,
-`dim_executantes_cooperado.parquet` e `dim_classificacao.csv`. Os CSVs brutos
+`dim_executantes_cooperado.parquet` e `dim_classificacao_v2.csv`. Os CSVs brutos
 de `dados_iniciais/` são insumo do `preparar_fato` (o 6º motor) e não são lidos
 em runtime.
+
+Para (re)gerar o fato e as dimensões a partir dos CSVs brutos e da dim v2:
+
+```bash
+python preparar_marts.py
+```
+
+A dim v2 (`dim_classificacao_v2.csv`) sai do notebook
+`unimed_natal/classificacao_cooperados.ipynb` (Parte 15) e está documentada em
+`unimed_natal/marts/LEIAME_classificacao_v2.md`. A `AREA_ATUACAO` do fato é a
+`area_mvp` dessa dim.
 
 Se algum dos quatro faltar, o servidor **não sobe**: `dados.verificar_marts()`
 roda no boot e diz exatamente o que está faltando.
@@ -136,20 +147,11 @@ python smoke_api.py      # a API entrega o gabarito (exige o servidor no ar)
 python smoke_front.py    # as telas montam sem erro de console (idem)
 ```
 
-Estado em 29/ago/2026: `smoke_fase3.py` e `smoke_api.py` **passam inteiros**.
-
-`smoke_front.py` **aborta na seção 2** e por isso as seções 3 a 11 não chegam a
-rodar. A causa está nas seções 1 e 2, da tela de Área: a suíte procura elementos
-(`.stats`, `.selperfil`, os chips de recorte) que a reestruturação de agosto
-tirou da página, e o clique num chip que não existe estoura por timeout. É o
-teste que está atrasado em relação à tela, não a tela que quebrou.
-
-Consequência prática: **hoje o `smoke_front.py` não prova nada além da seção 1.**
-A seção 10 (tela de conta) foi conferida à parte, com um script equivalente, nos
-dois estados (com e sem sessão). Destravar a suíte pede atualizar as seções 1 e
-2 para a tela de Área como ela ficou.
-
----
+Estado em 11/set/2026 (classificação v2.0): as três suítes **passam inteiras**.
+`smoke_front.py` roda as 11 seções; a seção 10 (tela de conta) só passa com o
+servidor levantado **sem** `MEDYX_SESSAO_DEV`, porque prova o estado "não
+autenticado". Os gabaritos (`config.SMOKE_*`) foram re-baselineados na v2: área
+de referência Ginecologia Geral; positivos em Endoscopia Ginecológica.
 
 ## Arquitetura
 

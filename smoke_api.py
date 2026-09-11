@@ -58,15 +58,16 @@ def checar(rotulo: str, obtido, esperado):
 print("═" * 78)
 print("1. GABARITO DO NOTEBOOK, PELA API  (config.SMOKE_*)")
 _, meta = get("/api/meta")
-gin_meta = next(a for a in meta["areas"] if a["id"] == "ginecologia")
-checar("meta · elegíveis Ginecologia", gin_meta["n_formam_referencia"],
-       config.SMOKE_N_NA_NORMA_GINECOLOGIA)
-checar("meta · total Ginecologia", gin_meta["n_total"], config.SMOKE_N_TOTAL_GINECOLOGIA)
+AREA_REF = blocos.slug(config.SMOKE_AREA_REFERENCIA)   # "ginecologia-geral"
+gin_meta = next(a for a in meta["areas"] if a["id"] == AREA_REF)
+checar("meta · elegíveis da área de referência", gin_meta["n_formam_referencia"],
+       config.SMOKE_N_NA_NORMA_AREA)
+checar("meta · total da área de referência", gin_meta["n_total"], config.SMOKE_N_TOTAL_AREA)
 checar("meta · gatilho efetivo", gin_meta["gatilho_usado"], config.GATILHO_DEFAULT)
 checar("meta · avaliáveis (todas as áreas)",
        sum(a["n_avaliaveis"] for a in meta["areas"]), config.SMOKE_N_AVALIAVEIS)
 
-_, gin = get("/api/area/ginecologia")
+_, gin = get(f"/api/area/{AREA_REF}")
 # TRÊS MEDIDAS desde 2026-08-31 (exames, custo, excesso por consulta): o bloco
 # deixou de ter uma geometria só e passou a ter uma por medida, todas no mesmo
 # payload. As checagens abaixo valem para as três.
@@ -98,7 +99,7 @@ checar("area · pontos marcados são exatamente os acima do critério",
 checar("area · distribuição não publica rampa de cor",
        gin["distribuicao"]["rampa"], None)
 checar("area · mediana também no rodapé da tabela",
-       f"mediana {config.SMOKE_MEDIANA_GINECOLOGIA:.2f}".replace(".", ",")
+       f"mediana {config.SMOKE_MEDIANA_AREA:.2f}".replace(".", ",")
        in gin["cooperados"]["rodape"]["direita"], True)
 # COMPARÁVEIS, não "elegíveis": a linha do bloco, o chip de recorte e a
 # estatística do cabeçalho falam do MESMO conjunto e com a MESMA palavra
@@ -110,13 +111,16 @@ checar("area · n na justificativa",
 checar("justificativa não fala em elegíveis",
        "elegíveis" in gin["justificativa"]["resumo"], False)
 
-linhas = {linha["id"]: linha for linha in gin["cooperados"]["linhas"]}
+# os positivos do gabarito e o topo por razão vivem na área de cooperado_85
+# (config.SMOKE_AREA_SINALIZADOS), que na v2 não é a área de referência
+_, endo = get(f"/api/area/{blocos.slug(config.SMOKE_AREA_SINALIZADOS)}")
+linhas = {linha["id"]: linha for linha in endo["cooperados"]["linhas"]}
 for coop, esperado in config.SMOKE_SINALIZADOS_ESPERADOS.items():
     checar(f"area · {coop} procedimentos em revisão",
            linhas[coop]["procedimentos_em_revisao"], esperado)
 checar("area · topo por razão vs mediana",
        tuple(linha["id"] for linha in
-             sorted((l for l in gin["cooperados"]["linhas"] if l["razao_vs_mediana"]),
+             sorted((l for l in endo["cooperados"]["linhas"] if l["razao_vs_mediana"]),
                     key=lambda l: -l["razao_vs_mediana"])[:3]),
        config.SMOKE_TOPO_RAZAO)
 
@@ -171,7 +175,7 @@ checar("percentil sempre com tradução (ajuste 2)",
        all(linha["posicao"]["traducao"] for linha in gin["cooperados"]["linhas"]
            if linha["posicao"]["tipo"] == "percentil"), True)
 
-_, procs = get("/api/area/ginecologia/procedimentos")
+_, procs = get(f"/api/area/{AREA_REF}/procedimentos")
 
 
 def linha_leitura(payload, chave):
@@ -217,7 +221,7 @@ comparaveis = parte(gin, "comparaveis")
 checar("comparáveis == avaliáveis (mesmo conjunto do chip de recorte)",
        comparaveis["valor"], gin["area"]["n_avaliaveis"])
 checar("comparáveis NÃO é quem forma a referência",
-       comparaveis["valor"] != config.SMOKE_N_NA_NORMA_GINECOLOGIA, True)
+       comparaveis["valor"] != config.SMOKE_N_NA_NORMA_AREA, True)
 # o link fala "fora da referência" (revisão 2026-08-13): os excluídos são da
 # FORMAÇÃO da referência, não do conjunto de comparáveis
 checar("comparáveis traz a ação de quem está fora da referência",
@@ -392,13 +396,15 @@ checar("triou (algum degrau abaixo de 30)", gin["cascata"]["triou"], True)
 checar("sem achado de variação generalizada", gin["cascata"]["achado"], None)
 checar("cada degrau declara sua natureza",
        all(c["natureza"] for c in chips), True)
-checar("classificação em revisão sai no degrau de artefato",
+# v2: quem está em observação (rótulo de área perto do corte, ou perfil que
+# mudou no período) e chega ao degrau material sai no degrau de artefato
+checar("classificação em observação sai no degrau de artefato",
        [linha["id"] for linha in gin["cooperados"]["linhas"]
         if "material" in linha["grupos"] and "classificacao_firme" not in linha["grupos"]],
-       ["cooperado_61"])
+       ["cooperado_14"])
 
 print("\n3. TROCA DE CRITÉRIO P90 -> P75 (aceite 5)")
-_, gin75 = get("/api/area/ginecologia", criterio="p75")
+_, gin75 = get(f"/api/area/{AREA_REF}", criterio="p75")
 n75_stat = parte(gin75, "em_revisao")["valor"]
 n75_tab = sum(1 for linha in gin75["cooperados"]["linhas"] if linha["acima_do_criterio"])
 print(f"      P90: {n_stat} acima do critério   ->   P75: {n75_stat}")
@@ -412,10 +418,10 @@ checar("P75 · carimbo de proveniência acompanha",
 print("\n4. ESTADOS DE BORDA — sem terceiro componente")
 for area_id, estado_esperado, variante, tem_grafico in (
         ("mastologia", "grupo_insuficiente", "grupo_pequeno", False),
-        ("reproducao", "grupo_insuficiente", "sem_formadores", False),
-        ("ultrassonografista", "grupo_insuficiente", "sem_formadores", False),
+        ("patologia", "grupo_insuficiente", "sem_formadores", False),
+        ("ultrassonografia", "grupo_insuficiente", "sem_formadores", False),
         ("indefinido", "sem_peer_group", None, False),
-        ("go", "plena", None, True)):
+        ("obstetricia", "plena", None, True)):
     _, a = get(f"/api/area/{area_id}")
     checar(f"{area_id} · estado", a["estado"]["codigo"], estado_esperado)
     checar(f"{area_id} · variante", a["estado"]["variante"], variante)
@@ -429,60 +435,57 @@ for area_id, estado_esperado, variante, tem_grafico in (
 
 print("\n4b. A DISTINÇÃO VIVE NA COMPOSIÇÃO E NO MOTIVO POR COOPERADO")
 _, mast = get("/api/area/mastologia")
-_, repro = get("/api/area/reproducao")
-_, ultra = get("/api/area/ultrassonografista")
+# Patologia: 2 cooperados, e o que passa o volume mínimo tem a execução como
+# prática principal — o motivo DEFINITIVO da v2. Ultrassonografia também é
+# "sem formadores", mas os 3 ficam abaixo do volume mínimo e o motivo é o piso.
+_, ultra = get("/api/area/patologia")
 checar("Mastologia · frase de apoio",
        mast["estado"]["frase_apoio"],
        "cooperados insuficientes na área para análise comparativa")
-checar("Reprodução · frase de apoio", repro["estado"]["frase_apoio"],
+checar("Patologia · frase de apoio", ultra["estado"]["frase_apoio"],
        "sem referência: nenhum cooperado desta área forma a norma, motivos abaixo")
-seg_repro = {s["chave"]: s["n"] for s in repro["composicao"]["segmentos"]}
-checar("Reprodução · composição 0 / 0 / 2",
-       (seg_repro["formam_norma"], seg_repro["abaixo_volume_minimo"],
-        seg_repro["fora_da_construcao"]), (0, 0, 2))
-checar("Reprodução · todo excluído tem motivo",
-       all(e["motivos"] for e in repro["composicao"]["excluidos"]), True)
-
-cods_repro = {m["codigo"] for e in repro["composicao"]["excluidos"] for m in e["motivos"]}
-checar("Reprodução · motivo é o alerta de perfil masculino",
-       cods_repro, {"alerta_perfil_masculino"})
-checar("Reprodução · natureza PROVISÓRIA",
-       {e["natureza"] for e in repro["composicao"]["excluidos"]}, {"provisoria"})
-checar("Reprodução · falso positivo previsível declarado",
-       all(m["revisao"]["falso_positivo_previsivel"]
-           for e in repro["composicao"]["excluidos"] for m in e["motivos"]), True)
-checar("Reprodução · status de triagem clínica pendente",
-       {m["revisao"]["rotulo"] for e in repro["composicao"]["excluidos"]
-        for m in e["motivos"]}, {"triagem clínica pendente"})
-checar("Reprodução · revisão pendente contabilizada",
-       repro["composicao"]["revisao_pendente"], 2)
-
+checar("Patologia · todo excluído tem motivo",
+       all(e["motivos"] for e in ultra["composicao"]["excluidos"]), True)
 cods_ultra = {m["codigo"] for e in ultra["composicao"]["excluidos"] for m in e["motivos"]}
-checar("Ultrassonografista · motivo é o perfil de execução",
-       cods_ultra, {"perfil_ultrassonografista"})
-checar("Ultrassonografista · natureza DEFINITIVA",
-       {e["natureza"] for e in ultra["composicao"]["excluidos"]}, {"definitiva"})
-checar("Ultrassonografista · sem revisão pendente",
-       ultra["composicao"]["revisao_pendente"], 0)
-checar("Ultrassonografista · rótulo 'não solicita'",
-       "não solicita" in ultra["composicao"]["excluidos"][0]["motivo"], True)
-checar("naturezas são opostas entre as duas áreas",
-       ultra["composicao"]["excluidos"][0]["natureza"]
-       != repro["composicao"]["excluidos"][0]["natureza"], True)
+checar("Patologia · o perfil de execução está entre os motivos",
+       "perfil_execucao" in cods_ultra, True)
+checar("Patologia · o motivo de execução é DEFINITIVO",
+       {m["natureza"] for e in ultra["composicao"]["excluidos"]
+        for m in e["motivos"] if m["codigo"] == "perfil_execucao"}, {"definitiva"})
+checar("Patologia · rótulo 'realiza mais do que solicita'",
+       any("realiza mais do que solicita" in m["rotulo"]
+           for e in ultra["composicao"]["excluidos"] for m in e["motivos"]), True)
+
+# o cadastro agregado é o motivo PROVISÓRIO da v2: fica na área de referência,
+# com confirmação pendente declarada
+_, ref = get(f"/api/area/{AREA_REF}")
+agregados = [e for e in ref["composicao"]["excluidos"]
+             if any(m["codigo"] == "alerta_perfil_masculino" for m in e["motivos"])]
+# 3 cooperados de Ginecologia Geral têm cadastro agregado; só 1 passa o volume
+# mínimo e aparece como excluído da construção (os outros 2 ficam no piso)
+checar("área de referência · cadastro agregado entre os excluídos", len(agregados), 1)
+checar("cadastro agregado · natureza PROVISÓRIA",
+       {m["natureza"] for e in agregados for m in e["motivos"]
+        if m["codigo"] == "alerta_perfil_masculino"}, {"provisoria"})
+checar("cadastro agregado · confirmação pendente declarada",
+       {m["revisao"]["rotulo"] for e in agregados for m in e["motivos"]
+        if m["codigo"] == "alerta_perfil_masculino"}, {"confirmação pendente"})
+checar("naturezas são opostas entre execução e cadastro agregado",
+       ultra["composicao"]["excluidos"][0]["natureza"] != agregados[0]["natureza"], True)
 
 print("\n4c. FILA DE CLASSIFICAÇÃO PENDENTE (INDEFINIDO)")
 _, indef = get("/api/area/indefinido")
 fila = indef["fila_classificacao_pendente"]
-checar("INDEFINIDO · fila real = quem passa o piso", fila["n_fila"], 5)
-checar("INDEFINIDO · baixo volume fora da fila", fila["n_baixo_volume"], 67)
+checar("INDEFINIDO · fila real = quem passa o piso", fila["n_fila"], 3)
+checar("INDEFINIDO · baixo volume fora da fila", fila["n_baixo_volume"], 52)
 checar("INDEFINIDO · fila + baixo volume == total",
        fila["n_fila"] + fila["n_baixo_volume"], fila["n_total"])
 checar("INDEFINIDO · nomes da fila listados", len(fila["ids_fila"]), fila["n_fila"])
 checar("áreas comparáveis não trazem fila",
-       get("/api/area/ginecologia")[1]["fila_classificacao_pendente"], None)
+       get(f"/api/area/{AREA_REF}")[1]["fila_classificacao_pendente"], None)
 
 print("\n5. REGRAS ESTRUTURAIS E ERROS")
-codigo, corpo = get("/api/area/ginecologia", criterio="p75", referencia="p90")
+codigo, corpo = get(f"/api/area/{AREA_REF}", criterio="p75", referencia="p90")
 checar("referência > critério recusada com 422", codigo, 422)
 checar("422 explica o porquê", "condenaria o quartil superior" in corpo["detail"], True)
 codigo, _ = get("/api/area/nao-existe")
@@ -490,7 +493,7 @@ checar("área inexistente -> 404", codigo, 404)
 codigo, _ = get("/api/meta", janela="7m")
 checar("janela inválida -> 422", codigo, 422)
 
-_, gin3m = get("/api/area/ginecologia", janela="3m")
+_, gin3m = get(f"/api/area/{AREA_REF}", janela="3m")
 checar("janela 3m · consistência não reportável",
        all(linha["consistencia"]["rotulo"] == config.SEM_MEDIDA
            for linha in gin3m["cooperados"]["linhas"]), True)
@@ -502,8 +505,8 @@ print("\n5b. JANELA LIVRE (intervalo AAAA-MM) DEFINE O UNIVERSO")
 # METODOLOGIA §5.1: a norma e o indivíduo saem sempre da MESMA janela. Trocar a
 # janela não muda a LÓGICA do cálculo, muda quais linhas entram — então um
 # intervalo equivalente ao atalho tem de devolver exatamente os mesmos números.
-_, gin_12m = get("/api/area/ginecologia", janela="12m")
-_, gin_int = get("/api/area/ginecologia", ini="2025-05", fim="2026-04")
+_, gin_12m = get(f"/api/area/{AREA_REF}", janela="12m")
+_, gin_int = get(f"/api/area/{AREA_REF}", ini="2025-05", fim="2026-04")
 for chave in ("comparaveis", "em_revisao"):
     a = parte(gin_12m, chave)["valor"]
     b = parte(gin_int, chave)["valor"]
@@ -531,11 +534,11 @@ checar("o aviso vem redigido da API",
        "persistente" in (m5["periodo"]["atual"]["aviso"] or ""), True)
 
 # As três recusas: mínimo trimestral, fora da base, invertida.
-codigo, _ = get("/api/area/ginecologia", ini="2025-05", fim="2025-06")
+codigo, _ = get(f"/api/area/{AREA_REF}", ini="2025-05", fim="2025-06")
 checar("abaixo do mínimo trimestral -> 422", codigo, 422)
-codigo, _ = get("/api/area/ginecologia", ini="2024-01", fim="2026-04")
+codigo, _ = get(f"/api/area/{AREA_REF}", ini="2024-01", fim="2026-04")
 checar("fora da base disponível -> 422", codigo, 422)
-codigo, _ = get("/api/area/ginecologia", ini="2026-01", fim="2025-05")
+codigo, _ = get(f"/api/area/{AREA_REF}", ini="2026-01", fim="2025-05")
 checar("janela invertida -> 422", codigo, 422)
 checar("o intervalo disponível é publicado",
        m6["periodo"]["disponivel"]["primeiro"] <= "2025-05", True)
@@ -546,7 +549,8 @@ print("\n6. PROVENIÊNCIA EM TODA RESPOSTA")
 for rotulo, corpo in (("meta", meta), ("area", gin), ("procedimentos", procs)):
     checar(f"{rotulo} · bloco de proveniência", "proveniencia" in corpo, True)
     checar(f"{rotulo} · carimbo com a versão da classificação",
-           "classificação v1.0" in corpo["proveniencia"]["carimbo"], True)
+           f"classificação {config.CLASSIFICACAO_VERSAO}" in corpo["proveniencia"]["carimbo"],
+           True)
     checar(f"{rotulo} · carimbo sem status de homologação",
            "homologada" in corpo["proveniencia"]["carimbo"], False)
 
@@ -563,8 +567,9 @@ checar("dossiê · posição igual à linha da área",
        dossie["leitura"]["posicao"]["rotulo"], alvo["posicao"]["rotulo"])
 soma_procs = round(sum(l["excedente_itens"] or 0
                        for l in dossie["procedimentos"]["linhas"]), 1)
-checar("dossiê · soma dos procedimentos devolve o excedente do cooperado",
-       soma_procs, round(alvo["excedente_itens"], 1))
+# arredondamento por procedimento: a soma pode diferir do agregado em 0,1
+checar("dossiê · soma dos procedimentos devolve o excedente do cooperado (±0,1)",
+       abs(soma_procs - alvo["excedente_itens"]) <= 0.1, True)
 checar("dossiê · cabeçalho com o par da área em todo número",
        all("referência" in c["par_fmt"] for c in dossie["cabecalho"]), True)
 
@@ -597,8 +602,8 @@ print("\n7a. PAINEL DO PROCEDIMENTO NA ÁREA · RÉGUA IMÓVEL, ACHADO RECORTADO
 # checagens abaixo cobram exatamente essa divisão — é o único jeito de o bloco
 # poder ser lido ao lado da linha sem que os dois somem populações diferentes.
 _cd = procs["linhas"][0]["codigo"]
-_, pnl = get(f"/api/area/ginecologia/procedimento/{_cd}")
-_, pnl_q = get(f"/api/area/ginecologia/procedimento/{_cd}", recorte="qualificados")
+_, pnl = get(f"/api/area/{AREA_REF}/procedimento/{_cd}")
+_, pnl_q = get(f"/api/area/{AREA_REF}/procedimento/{_cd}", recorte="qualificados")
 checar("painel do exame · a distribuição é RÉGUA e não se move com o recorte",
        (pnl["distribuicao"]["referencia"]["valor_fmt"],
         pnl["distribuicao"]["n_pares"]),
@@ -618,7 +623,7 @@ if pnl["nucleo"]:
     checar("painel do exame · núcleo <= quem tem excedente",
            pnl["nucleo"]["n_nucleo"] <= pnl["nucleo"]["n_com_excedente"], True)
 checar("painel do exame · procedimento inexistente -> 404",
-       get("/api/area/ginecologia/procedimento/99999999")[0], 404)
+       get(f"/api/area/{AREA_REF}/procedimento/99999999")[0], 404)
 # o fio entre a LISTA (ordenada por excedente) e o GRÁFICO (eixo da taxa): são
 # grandezas diferentes, e a cor é o que faz as duas concordarem sobre quem
 # importa. Se o ponto mais escuro não for o primeiro da lista, elas voltaram a
@@ -700,12 +705,12 @@ checar("oportunidades · o resumo expandido fala da lista inteira",
 # superfícies lendo a mesma soma, e divergir seria a tela contando duas
 # histórias sobre um caso.
 _l0 = _opo["linhas"][0]
-_, _pnl0 = get(f"/api/area/ginecologia/procedimento/{_l0['codigo']}")
+_, _pnl0 = get(f"/api/area/{AREA_REF}/procedimento/{_l0['codigo']}")
 checar("oportunidades · o R$ do par bate com o do painel do procedimento",
        next((c["reais_fmt"] for c in _pnl0["acima"]["linhas"]
              if c["id"] == _l0["id"]), None), _l0["excedente_reais_fmt"])
 # SEGUE O RECORTE, como todo achado (Lei 0)
-_, _ach_op = get("/api/area/ginecologia/achados", perfil="opera")
+_, _ach_op = get(f"/api/area/{AREA_REF}/achados", perfil="opera")
 checar("oportunidades · o recorte de perfil reduz o conjunto",
        _ach_op["oportunidades"]["n"] <= _opo["n"], True)
 # A REGRA DA QUALIFICAÇÃO é dita UMA VEZ, no rodapé, e nomeia o gatilho ativo:
@@ -716,7 +721,7 @@ checar("oportunidades · o rodapé declara a regra e nomeia o critério",
         config.GATILHO_DEFAULT.upper() in _opo["notas"][0]), (True, True))
 # A REFERÊNCIA DA FAIXA ETÁRIA só existe no nível do cooperado: no painel da
 # área o sujeito da barra É a área, e o traço cairia em cima dela.
-_, _pnl_area = get(f"/api/area/ginecologia/procedimento/{_cd}")
+_, _pnl_area = get(f"/api/area/{AREA_REF}/procedimento/{_cd}")
 checar("painel do exame · a faixa etária da área não desenha referência",
        all(x["area_pct"] is None and x["area_fmt"] is None
            for x in (_pnl_area.get("faixas") or {}).get("faixas", [])), True)
@@ -755,7 +760,7 @@ checar("panorama · toda área de atuação vira cartão",
        sorted(a["id"] for a in _meta_areas["areas"]
               if a["id"] != blocos.slug(config.AREA_INDEFINIDA)))
 checar("panorama · e só as com régua trazem excedente",
-       sorted(_com_regua), ["ginecologia", "go"])
+       sorted(_com_regua), ["endoscopia-ginecologica", "ginecologia-geral", "obstetricia"])
 # TODO CARTÃO DIZ AS MESMAS TRÊS COISAS, na mesma ordem: cartão que muda de
 # campos conforme a área obriga a reaprender o desenho a cada um, e some com a
 # comparação, que é a razão de eles estarem lado a lado.
@@ -764,9 +769,15 @@ checar("panorama · todo cartão traz as mesmas medidas, na mesma ordem",
        {("Custo total", "Custo excedente")})
 # O CUSTO TOTAL é dado REAL e existe em toda área, com régua ou sem: ele não
 # depende de norma, é o que a área solicitou. Só o excesso depende.
-checar("panorama · o custo total aparece em todas as áreas",
+# ...exceto onde NINGUÉM passa o volume mínimo (v2: Ultrassonografia, 0 de 3):
+# aí a ausência é declarada com o motivo, nunca zero
+checar("panorama · o custo total aparece em toda área com comparáveis",
        [c["nome"] for c in _cartoes.values()
-        if c["linhas"][0]["valor_fmt"] == config.SEM_MEDIDA], [])
+        if c["linhas"][0]["valor_fmt"] == config.SEM_MEDIDA
+        and not c["populacao"].startswith("0 compar")], [])
+checar("panorama · área sem comparáveis declara o motivo do custo ausente",
+       all(c["linhas"][0]["motivo"] for c in _cartoes.values()
+           if c["linhas"][0]["valor_fmt"] == config.SEM_MEDIDA), True)
 # e onde a medida não existe, a ausência é DECLARADA com o motivo: nunca zero,
 # que afirmaria ausência de variação, nem célula vazia, que manda o leitor
 # procurar o número que não está lá (ajuste 4 do CLAUDE.md)
@@ -784,7 +795,7 @@ checar("panorama · ninguém desaparece da especialidade",
 # O EXCEDENTE DE CADA ÁREA é o mesmo que a tela de Área imprime no destaque da
 # Leitura, sob o recorte default. Duas telas, um número.
 _linhas_gin = {l["rotulo"]: l["valor_fmt"]
-               for l in _com_regua["ginecologia"]["linhas"]}
+               for l in _com_regua[AREA_REF]["linhas"]}
 checar("panorama · o excedente da área bate com a tela de Área",
        _linhas_gin["Custo excedente"], gin["leitura"]["destaque"]["valor_fmt"])
 # e o custo total, e a fração entre os dois: os três números do cartão são os
@@ -793,7 +804,7 @@ checar("panorama · o custo total bate com a Leitura da área",
        _linhas_gin["Custo total"],
        linha_leitura(gin, "_custo_total")["valor_fmt"])
 # o % ANDA COM O VALOR, e é o mesmo que o destaque da Leitura imprime
-_apoio_gin = next(l["apoio"] for l in _com_regua["ginecologia"]["linhas"]
+_apoio_gin = next(l["apoio"] for l in _com_regua[AREA_REF]["linhas"]
                   if l["rotulo"] == "Custo excedente")
 checar("panorama · e o % excedente é o mesmo do destaque",
        _apoio_gin in gin["leitura"]["destaque"]["apoio"], True)
@@ -848,13 +859,13 @@ checar("panorama · e a do procedimento, em quantas áreas ele aparece",
 # para comparar as áreas, e sair dele ao escolher uma é o oposto do que o
 # controle promete. A chave é `areas` porque `area` na raiz é rota legada, que o
 # servidor redireciona para /area/{id}.
-_, _pano_go = get("/api/panorama", areas="go")
+_, _pano_go = get("/api/panorama", areas="obstetricia")
 checar("panorama · o filtro de áreas recorta a tela",
        (len(_pano_go["areas"]["cartoes"]),
         _pano_go["totais"]["areas_com_referencia"]), (1, 1))
 # ESCOLHA MÚLTIPLA: comparar duas áreas de sete é a leitura que esta tela
 # existe para dar, e a escolha única não a expressa.
-_, _pano_duas = get("/api/panorama", areas="ginecologia,go")
+_, _pano_duas = get("/api/panorama", areas=f"{AREA_REF},obstetricia")
 checar("panorama · o filtro aceita várias áreas",
        len(_pano_duas["areas"]["cartoes"]), 2)
 # slug desconhecido é ignorado em vez de esvaziar a tela; seleção que não

@@ -28,15 +28,67 @@ from utils import pipeline as pl
 @lru_cache(maxsize=1)
 def carregar_fato() -> pd.DataFrame:
     """Fato analítico: 1 linha por item solicitado, já com AREA_ATUACAO
-    (classificação v1.0) e elegivel_norma."""
+    (classificação v2.0, area_mvp) e elegivel_norma."""
     return pd.read_parquet(config.CAMINHO_FATO_SOLICITACOES)
 
 
 @lru_cache(maxsize=1)
 def carregar_classificacao() -> pd.DataFrame:
-    """Dim da classificação v1.0 (não homologada): especialidade, sub-perfis,
-    confiança, alerta e elegivel_norma por cooperado."""
-    return pd.read_csv(config.CAMINHO_DIM_CLASSIFICACAO)
+    """Dim da classificação v2.0 (não homologada), na forma que o app consome.
+
+    A dim v2 (unimed_natal/marts/LEIAME_classificacao_v2.md) descreve cada
+    cooperado como a MISTURA das famílias de atendimento das suas consultas.
+    Aqui ela vira o contrato do app, sem perder coluna nenhuma:
+
+      especialidade            area_mvp; vazio -> config.AREA_INDEFINIDA
+      elegivel_norma           quem FORMA a referência (regra registrada na dim)
+      confianca                alta · media · baixa · indicativa
+      alerta_perfil_masculino  cadastro_agregado (>= 25% de pacientes homens)
+      execucao_principal       executar é a prática principal (US, citopatologia)
+      badges (blocos._BADGES)  faz_cirurgia, faz_mastologia, tem_secundaria,
+                               executa, carteira_jovem, carteira_climaterio
+      em_observacao            no_limiar ou perfil_instavel_no_ano: o rótulo
+                               de área é frágil (perto do corte, ou mudou no ano)
+    """
+    dim = pd.read_csv(config.CAMINHO_DIM_CLASSIFICACAO)
+    texto = lambda col: dim[col].fillna("").astype(str)  # noqa: E731
+    flag = lambda col: dim[col].astype("boolean").fillna(False).astype(bool)  # noqa: E731
+    dim["especialidade"] = texto("area_mvp").replace("", config.AREA_INDEFINIDA)
+    dim["confianca"] = dim["confianca"].replace({"média": "media"})
+    dim["elegivel_norma"] = flag("elegivel_norma")
+    dim["alerta_perfil_masculino"] = flag("cadastro_agregado")
+    dim["execucao_principal"] = (
+        (texto("area_principal") != "") & (texto("area_principal") == texto("area_execucao"))
+        | (dim["situacao"] == "classificável pela execução")
+    )
+    # "faz X" só vira badge quando a área principal ou a secundária ainda não
+    # dizem X: a etiqueta acrescenta, não repete o que o rótulo de área já diz.
+    areas = texto("area_principal") + " " + texto("area_secundaria")
+    dim["faz_cirurgia"] = flag("faz_cirurgia / histeroscopia") & ~areas.str.contains("cirurgia")
+    dim["faz_mastologia"] = flag("faz_mastologia") & ~areas.str.contains("mastologia")
+    # "também X" só quando X cai FORA da área do MVP do cooperado: a secundária
+    # "cirurgia" de quem já é Endoscopia Ginecológica repete o rótulo
+    secundaria_mvp = texto("area_secundaria").map(
+        lambda a: config.AREA_MVP_DAS_FINAS.get(a.split(" (")[0], a))
+    dim["tem_secundaria"] = (
+        (texto("area_secundaria") != "")
+        & (secundaria_mvp != dim["especialidade"])
+        & (texto("area_secundaria") != texto("area_execucao"))  # "executa X" já diz
+    )
+    dim["executa"] = texto("area_execucao") != ""
+    dim["carteira_jovem"] = dim["carteira"] == "jovem / reprodutiva"
+    dim["carteira_climaterio"] = dim["carteira"] == "climatério"
+    dim["em_observacao"] = flag("no_limiar") | flag("perfil_instavel_no_ano")
+    return dim
+
+
+@lru_cache(maxsize=1)
+def classificacao_em_observacao() -> frozenset:
+    """IDs cujo rótulo de área é frágil (perto do corte ou mudou no ano). É a
+    fila de observação da classificação: a cascata os retira do degrau
+    "classificação firme" e a linha da tabela recebe a etiqueta."""
+    d = carregar_classificacao()
+    return frozenset(d.loc[d["em_observacao"], "ID_COOPERADO"])
 
 
 @lru_cache(maxsize=1)
@@ -125,7 +177,7 @@ MARTS_EXIGIDOS = (
     (config.CAMINHO_DIM_EXECUTANTES,
      "de-para executante -> cooperado, exigido junto com contas"),
     (config.CAMINHO_DIM_CLASSIFICACAO,
-     "classificação v1.0 — área, sub-perfis e exclusão por par"),
+     "classificação v2.0 — área do MVP, mistura de famílias, elegibilidade"),
 )
 
 
@@ -149,8 +201,8 @@ def verificar_marts() -> None:
         f"foram encontrados.\n{lista}\n\n"
         f"Os dados ficam FORA do repositório, em:\n  {config.DIR_MARTS}\n\n"
         "Obtenha os marts com a equipe responsável, ou gere-os com "
-        "app/utils/preparar_fato.py a partir dos CSVs de "
-        "unimed_natal/dados_iniciais/. Ver README.md, 'Antes de rodar'."
+        "preparar_marts.py a partir dos CSVs de unimed_natal/dados_iniciais/ "
+        "e da dim v2 do notebook. Ver README.md, 'Antes de rodar'."
     )
 
 

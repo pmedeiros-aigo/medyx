@@ -99,7 +99,10 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 | poucos beneficiários recebem | **pouco volume** (com "menos de N beneficiários") |
 | grupo pequeno demais para percentil | **cooperados insuficientes na área para análise comparativa** |
 | zero formadores da norma | **sem referência: nenhum cooperado desta área forma a norma** |
-| sem área classificada | **sem área de atuação · classificação pendente** |
+| sem área classificada | **sem área de atuação** (volume insuficiente ou prática pouco visível) |
+| cadastro agregado (≥ 25% de pacientes homens) | **cadastro agregado (pacientes homens) · confirmação pendente** |
+| área perto do corte / perfil instável | **classificação em observação** (nunca "em revisão") |
+| família de atendimento (v2) | **tipo de atendimento** |
 | gatilho degradado pelo n | **critério ajustado ao tamanho do grupo** |
 | bootstrap abaixo do portão | **intervalo não calculável** |
 | norma do procedimento com poucos solicitantes | **referência não conclusiva** |
