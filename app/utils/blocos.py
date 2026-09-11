@@ -238,10 +238,25 @@ def fmt_frequencia(valor) -> str:
     v = float(valor)
     if 0 < v < 0.0001:
         return "< 0,0001"
-    if v >= 0.1:
+    # TRÊS ALGARISMOS SIGNIFICATIVOS em toda a escala, inclusive acima de 0,1.
+    # Com duas casas ali, 0,1755 saía "0,18" e a divisão pela referência errava
+    # até 6% — "0,18 ÷ 0,012" lê 15,0 sob uma coluna que diz 14,1×. Era a mesma
+    # falha que a faixa abaixo de 0,01 já tinha, um degrau acima.
+    #
+    # Efeito colateral bem-vindo: frequência e referência passam a ser impressas
+    # com a MESMA precisão. Antes "0,18" ficava ao lado de "0,012" na mesma
+    # linha, e duas precisões diferentes numa comparação sugerem que uma das
+    # duas foi medida com mais cuidado.
+    if v >= 1:
         return fmt(v, 2)
-    if v >= 0.01:
+    if v >= 0.1:
         return fmt(v, 3)
+    # QUATRO casas nesta faixa, e não três: 0,0117 com três saía "0,012", que
+    # são DOIS algarismos significativos, e a divisão errava 3% — "0,130 ÷
+    # 0,012" lê 10,8 sob uma coluna que diz 11,1×. É a mesma falha das outras
+    # faixas, na única banda que ainda a tinha.
+    if v >= 0.01:
+        return fmt(v, 4)
     return fmt(v, 4) if v >= 0.001 else fmt(v, 5)
 
 
@@ -4853,8 +4868,7 @@ def principais_oportunidades(pares: pd.DataFrame, rs: pd.DataFrame,
                              excedente_reais_area: float | None,
                              alvo: str, gatilho: str | None, n_fatias: int,
                              escopo: str = "da área",
-                             n_visiveis: int = config.N_OPORTUNIDADES_VISIVEIS,
-                             n_maximo: int = config.N_OPORTUNIDADES_MAX
+                             n_visiveis: int = config.N_OPORTUNIDADES_VISIVEIS
                              ) -> dict | None:
     """Uma linha por PAR (cooperado × procedimento), do maior custo excedente ao
     menor, entre os casos qualificados.
@@ -4901,11 +4915,6 @@ def principais_oportunidades(pares: pd.DataFrame, rs: pd.DataFrame,
             o leitor supor qual delas produziu a lista.
         n_fatias: trimestres completos da janela, para o rodapé dizer em quantos
             a variação se repetiu.
-        n_maximo: quantos pares o bloco carrega. A cauda inteira não viaja: são
-            228 pares qualificados em Ginecologia, e uma lista desse tamanho num
-            cartão acima das abas viraria uma terceira tabela fora do lugar onde
-            as tabelas moram. O total vai declarado no cabeçalho, e a superfície
-            exaustiva é a aba Cooperados.
     """
     if pares is None or not len(pares):
         return None
@@ -4967,9 +4976,14 @@ def principais_oportunidades(pares: pd.DataFrame, rs: pd.DataFrame,
     if not linhas:
         return None
 
+    # SEM TETO DE CARGA (set/2026). Houve um, de 20 pares: o argumento era que
+    # 228 linhas num cartão acima das abas viram uma terceira tabela fora do
+    # lugar onde as tabelas moram. O argumento valia para a ALTURA, e altura se
+    # resolve com rolagem dentro do cartão — não cortando o dado. Com o corte,
+    # quem abria a lista inteira via 20 casos sob um cabeçalho que anunciava
+    # 228, sem caminho para os outros 208.
     linhas.sort(key=lambda l: -l["excedente_reais"])
     n_total = len(linhas)
-    linhas = linhas[:n_maximo]
     corte = min(n_visiveis, len(linhas))
 
     # O CABEÇALHO declara sobre que denominador a soma se apoia. Sem ele, um
@@ -5384,3 +5398,317 @@ def procedimentos_transversais(rs: pd.DataFrame,
                 f"Aparece em {fmt(n, 0)} {'áreas' if n != 1 else 'área'} "
                 "de atuação"] + [d for d in linha.get("detalhes", [])]
     return p
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Índice de procedimentos: a porta da quarta dimensão (2026-09-08)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def indice_de_procedimentos(posproc_rs: pd.DataFrame,
+                            areas_com_regua: set[str]) -> dict:
+    """Um procedimento por linha, somado entre as áreas com referência.
+
+    ── por que esta lista TEM números, e a de cooperados não ────────────────
+    O índice de cooperados é uma porta sem número nenhum, e por regra: ele
+    atravessa as áreas, e coluna ordenável ali convida a ler a lista como
+    ranking — comparar médicos de áreas diferentes é a comparação entre peer
+    groups que o método proíbe.
+
+    Com PROCEDIMENTO a soma é legítima, e a diferença é o que torna esta página
+    possível: o excedente de cada par já foi medido contra a referência da
+    ÁREA daquele cooperado. Somar entre áreas junta dinheiro já comparado, nunca
+    réguas. É a mesma soma que o Pareto de procedimentos transversais do
+    Panorama publica.
+
+    ── SÓ ÁREAS COM RÉGUA contribuem excedente ─────────────────────────────
+    Área sem critério não sinaliza ninguém, e um procedimento que só existe lá
+    aparece com volume e custo, sem excedente. Não é zero de excedente: é
+    ausência de medida, e a linha declara com `SEM_MEDIDA` em vez de imprimir
+    zero, que afirmaria ausência de variação.
+
+    ── as áreas em que ele aparece ─────────────────────────────────────────
+    `n_areas` conta em quantas áreas COM RÉGUA o procedimento tem excedente, e é
+    a coluna que só esta tela dá: excedente alto em mais de uma área é conversa
+    de protocolo, não conversa individual. Dos 259 procedimentos com excedente
+    em Ginecologia e GO, 213 estão nas duas e carregam 94% do dinheiro.
+    """
+    vazio = {"linhas": [], "total": 0, "n_com_excedente": 0, "n_multiarea": 0,
+             "excedente_total_fmt": config.SEM_MEDIDA,
+             "resumo": "Nenhum procedimento solicitado no período."}
+    if posproc_rs is None or not len(posproc_rs):
+        return vazio
+
+    base = posproc_rs[posproc_rs["avaliavel"]].copy()
+    com_preco = base["preco_mediano"].notna()
+    base["_solicitacoes"] = base["taxa"] * base["consultas_totais"]
+    base["_custo"] = base["_solicitacoes"] * base["preco_mediano"].fillna(0.0)
+    # o EXCEDENTE só conta de par sinalizado e com preço: é o mesmo filtro que
+    # produz todo R$ excedente do app (`filtrar_sinalizados`, Lei 1)
+    sinal = base["sinalizado"] & com_preco & base["AREA_ATUACAO"].isin(areas_com_regua)
+    base["_exc"] = base["excedente_reais"].where(sinal, 0.0)
+    base["_exc_itens"] = base["excedente_itens"].where(sinal, 0.0)
+
+    linhas = []
+    for (cd, ds), g in base.groupby(["CD_PROCEDIMENTO", "DS_PROCEDIMENTO"],
+                                    sort=False):
+        acima = g[g["_exc"] > 0]
+        exc = float(g["_exc"].sum())
+        custo = float(g["_custo"].sum())
+        tem_regua = bool(g["AREA_ATUACAO"].isin(areas_com_regua).any())
+        linhas.append({
+            "codigo": str(cd),
+            "descricao": str(ds).strip(),
+            "solicitantes": int(g["ID_COOPERADO"].nunique()),
+            "solicitacoes": round(float(g["_solicitacoes"].sum()), 2),
+            "solicitacoes_fmt": fmt(g["_solicitacoes"].sum(), 0),
+            # ÁREAS COM EXCEDENTE, não áreas em que o procedimento aparece:
+            # a leitura da coluna é "isto é padrão de mais de um grupo", e
+            # presença sozinha não diz isso — quase tudo aparece em todas.
+            "n_areas": int(acima["AREA_ATUACAO"].nunique()),
+            "areas_fmt": (fmt(acima["AREA_ATUACAO"].nunique(), 0) if tem_regua
+                          else config.SEM_MEDIDA),
+            "custo": round(custo, 2),
+            "custo_fmt": fmt_reais(custo) if custo else config.SEM_MEDIDA,
+            "n_acima": int(acima["ID_COOPERADO"].nunique()),
+            "n_acima_fmt": (fmt(acima["ID_COOPERADO"].nunique(), 0) if tem_regua
+                            else config.SEM_MEDIDA),
+            "excedente_reais": round(exc, 2),
+            "excedente_fmt": fmt_reais(exc) if tem_regua else config.SEM_MEDIDA,
+            "excedente_itens_fmt": (fmt(g["_exc_itens"].sum(), 0) if tem_regua
+                                    else config.SEM_MEDIDA),
+            # a fração é o que torna a linha comparável entre procedimentos de
+            # portes diferentes: R$ 460 mil sobre um custo de R$ 894 mil é outra
+            # conversa que os mesmos R$ 460 mil sobre R$ 12 mi
+            "fracao": (round(exc / custo, 4) if custo and tem_regua else None),
+            "fracao_fmt": (fmt_pct(exc / custo) if custo and tem_regua
+                           else config.SEM_MEDIDA),
+        })
+    linhas.sort(key=lambda l: -l["excedente_reais"])
+
+    # O RESUMO é montado aqui, e não na tela: contar quantas linhas cruzam um
+    # limiar é cálculo, e cálculo não vive no JavaScript (CLAUDE.md).
+    com_exc = [l for l in linhas if l["excedente_reais"] > 0]
+    multi = [l for l in com_exc if l["n_areas"] >= 2]
+    total_exc = float(sum(l["excedente_reais"] for l in linhas))
+    resumo = (f"{fmt(len(linhas), 0)} procedimentos solicitados no período. "
+              f"{fmt(len(com_exc), 0)} têm custo acima da referência, "
+              f"{fmt(len(multi), 0)} deles em mais de uma área de atuação.")
+    return {
+        "linhas": linhas,
+        "total": len(linhas),
+        "n_com_excedente": len(com_exc),
+        "n_multiarea": len(multi),
+        "excedente_total_fmt": fmt_reais(total_exc) if total_exc else config.SEM_MEDIDA,
+        "resumo": resumo,
+    }
+
+
+def retrato_do_procedimento(posproc_rs: pd.DataFrame, norma_proc: pd.DataFrame,
+                            codigo: str, areas_com_regua: set[str],
+                            criterio: str, referencia: str,
+                            n_minimo: int) -> dict:
+    """UM procedimento, visto da especialidade inteira.
+
+    A tela que faltava. Até aqui o procedimento só existia DENTRO de uma área:
+    a gaveta da tela de Área é sempre "este procedimento na Ginecologia", e
+    quem quisesse o procedimento inteiro somava as áreas de cabeça.
+
+    ── três blocos, três perguntas ─────────────────────────────────────────
+    LEITURA        quanto se pede, quanto custa, quanto está acima. O mesmo
+                   desenho da Leitura da área, com a unidade trocada.
+    POR ÁREA       as réguas lado a lado. A seção que só esta tela dá.
+    QUEM PEDE      os cooperados acima do critério, cada um medido contra a
+                   régua da PRÓPRIA área, com a área declarada na linha.
+
+    ── as réguas lado a lado NÃO são um ranking entre áreas ─────────────────
+    Pôr a mediana da Ginecologia ao lado da mediana de GO parece violar o peer
+    group, e é o oposto: o que a tabela publica é que a RÉGUA é outra, e que um
+    número que sinaliza num grupo pode ser rotina no outro. Nenhuma linha desta
+    tabela mede um cooperado contra a referência alheia, e é justamente por isso
+    que ela precisa existir — sem ela, quem lê o excedente somado supõe uma
+    régua única onde há várias. A nota da seção diz isso na tela.
+
+    ── o dinheiro SOMA, e por quê ──────────────────────────────────────────
+    Cada excedente já foi medido contra a referência da área do próprio
+    cooperado. Somar entre áreas junta dinheiro já comparado, nunca réguas. É a
+    mesma soma que o Pareto de procedimentos transversais do Panorama publica.
+    """
+    vazio = {"existe": False, "codigo": codigo}
+    if posproc_rs is None or not len(posproc_rs):
+        return vazio
+
+    todo = posproc_rs[posproc_rs["CD_PROCEDIMENTO"] == codigo]
+    base = todo[todo["avaliavel"].astype(bool)].copy()
+    if base.empty:
+        return vazio
+
+    descricao = str(base["DS_PROCEDIMENTO"].iloc[0]).strip()
+    preco = base["preco_mediano"].dropna()
+    preco_val = float(preco.iloc[0]) if len(preco) else None
+    n_exec = base["n_execucoes"].dropna()
+    n_exec_val = int(n_exec.iloc[0]) if len(n_exec) else None
+
+    base["_solicitacoes"] = base["taxa"] * base["consultas_totais"]
+    base["_custo"] = base["_solicitacoes"] * base["preco_mediano"].fillna(0.0)
+    # o mesmo filtro que produz todo R$ excedente do app (Lei 1)
+    sinal = (base["sinalizado"].astype(bool) & base["preco_mediano"].notna()
+             & base["AREA_ATUACAO"].isin(areas_com_regua))
+    base["_exc"] = base["excedente_reais"].where(sinal, 0.0)
+    base["_exc_itens"] = base["excedente_itens"].where(sinal, 0.0)
+
+    solicitacoes = float(base["_solicitacoes"].sum())
+    custo = float(base["_custo"].sum())
+    exc = float(base["_exc"].sum())
+    exc_itens = float(base["_exc_itens"].sum())
+    acima = base[base["_exc"] > 0]
+    tem_regua = bool(base["AREA_ATUACAO"].isin(areas_com_regua).any())
+    com_preco = preco_val is not None
+
+    # ── LEITURA ──────────────────────────────────────────────────────────────
+    grupos = [
+        {"rotulo": "Volume no período", "linhas": [
+            {"rotulo": "solicitações", "valor_fmt": fmt(solicitacoes, 0),
+             "apoio": None,
+             "titulo_longo": ("Quantidade solicitada deste procedimento no "
+                              "período, somando as áreas de atuação.")},
+            {"rotulo": "solicitantes", "valor_fmt": fmt(base["ID_COOPERADO"].nunique(), 0),
+             "apoio": None,
+             "titulo_longo": ("Cooperados que pediram este procedimento e têm "
+                              "volume de consultas para entrar na comparação.")},
+        ]},
+        {"rotulo": "Preço de referência", "linhas": [
+            {"rotulo": "valor unitário",
+             "valor_fmt": (fmt_reais_unitario(preco_val) if com_preco
+                           else config.SEM_MEDIDA),
+             "apoio": (f"mediana de {fmt(n_exec_val, 0)} execuções"
+                       if com_preco and n_exec_val else None),
+             "titulo_longo": ("Mediana do valor unitário pago nas contas do "
+                              "período. Vem do lado executante, e por isso não "
+                              "existe para procedimento que foi pedido aqui e "
+                              "pago fora deste recorte.")},
+            {"rotulo": "custo total",
+             "valor_fmt": fmt_reais(custo) if custo else config.SEM_MEDIDA,
+             "apoio": None,
+             "titulo_longo": ("Valor de tudo que foi solicitado deste "
+                              "procedimento no período.")},
+        ]},
+        {"rotulo": "Alcance do excesso", "linhas": [
+            {"rotulo": "áreas com excedente",
+             "valor_fmt": (fmt(acima["AREA_ATUACAO"].nunique(), 0) if tem_regua
+                           else config.SEM_MEDIDA),
+             "apoio": None,
+             "titulo_longo": ("Em quantas áreas de atuação este procedimento "
+                              "tem custo acima da referência. Excedente em mais "
+                              "de uma área é conversa de protocolo, e não "
+                              "conversa individual.")},
+            {"rotulo": "acima do critério",
+             "valor_fmt": (fmt(acima["ID_COOPERADO"].nunique(), 0) if tem_regua
+                           else config.SEM_MEDIDA),
+             "apoio": None,
+             "titulo_longo": ("Cooperados que passaram o critério de revisão da "
+                              "própria área neste procedimento.")},
+        ]},
+    ]
+
+    frase = (f"{fmt(base['ID_COOPERADO'].nunique(), 0)} cooperados pediram este "
+             f"procedimento {fmt(solicitacoes, 0)} vezes no período.")
+    notas = [("A referência é a de cada área de atuação, e nenhuma linha desta "
+              "tela mede um cooperado contra a régua de outro grupo.")]
+    if not com_preco:
+        notas.append("Sem preço apurado nas contas do período, o custo e a "
+                     "variação excedente não são calculáveis.")
+
+    leitura = {
+        "titulo": "Leitura do procedimento",
+        "frase": frase,
+        "grupos": grupos,
+        "destaque": {
+            "valor_fmt": fmt_reais(exc) if tem_regua and exc else config.SEM_MEDIDA,
+            "apoio": ((f"de variação excedente, {fmt_pct(exc / custo)} do custo "
+                       f"deste procedimento") if tem_regua and exc and custo
+                      else "de variação excedente"),
+        },
+        "notas": notas,
+    }
+
+    # ── POR ÁREA: as réguas lado a lado ─────────────────────────────────────
+    npc = (norma_proc[norma_proc["CD_PROCEDIMENTO"] == codigo]
+           if norma_proc is not None and len(norma_proc) else None)
+    por_area = []
+    for area, g in base.groupby("AREA_ATUACAO", sort=False):
+        n_linha = None
+        if npc is not None and len(npc):
+            achou = npc[npc["AREA_ATUACAO"] == area]
+            n_linha = achou.iloc[0] if len(achou) else None
+        regua = area in areas_com_regua and n_linha is not None
+        apresentavel = bool(regua and n_linha.get("apresentavel"))
+        g_acima = g[g["_exc"] > 0]
+        c_area = float(g["_custo"].sum())
+        e_area = float(g["_exc"].sum())
+        por_area.append({
+            "area": apr.rotulo_exibicao(str(area)),
+            "solicitantes": int(g["ID_COOPERADO"].nunique()),
+            "solicitacoes_fmt": fmt(g["_solicitacoes"].sum(), 0),
+            "prevalencia_fmt": (fmt_pct(n_linha["prevalencia"]) if apresentavel
+                                else config.SEM_MEDIDA),
+            "referencia_fmt": (fmt_frequencia(n_linha[referencia])
+                               if apresentavel and referencia in n_linha
+                               else config.SEM_MEDIDA),
+            "criterio_fmt": (fmt_frequencia(n_linha[criterio])
+                             if apresentavel and criterio in n_linha
+                             else config.SEM_MEDIDA),
+            "n_acima_fmt": (fmt(g_acima["ID_COOPERADO"].nunique(), 0) if apresentavel
+                            else config.SEM_MEDIDA),
+            "custo_fmt": fmt_reais(c_area) if c_area else config.SEM_MEDIDA,
+            "excedente_reais": round(e_area, 2),
+            "excedente_fmt": fmt_reais(e_area) if apresentavel else config.SEM_MEDIDA,
+            "motivo": (None if apresentavel else
+                       ("área sem referência nesta janela" if not regua else
+                        f"menos de {fmt(n_minimo, 0)} solicitantes para "
+                        "referência conclusiva")),
+        })
+    por_area.sort(key=lambda l: -l["excedente_reais"])
+
+    areas_bloco = {
+        "titulo": "Onde ele é pedido, por área de atuação",
+        # a nota é o que impede a leitura errada da seção, e por isso é dela
+        "nota": ("Cada área tem a própria referência, e as réguas não se "
+                 "comparam entre si: a mesma frequência pode ser rotina em um "
+                 "grupo e sinal em outro."),
+        "linhas": por_area,
+    }
+
+    # ── QUEM PEDE: os pares acima do critério, cada um contra a própria régua ─
+    linhas_coop = []
+    for _, l in acima.sort_values("_exc", ascending=False).iterrows():
+        razao = l.get("razao_vs_alvo")
+        linhas_coop.append({
+            "id": str(l["ID_COOPERADO"]),
+            "area": apr.rotulo_exibicao(str(l["AREA_ATUACAO"])),
+            "taxa_fmt": fmt_frequencia(l["taxa"]),
+            "referencia_fmt": fmt_frequencia(l.get(referencia)),
+            "razao_fmt": (f"{fmt(float(razao), 1)}×" if pd.notna(razao)
+                          else config.SEM_MEDIDA),
+            "consultas_fmt": fmt(l["consultas_totais"], 0),
+            "excedente_itens_fmt": fmt(l["_exc_itens"], 0),
+            "excedente_reais": round(float(l["_exc"]), 2),
+            "excedente_fmt": fmt_reais(float(l["_exc"])),
+        })
+
+    quem_bloco = {
+        "titulo": "Quem pede acima da referência",
+        "nota": ("Cada cooperado é medido contra a referência da própria área "
+                 "de atuação, e a coluna da área declara qual foi."),
+        "linhas": linhas_coop,
+        "vazio": ("Nenhum cooperado passou o critério de revisão neste "
+                  "procedimento."),
+    }
+
+    return {
+        "existe": True,
+        "codigo": codigo,
+        "descricao": descricao,
+        "leitura": leitura,
+        "areas": areas_bloco,
+        "solicitantes": quem_bloco,
+    }

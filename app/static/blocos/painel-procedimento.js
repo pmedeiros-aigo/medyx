@@ -217,10 +217,16 @@ function montarEvolucaoDoExame(destino, d) {
     if (l.meses) h.title = l.meses;
     grade.appendChild(h);
   }
-  const linha = (rot, valores) => {
+  /* `montarCelula` é uma FUNÇÃO de índice, não um array: a linha da consistência
+     monta um quadrado, não um texto, e é a mesma assinatura que serve às duas.
+     Indexar aqui (`valores[i]`) esvaziava a tabela inteira — função não tem
+     índice, e todo `?? ''` caía na string vazia. */
+  const linha = (rot, montarCelula) => {
     grade.appendChild(el('span', 'evo-tab-k', rot));
     for (let i = 0; i < linhas.length; i += 1) {
-      grade.appendChild(el('span', 'evo-tab-v', valores[i] ?? ''));
+      const cel = el('span', 'evo-tab-v');
+      cel.appendChild(montarCelula(i));
+      grade.appendChild(cel);
     }
   };
   const texto = (valores) => (i) => el('span', null, valores[i] ?? '');

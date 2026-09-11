@@ -542,13 +542,6 @@ MAX_NOMES_PAINEL = 10              # PROVISÓRIO
 # progressivo). Nenhum par é escondido, só adiado.
 # ---------------------------------------------------------------------------
 N_OPORTUNIDADES_VISIVEIS = 5       # PROVISÓRIO
-# Quantos pares o bloco CARREGA. A cauda inteira não viaja: em Ginecologia são
-# 228 pares qualificados, e uma lista de 228 num cartão entre a Leitura da área
-# e as abas deixaria de ser fila de trabalho para virar uma terceira tabela,
-# fora do lugar em que as tabelas moram. Vinte é o que se revisa numa sessão.
-# O total continua declarado no cabeçalho do bloco ("5 de 228"), e a lista
-# exaustiva é a aba Cooperados, que existe exatamente para isso.
-N_OPORTUNIDADES_MAX = 20           # PROVISÓRIO
 
 # LIMIAR_CONCENTRACAO_PACIENTE — participação de UM paciente nas solicitações de
 # um exame a partir da qual ele é listado nominalmente no painel.

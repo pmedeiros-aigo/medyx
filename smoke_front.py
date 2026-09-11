@@ -152,7 +152,7 @@ def main() -> int:
         pg.wait_for_timeout(250)
         checar("a lateral recolhe", pg.evaluate(largura) < aberta / 2, True)
         checar("e os destinos continuam todos lá",
-               pg.locator(".shell-side .navitem").count(), 4)
+               pg.locator(".shell-side .navitem").count(), 5)
         checar("com o rótulo no hover, já que o ícone fica sozinho",
                pg.locator(".shell-side .navitem").first.get_attribute("title"),
                "Panorama")
@@ -374,6 +374,67 @@ def main() -> int:
         checar("a Nota Metodológica existe e se declara",
                pg.locator("h2").first.inner_text(), "Nota metodológica")
 
+        print("\n8a. O ÍNDICE DE PROCEDIMENTOS TEM NÚMERO, E POR QUÊ")
+        # A diferença para o índice de cooperados é o assunto desta seção. Lá a
+        # lista atravessa peer groups e por isso NÃO tem coluna ordenável;
+        # aqui a soma junta dinheiro já medido contra a régua de cada área, e a
+        # tela seria inútil sem número.
+        abrir(pg, "/procedimentos")
+        checar("o índice abre com todos os procedimentos",
+               pg.locator("tbody tr").count(), 883)
+        checar("e a ordem de entrada é a variação excedente",
+               pg.locator("tbody tr").first.locator("td").first.inner_text(),
+               "Procedimento Diagnóstico Por Captura Híbrida")
+        # A COLUNA QUE SÓ ESTA TELA DÁ: excedente em mais de uma área é conversa
+        # de protocolo, e não conversa individual.
+        checar("com a coluna de áreas com excedente",
+               pg.locator("th", has_text="Áreas").count(), 1)
+        checar("as colunas são ordenáveis, ao contrário do índice de cooperados",
+               pg.locator("th.ord").count() > 0, True)
+        # O SELETOR DE ÁREA SAI: a lista é da especialidade inteira, somada
+        # entre as áreas. Controle que não governa nada não é inofensivo.
+        checar("e o seletor de área sai, porque não governa a lista",
+               pg.locator("[data-trig='area']").count(), 0)
+        # A FAIXA DE CRITÉRIOS FICA: todo número desta tabela é número comparado,
+        # e a faixa é o carimbo de sob qual régua ele foi calculado.
+        checar("mas a faixa de critérios fica, porque há número comparado",
+               pg.locator(".critbar").count(), 1)
+        campo = pg.locator(".search input")
+        campo.fill("captura")
+        pg.wait_for_timeout(150)
+        checar("a busca recorta a lista", pg.locator("tbody tr").count(), 1)
+        campo.fill("")
+        pg.wait_for_timeout(150)
+        # E DE LÁ SE ABRE UM: a lista é a porta, como /cooperados é a porta do
+        # dossiê. O link tem de levar à tela do procedimento, e não à gaveta de
+        # uma área.
+        pg.locator("tbody tr td a").first.click()
+        pg.wait_for_selector(".res-grupo", timeout=60_000)
+        checar("a lista abre o procedimento",
+               caminho_de(pg.url).split("?")[0], "/procedimento/40601293")
+        checar("com a leitura do procedimento",
+               pg.locator("h2").first.inner_text(),
+               "Procedimento Diagnóstico Por Captura Híbrida")
+        # A SEÇÃO QUE SÓ ESTA TELA DÁ: as réguas lado a lado. Ela é o que impede
+        # que o excedente somado seja lido como se houvesse uma régua única.
+        checar("as réguas das áreas aparecem lado a lado",
+               pg.locator(".tbl-hd .t", has_text="por área de atuação").count(), 1)
+        # ÁREA SEM RÉGUA CONTINUA NA TELA, com o motivo no lugar do número
+        checar("e a área sem referência não desaparece",
+               pg.locator(".tag-caveat").count() > 0, True)
+        checar("quem pede acima da referência traz a área de cada um",
+               pg.locator("th", has_text="Área de atuação").count(), 2)
+        # NENHUMA DAS DUAS TABELAS ORDENA: cabeçalho clicável sobre peer groups
+        # convida a ranqueá-los, e réguas não se comparam entre si.
+        checar("e nenhuma das duas tabelas convida a ranquear",
+               pg.locator("th.ord").count(), 0)
+        checar("o rastro é coleção › item",
+               pg.locator(".crumbs a", has_text="Procedimentos").count(), 1)
+        pg.goto(f"{BASE}/procedimento/00000000")
+        pg.wait_for_selector(".banner-err", timeout=30_000)
+        checar("procedimento desconhecido vira estado declarado",
+               pg.locator(".banner-err").count(), 1)
+
         print("\n8b. LINKS ANTIGOS CONTINUAM VALENDO")
         pg.goto(f"{BASE}/?area=ginecologia")
         pg.wait_for_selector("tbody tr", timeout=120_000)
@@ -422,10 +483,10 @@ def main() -> int:
                pg.locator(".critbar").count(), 0)
 
         print("\n11. NENHUM ERRO DE JAVASCRIPT EM TODA A SUITE")
-        # Dois ruídos que NÃO são defeito: o ícone da aba, que o navegador pede
-        # sozinho, e o 404 que o próprio passo 9 provoca de propósito. Qualquer
-        # outra linha de console vermelha é falha.
-        ignorar = ("favicon", "cooperado_inexistente")
+        # Três ruídos que NÃO são defeito: o ícone da aba, que o navegador pede
+        # sozinho, e os dois 404 que os passos 8a e 9 provocam de propósito para
+        # provar o estado declarado. Qualquer outra linha vermelha é falha.
+        ignorar = ("favicon", "cooperado_inexistente", "procedimento/00000000")
         reais = [e for e in erros if not any(t in e.lower() for t in ignorar)]
         checar("console limpo", reais or "nenhum", "nenhum")
 

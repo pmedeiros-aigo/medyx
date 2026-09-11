@@ -648,11 +648,12 @@ checar("oportunidades · ordenado pelo custo excedente, do maior ao menor",
        True)
 # a lista carrega um conjunto de trabalho, não a cauda inteira; o total continua
 # declarado no cabeçalho, e é ele que impede o bloco de parecer exaustivo
-checar("oportunidades · carga limitada, total declarado",
-       (len(_opo["linhas"]) <= config.N_OPORTUNIDADES_MAX,
-        _opo["n"] >= len(_opo["linhas"]),
+# A LISTA LEVA TODOS os casos qualificados: cortá-la deixava o cabeçalho
+# anunciando um total que a tela não conseguia mostrar.
+checar("oportunidades · a lista leva todos os casos, e o total é declarado",
+       (len(_opo["linhas"]) == _opo["n"],
         f"de {_opo['n']} casos qualificados" in _opo["resumo"]),
-       (True, True, True))
+       (True, True))
 checar("oportunidades · o corte visível é o do config",
        _opo["n_visiveis"], min(config.N_OPORTUNIDADES_VISIVEIS, _opo["n"]))
 # SÓ QUALIFICADOS: é o degrau que dá a cada linha a defesa pronta. Uma lista de

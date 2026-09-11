@@ -3238,3 +3238,9 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 .shell.curta .lat-btn .ico-abre{display:block}
 /* o gatilho é o primeiro da barra e a migalha vem depois, com respiro */
 .topbar .lat-btn{flex:none;margin-right:4px}
+/* A LISTA DE OPORTUNIDADES rola dentro do cartão. Ela leva TODOS os casos
+   qualificados (228 em Ginecologia), e sem teto de altura o cartão empurraria as
+   abas para fora da tela quando o leitor abrisse a lista inteira. Cortar o dado
+   para caber, que era a solução anterior, deixava o cabeçalho anunciando um
+   total que a tela não mostrava. */
+.tbl-oportunidades .tbl-scroll{max-height:520px;overflow-y:auto}

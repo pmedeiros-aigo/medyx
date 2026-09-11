@@ -101,6 +101,12 @@ function ajustarControlesDaTela() {
     return;
   }
   if (tela === 'cooperado') fora.push('esp', 'area');
+  /* Nas duas telas de procedimento o assunto é da ESPECIALIDADE, somado entre
+     as áreas: cada excedente já foi medido contra a régua da própria área, e é
+     isso que a soma publica. O seletor de área não governa nada aqui, e
+     mantê-lo faria o analista escolher uma área para ver a tela não mudar. Um
+     procedimento não pertence a uma área, ele atravessa todas. */
+  if (tela === 'procedimentos' || tela === 'procedimento') fora.push('area');
   for (const campo of fora) {
     document.querySelector(`[data-trig="${campo}"]`)?.closest('.fil')?.remove();
   }

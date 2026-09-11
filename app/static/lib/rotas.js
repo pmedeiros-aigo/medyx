@@ -9,6 +9,8 @@
  *     /area/{id}            Área de atuação
  *     /cooperados           Índice de cooperados (a porta para um caso)
  *     /cooperado/{id}       Dossiê do cooperado
+ *     /procedimentos        Índice de procedimentos (a porta para um SADT)
+ *     /procedimento/{cd}    O procedimento na especialidade inteira
  *     /metodologia          Nota metodológica
  *     /conta                Minha conta (identidade e segurança da sessão)
  *
@@ -33,6 +35,9 @@ export const TELAS = {
   cooperados: { rotulo: 'Cooperados', caminho: () => '/cooperados' },
   cooperado: { rotulo: 'Dossiê do Cooperado',
                caminho: (id) => `/cooperado/${encodeURIComponent(id)}` },
+  procedimentos: { rotulo: 'Procedimentos', caminho: () => '/procedimentos' },
+  procedimento: { rotulo: 'Procedimento',
+                  caminho: (cd) => `/procedimento/${encodeURIComponent(cd)}` },
   metodologia: { rotulo: 'Nota Metodológica', caminho: () => '/metodologia' },
   /* Não está na navegação lateral: a porta é o bloco de conta do rodapé. Entra
      aqui porque a migalha e `inicio.js` leem deste mapa. */
@@ -51,6 +56,8 @@ export function rotaAtual() {
   if (raiz === 'area') return { tela: 'area', area: alvo };
   if (raiz === 'cooperados') return { tela: 'cooperados' };
   if (raiz === 'cooperado') return { tela: 'cooperado', cooperado: alvo };
+  if (raiz === 'procedimentos') return { tela: 'procedimentos' };
+  if (raiz === 'procedimento') return { tela: 'procedimento', procedimento: alvo };
   if (raiz === 'metodologia') return { tela: 'metodologia' };
   if (raiz === 'conta') return { tela: 'conta' };
   return { tela: null };

@@ -455,7 +455,75 @@ segundo nível, procurada depois que uma linha chama atenção. Quatro blocos: [
 
 
 
-## 4. NOTA METODOLÓGICA [v0 — render do md]
+## 4. PROCEDIMENTOS (a quarta dimensão) [set/2026]
+
+A granulometria que faltava. As três telas anteriores olham QUEM: a especialidade,
+o peer group, a pessoa. Esta olha O QUE SE PEDE, e responde a pergunta que nenhuma
+das outras responde: **isto é hábito de alguns, ou é padrão da especialidade?**
+
+### Por que esta lista tem número, e a de cooperados não
+
+O índice de cooperados é uma porta sem número nenhum, por regra: ele atravessa os
+peer groups, e coluna ordenável ali convida a ler a lista como ranking, que é a
+comparação proibida.
+
+Com procedimento a soma é legítima, e é essa diferença que torna a tela possível: o
+excedente de cada par já foi medido contra a referência da ÁREA daquele cooperado.
+Somar entre áreas junta dinheiro já comparado, nunca réguas. É a mesma soma que o
+Pareto de procedimentos transversais do Panorama publica.
+
+### 4.1 `/procedimentos` · o índice
+
+Um procedimento por linha, somado entre as áreas com régua. Ordenável, busca por
+nome ou código, ordem de entrada por variação excedente.
+
+| Coluna | Motor |
+| --- | --- |
+| Procedimento (link) | `DS_PROCEDIMENTO` · `CD_PROCEDIMENTO` |
+| Áreas | áreas COM EXCEDENTE, não onde ele aparece: presença sozinha não diz nada |
+| Solicitantes · Custo total · Acima do critério | `posicao_proc_rs` |
+| Variação excedente · % do custo | `excedente_reais` filtrado pelos três portões |
+
+`blocos.indice_de_procedimentos` · `GET /api/procedimentos`.
+
+Procedimento sem preço apurado nas contas aparece com volume e solicitantes, e o
+custo sai como `SEM_MEDIDA`. São 254 dos 883 na janela de mai/25 a abr/26, e apenas
+0,3% das solicitações: códigos genéricos ("Procedimento não identificado", pacotes)
+e coisas pedidas por GO e pagas fora deste recorte (fonoaudiologia, TO, acupuntura).
+Zero afirmaria ausência de custo onde há ausência de preço.
+
+### 4.2 `/procedimento/{codigo}` · um procedimento
+
+Três blocos:
+
+1. **Leitura do procedimento** · volume, preço de referência (com o n de execuções
+   que sustenta a mediana), alcance do excesso. Mesmo desenho da Leitura da área
+   (`blocos/leitura-area.js`), com a unidade trocada.
+2. **Onde ele é pedido, por área de atuação** · AS RÉGUAS LADO A LADO, a seção que
+   só esta tela dá: prevalência, referência e critério de CADA área, com quantos
+   passaram o critério e quanto isso vale. Não é ranking entre áreas, e a nota da
+   seção diz isso na tela: a mesma frequência pode ser rotina em um grupo e sinal em
+   outro. Sem ela, quem lê o excedente somado supõe uma régua única onde há várias.
+3. **Quem pede acima da referência** · os pares acima do critério, cada um medido
+   contra a régua da PRÓPRIA área, com a área declarada na linha e link ao dossiê.
+
+`blocos.retrato_do_procedimento` · `GET /api/procedimento/{cd}`.
+
+Nenhuma das duas tabelas ordena, e é decisão: a de áreas porque cabeçalho clicável
+sobre peer groups convida a ranqueá-los; a de cooperados porque a ordem dela É o
+achado.
+
+### O seletor de área sai das duas telas
+
+Um procedimento não pertence a uma área, ele atravessa todas. Controle que não
+governa nada promete um papel que não cumpre. A faixa de critérios FICA: todo número
+das duas telas é número comparado, e a faixa é o carimbo de sob qual régua.
+
+### Pendente
+
+Preço com dispersão (IQR do valor unitário) e a série trimestral do procedimento.
+
+## 5. NOTA METODOLÓGICA [v0 — render do md]
 
 METODOLOGIA renderizada + glossário do léxico + as defesas escritas: mediana e
 robustez, percentis e não p-valor, critério ≠ referência, critério degradado por n,

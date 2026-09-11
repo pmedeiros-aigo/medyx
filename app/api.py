@@ -1037,6 +1037,63 @@ def meta(p: ParametrosDep) -> dict[str, Any]:
 # /api/area/{area_id} — a tela inteira, bloco a bloco
 # ─────────────────────────────────────────────────────────────────────────────
 
+@app.get("/api/procedimentos", tags=["tela procedimentos"])
+def procedimentos_indice(p: ParametrosDep) -> dict[str, Any]:
+    """O índice de procedimentos: um por linha, somado entre as áreas.
+
+    É a porta da quarta dimensão do app — Panorama (especialidade), Área
+    (grupo de pares), Cooperado (pessoa), Procedimento (o que se pede).
+
+    ── uma chamada só, e nenhuma cascata ───────────────────────────────────
+    O índice não precisa dos degraus de qualificação: ele lista o que se pede e
+    quanto disso está acima da referência, que é o filtro dos três portões e
+    sai do próprio motor de execução. Uma passada por `posicao_proc_rs` cobre
+    as oito áreas, contra uma cascata por área com o bootstrap de cada uma.
+
+    As áreas COM RÉGUA vêm de `_areas_resolvidas`, o mesmo catálogo de
+    `/api/meta`: procedimento que só existe em área sem critério aparece com
+    volume e custo, e o excedente sai como ausência declarada.
+    """
+    r = _rodar(p)
+    com_regua = {a["nome"] for a in _areas_resolvidas(r, p.criterio)
+                 if a["comparavel"]}
+    re_ = dados.rodar_pipeline_execucao(
+        p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
+        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps)
+    bloco = blocos.indice_de_procedimentos(re_["posicao_proc_rs"], com_regua)
+    bloco["proveniencia"] = _proveniencia(p, r)
+    return bloco
+
+
+@app.get("/api/procedimento/{cd}", tags=["tela procedimentos"])
+def procedimento_retrato(
+        cd: Annotated[str, PathParam(description="código do procedimento")],
+        p: ParametrosDep) -> dict[str, Any]:
+    """UM procedimento, visto da especialidade inteira.
+
+    O irmão do dossiê com a unidade trocada: lá uma PESSOA contra a régua da
+    área dela, aqui um PROCEDIMENTO contra as réguas de todas as áreas em que
+    ele é pedido. A pergunta que só esta tela responde: isto é hábito de
+    alguns, ou é padrão da especialidade?
+
+    Mesmos motores do índice, e nenhuma cascata: o que a tela mostra sai de
+    `posicao_proc_rs` (o achado) e de `norma_proc` (as réguas).
+    """
+    r = _rodar(p)
+    com_regua = {a["nome"] for a in _areas_resolvidas(r, p.criterio)
+                 if a["comparavel"]}
+    re_ = dados.rodar_pipeline_execucao(
+        p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
+        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps)
+    bloco = blocos.retrato_do_procedimento(
+        re_["posicao_proc_rs"], re_["norma_proc"], cd, com_regua,
+        p.criterio, p.referencia, p.n_minimo)
+    if not bloco.get("existe"):
+        raise HTTPException(404, f"procedimento sem solicitações no período: {cd}")
+    bloco["proveniencia"] = _proveniencia(p, r)
+    return bloco
+
+
 @app.get("/api/cooperados", tags=["busca"])
 def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
     """O elenco de cooperados, para a busca da barra superior.
@@ -2138,6 +2195,23 @@ def tela_cooperados():
     """Índice de cooperados: a porta para um caso quando não se sabe a área.
 
     Plural porque é a COLEÇÃO. `/cooperado/{id}`, no singular, é o dossiê de um.
+    """
+    return FileResponse(PAGINA)
+
+
+@app.get("/procedimento/{cd}", include_in_schema=False)
+def tela_procedimento(cd: str):
+    """O procedimento na especialidade inteira: as réguas e quem pede acima."""
+    return FileResponse(PAGINA)
+
+
+@app.get("/procedimentos", include_in_schema=False)
+def tela_procedimentos():
+    """Índice de procedimentos: a porta para um SADT, somado entre as áreas.
+
+    Plural porque é a COLEÇÃO, como `/cooperados`. Diferente dela em uma coisa:
+    esta lista TEM número, porque somar excedente entre áreas junta dinheiro já
+    comparado contra a régua de cada uma, e não compara réguas.
     """
     return FileResponse(PAGINA)
 

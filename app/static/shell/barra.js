@@ -22,7 +22,7 @@ import { TELAS, comRegua, rotaAtual } from '../lib/rotas.js';
  * @param {string} area   id da área em cena, quando houver
  */
 export function montarBarraSuperior(meta, area) {
-  const { tela, cooperado } = rotaAtual();
+  const { tela, cooperado, procedimento } = rotaAtual();
   const escolhida = meta.areas?.find((a) => a.id === area);
 
   const caixa = document.querySelector('.crumbs');
@@ -59,6 +59,15 @@ export function montarBarraSuperior(meta, area) {
       partes.push({ txt: TELAS.cooperados.rotulo,
                     href: comRegua(TELAS.cooperados.caminho()) });
       partes.push({ txt: cooperado ?? '' });
+    } else if (tela === 'procedimentos') {
+      partes.push({ txt: TELAS.procedimentos.rotulo });
+    } else if (tela === 'procedimento') {
+      /* A MESMA hierarquia de contenção do dossiê: coleção › item. A área não
+         entra como degrau aqui pela razão inversa da de lá — um procedimento
+         não pertence a uma área, ele atravessa todas. */
+      partes.push({ txt: TELAS.procedimentos.rotulo,
+                    href: comRegua(TELAS.procedimentos.caminho()) });
+      partes.push({ txt: procedimento ?? '' });
     }
 
     const cheias = partes.filter((p) => p.txt);
@@ -195,7 +204,9 @@ export function montarNavegacao(area) {
     const alvo = a.dataset.tela;
     a.classList.toggle('on', alvo === tela
       // o dossiê é o ITEM da coleção Cooperados, e é ela que fica acesa
-      || (tela === 'cooperado' && alvo === 'cooperados'));
+      || (tela === 'cooperado' && alvo === 'cooperados')
+      // mesma relação: o procedimento é o ITEM da coleção Procedimentos
+      || (tela === 'procedimento' && alvo === 'procedimentos'));
     const caminho = alvo === 'area' && area
       ? TELAS.area.caminho(area)
       : TELAS[alvo]?.caminho();
