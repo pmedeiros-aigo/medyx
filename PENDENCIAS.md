@@ -72,22 +72,19 @@ e inventar a continuação seria pior que o corte. A tela mostra o que veio e re
 **Destrava com:** conferir na extração se o campo de descrição do procedimento está
 truncado na consulta ou já vem assim do sistema de origem.
 
-### 5. A fila de observação da classificação não tem tela própria
+### 5. A fragilidade do rótulo de área não tem superfície
 
-**O que falta.** A classificação v2.0 traz por dado quem tem rótulo de área frágil
+**O que falta.** A classificação v2.0 mede por dado quando o rótulo de área é frágil
 (`no_limiar`: a frente que define a área está entre 12% e 18% das consultas;
-`perfil_instavel_no_ano`: a mistura mudou ≥ 20 pontos entre os semestres) — 25 cooperados
-em set/2026. Eles aparecem com a etiqueta "classificação em observação" na linha, contam na
-linha de justificativa da área e saem no degrau de artefato da cascata. O que não existe é
-uma superfície que liste a fila inteira, com o motivo de cada um, para quem governa a
-classificação.
-
-**Por que.** A v1 guardava a fila em listas no `config.py` e nem isso era visível; a v2
-resolveu a visibilidade caso a caso, não a governança.
+`perfil_instavel_no_ano`: a mistura mudou ≥ 20 pontos entre os semestres) — 25 cooperados em
+set/2026. A etiqueta "classificação em observação" que expunha isso na linha e no dossiê saiu
+em set/2026 (decisão do usuário: não parecia profissional). O sinal continua na dim; o app não
+o mostra em lugar nenhum e o degrau "Com classificação de área resolvida" da cascata não retira
+ninguém.
 
 **Destrava com:** tela de governança da classificação (versão, vigência, quem forma a
-referência e por quê, a fila de observação, o cadastro agregado pendente de confirmação).
-Não muda cálculo nenhum.
+referência e por quê, os rótulos frágeis, o cadastro agregado pendente de confirmação). Não
+muda cálculo nenhum.
 
 ### 6. Busca na barra superior
 

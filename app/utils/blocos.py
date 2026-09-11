@@ -65,10 +65,6 @@ MOTIVO_ALERTA_MASCULINO = "alerta_perfil_masculino"
 MOTIVO_CONFIANCA_BAIXA = "confianca_baixa"
 MOTIVO_CLASSIFICACAO_PENDENTE = "classificacao_pendente"
 MOTIVO_VOLUME = "volume_abaixo_do_minimo"
-# Observação (não é exclusão): o rótulo de área é frágil. A etiqueta na linha
-# declara isso; o cooperado forma e é medido normalmente.
-MOTIVO_PERTO_DO_CORTE = "area_perto_do_corte"
-MOTIVO_PERFIL_MUDOU = "perfil_mudou_no_periodo"
 
 _CATALOGO_MOTIVOS = {
     MOTIVO_EXECUCAO: {
@@ -100,20 +96,6 @@ _CATALOGO_MOTIVOS = {
         "detalhe": ("Sem área principal: volume insuficiente ou prática pouco "
                     "visível nas solicitações. Sem cooperados contra quem "
                     "comparar, fora de comparação."),
-    },
-    MOTIVO_PERTO_DO_CORTE: {
-        "rotulo": "área perto do corte",
-        "natureza": "observacao",
-        "detalhe": ("A frente que define a área responde por uma fatia das "
-                    "consultas perto do corte de classificação: o rótulo de "
-                    "área é frágil. Não altera número nenhum."),
-    },
-    MOTIVO_PERFIL_MUDOU: {
-        "rotulo": "perfil mudou no período",
-        "natureza": "observacao",
-        "detalhe": ("A composição do atendimento mudou de forma relevante entre "
-                    "os semestres do período; a área reflete o ano inteiro. "
-                    "Não altera número nenhum."),
     },
     MOTIVO_VOLUME: {
         "rotulo": "volume abaixo do mínimo para avaliação",
@@ -2096,24 +2078,12 @@ def direcao_da_serie(serie: list[dict] | None) -> dict | None:
 
 
 def _em_revisao(flags_coop) -> dict | None:
-    """O rótulo de área deste cooperado é frágil? Motivo do catálogo.
-
-    Dois sinais que a própria classificação v2 traz por dado: a frente que
-    define a área está perto do corte, ou a composição mudou muito entre os
-    semestres. Nenhum é achado sobre a prática; a etiqueta declara que a
-    CLASSIFICAÇÃO está em observação, não o número.
-    """
-    if flags_coop is None:
-        return None
-    if bool(flags_coop.get("no_limiar")):
-        codigo = MOTIVO_PERTO_DO_CORTE
-    elif bool(flags_coop.get("perfil_instavel_no_ano")):
-        codigo = MOTIVO_PERFIL_MUDOU
-    else:
-        return None
-    m = _CATALOGO_MOTIVOS[codigo]
-    return {"rotulo": "classificação em observação",
-            "motivo": m["rotulo"], "detalhe": m["detalhe"]}
+    """Etiqueta de classificação na linha. Vazia na v2 (set/2026, decisão do
+    usuário): a v1 marcava 3 cooperados com rótulo em revisão pelo médico; a
+    v2 mede a fragilidade do rótulo (`no_limiar`, `perfil_instavel_no_ano` na
+    dim), mas isso não vira etiqueta na tela. O campo fica no payload, sempre
+    None, para o front não mudar de contrato."""
+    return None
 
 
 def _consistencia_do_cooperado(serie, n_fatias: int) -> dict:

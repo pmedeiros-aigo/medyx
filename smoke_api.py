@@ -396,12 +396,12 @@ checar("triou (algum degrau abaixo de 30)", gin["cascata"]["triou"], True)
 checar("sem achado de variação generalizada", gin["cascata"]["achado"], None)
 checar("cada degrau declara sua natureza",
        all(c["natureza"] for c in chips), True)
-# v2: quem está em observação (rótulo de área perto do corte, ou perfil que
-# mudou no período) e chega ao degrau material sai no degrau de artefato
-checar("classificação em observação sai no degrau de artefato",
+# v2: ninguém está com classificação em revisão (a etiqueta saiu da tela em
+# set/2026); o degrau de artefato não retira ninguém
+checar("nenhuma classificação em revisão sai no degrau de artefato",
        [linha["id"] for linha in gin["cooperados"]["linhas"]
         if "material" in linha["grupos"] and "classificacao_firme" not in linha["grupos"]],
-       ["cooperado_14"])
+       [])
 
 print("\n3. TROCA DE CRITÉRIO P90 -> P75 (aceite 5)")
 _, gin75 = get(f"/api/area/{AREA_REF}", criterio="p75")

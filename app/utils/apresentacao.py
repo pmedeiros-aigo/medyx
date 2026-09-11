@@ -91,8 +91,7 @@ def carimbo_proveniencia(janela_ini: str, janela_fim: str, base: str,
 
 
 def linha_justificativa(area: str, n_comparaveis: int, base: str,
-                        gatilho_efetivo: str | None, alvo: str,
-                        n_em_revisao: int = 0) -> dict:
+                        gatilho_efetivo: str | None, alvo: str) -> dict:
     """'Contra quem, em que base, sob que régua' — em dois níveis.
 
     Uma linha de justificativa por PÁGINA, não uma por componente. E ela só
@@ -139,14 +138,6 @@ def linha_justificativa(area: str, n_comparaveis: int, base: str,
             {"rotulo": "Referência de adequação", "valor": alvo},
             {"rotulo": "Excluídos da construção da referência",
              "valor": f"pares de sub-perfil: {exclusoes}"},
-            # A fila de observação da classificação é contável na tela: rótulo
-            # de área perto do corte, ou perfil que mudou no período.
-            {"rotulo": "Classificação em observação",
-             "valor": ("nenhum cooperado desta área" if not n_em_revisao else
-                       f"{n_em_revisao} cooperado"
-                       f"{'s' if n_em_revisao != 1 else ''} com rótulo de área "
-                       "frágil (perto do corte ou perfil que mudou no período); "
-                       "a classificação está em observação, o número não")},
         ],
     }
 

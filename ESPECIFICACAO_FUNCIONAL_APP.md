@@ -26,9 +26,7 @@ Valores: `config.py`. Regras de construção: `CLAUDE.md`.
 3. **Norma construída só com** `elegivel_norma=True`**; todos são MEDIDOS contra ela.**
   Quem não forma aparece com o **motivo**, e o motivo distingue exclusão definitiva
    (perfil de execução) de provisória (cadastro agregado — confirmação pendente;
-   confiança baixa; sem área). Rótulo de área frágil (perto do corte, ou perfil que
-   mudou no período) é **observação**, não exclusão: etiqueta na linha e degrau de
-   artefato na cascata.
+   confiança baixa; sem área).
 4. **Base eletiva por padrão** (`incluir_ps=False`); carimbo BASE_ELETIVA visível.
 5. **Critério degradado pelo n**: pleno → percentil padrão; intermediário → percentil
   inferior com o rótulo "critério ajustado ao tamanho do grupo"; abaixo do mínimo →

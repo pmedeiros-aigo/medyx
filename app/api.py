@@ -502,9 +502,7 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
     confundidores &= set(posicao["ID_COOPERADO"])
 
     # piso de confiança: bootstrap só nos pares que chegam ao degrau anterior
-    em_observacao = dados.classificacao_em_observacao()
-    parcial = cascata.qualificar(sinal, persist, len(fatias), confundidores, None,
-                                 em_observacao=em_observacao)
+    parcial = cascata.qualificar(sinal, persist, len(fatias), confundidores, None)
     pares_boot = (parcial[parcial["sem_fator_de_contexto"]]
                   [["ID_COOPERADO", "CD_PROCEDIMENTO", referencia]]
                   .rename(columns={referencia: "alvo_valor"}))
@@ -518,8 +516,7 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
             min_pacientes_proc=config.MIN_PACIENTES_BOOTSTRAP, area=area,
             incluir_ps=incluir_ps)
 
-    q = cascata.qualificar(sinal, persist, len(fatias), confundidores, conf,
-                           em_observacao=em_observacao)
+    q = cascata.qualificar(sinal, persist, len(fatias), confundidores, conf)
     linhas_funil = cascata.funil(q, n_medidos)
     escolha = cascata.escolher_default(linhas_funil)
 
@@ -1312,8 +1309,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
         "estado": estado,
         "justificativa": apr.linha_justificativa(
             rotulo_titulo, int(posicao["avaliavel"].sum()), r["base"],
-            gatilho, _nivel_fmt(p.referencia),
-            sum(1 for linha in linhas_coop if linha["em_revisao"])),
+            gatilho, _nivel_fmt(p.referencia)),
         "composicao": composicao,
         # o contexto fixo da área, em UMA linha sob o título. Era a faixa de
         # três números-herói até 2026-08-19: mesmo conteúdo, sem o tamanho.

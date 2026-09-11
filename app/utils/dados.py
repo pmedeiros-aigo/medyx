@@ -47,8 +47,6 @@ def carregar_classificacao() -> pd.DataFrame:
       execucao_principal       executar é a prática principal (US, citopatologia)
       badges (blocos._BADGES)  faz_cirurgia, faz_mastologia, tem_secundaria,
                                executa, carteira_jovem, carteira_climaterio
-      em_observacao            no_limiar ou perfil_instavel_no_ano: o rótulo
-                               de área é frágil (perto do corte, ou mudou no ano)
     """
     dim = pd.read_csv(config.CAMINHO_DIM_CLASSIFICACAO)
     texto = lambda col: dim[col].fillna("").astype(str)  # noqa: E731
@@ -78,17 +76,7 @@ def carregar_classificacao() -> pd.DataFrame:
     dim["executa"] = texto("area_execucao") != ""
     dim["carteira_jovem"] = dim["carteira"] == "jovem / reprodutiva"
     dim["carteira_climaterio"] = dim["carteira"] == "climatério"
-    dim["em_observacao"] = flag("no_limiar") | flag("perfil_instavel_no_ano")
     return dim
-
-
-@lru_cache(maxsize=1)
-def classificacao_em_observacao() -> frozenset:
-    """IDs cujo rótulo de área é frágil (perto do corte ou mudou no ano). É a
-    fila de observação da classificação: a cascata os retira do degrau
-    "classificação firme" e a linha da tabela recebe a etiqueta."""
-    d = carregar_classificacao()
-    return frozenset(d.loc[d["em_observacao"], "ID_COOPERADO"])
 
 
 @lru_cache(maxsize=1)

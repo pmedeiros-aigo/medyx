@@ -161,7 +161,7 @@ def main() -> int:
         checar("e volta ao expandir", pg.evaluate(largura), aberta)
 
         print("\n2. CHIPS DE RECORTE FILTRAM A TABELA E O GRÁFICO")
-        for chave, linhas in (("todos", 55), ("qualificados", 13),
+        for chave, linhas in (("todos", 55), ("qualificados", 14),
                               ("persistente", 27), ("comparaveis", 45)):
             chip(pg, chave).click()
             pg.wait_for_function(
@@ -174,7 +174,7 @@ def main() -> int:
         checar("gráfico recuado no recorte",
                pg.locator(".plot.com-recorte").count(), 1)
         checar("pontos em cena no gráfico = linhas da tabela",
-               pg.locator(".pt-no-recorte").count(), 13)
+               pg.locator(".pt-no-recorte").count(), 14)
 
         # TROCAR A ORDEM DO PARETO não pode levar a faixa de abas junto. Ela mora
         # DENTRO do cartão do gráfico em cena, e o Pareto se redesenha com

@@ -137,8 +137,8 @@ CLASSIFICACAO_HOMOLOGADA = False
 #   no_limiar           área principal entre 12% e 18% das consultas (perto do
 #                       corte de 15%): o rótulo é frágil
 #   perfil_instavel_no_ano  a mistura mudou >= 20 pontos entre os semestres
-# As duas últimas são a fila de observação da classificação: a v1 mantinha
-# listas de cooperados no config; a v2 traz o sinal por dado.
+# As duas últimas ficam na dim para análise; NÃO viram etiqueta nem degrau na
+# tela (decisão do usuário, set/2026).
 
 
 # ---------------------------------------------------------------------------
