@@ -762,7 +762,7 @@ checar("panorama · toda área de atuação vira cartão",
        sorted(a["id"] for a in _meta_areas["areas"]
               if a["id"] != blocos.slug(config.AREA_INDEFINIDA)))
 checar("panorama · e só as com régua trazem excedente",
-       sorted(_com_regua), ["ginecologia-geral", "obstetricia"])
+       sorted(_com_regua), ["endoscopia-ginecologica", "ginecologia-geral", "obstetricia"])
 # TODO CARTÃO DIZ AS MESMAS TRÊS COISAS, na mesma ordem: cartão que muda de
 # campos conforme a área obriga a reaprender o desenho a cada um, e some com a
 # comparação, que é a razão de eles estarem lado a lado.

@@ -179,15 +179,19 @@ N_MINIMO_PEER_GROUP = 10         # PROVISÓRIO
 
 
 # ---------------------------------------------------------------------------
-# N MÍNIMO POR PERCENTIL-GATILHO  —  DECISÃO (PROVISÓRIO)  —  defensabilidade
-# P90 de um grupo com n<20 é ~o 2º maior valor (sorteio, não régua); P75 com
-# n<10 idem. O gatilho degrada automaticamente pelo n de elegíveis que o
-# sustenta: p90 -> p75 (10 <= n < 20) -> nenhum (n < N_MINIMO_P75), com
-# rastreabilidade na coluna gatilho_usado. Sem régua defensável, não se
-# sinaliza ninguém — só posição descritiva.
+# N MÍNIMO POR PERCENTIL-GATILHO  —  DECISÃO (2026-09-11)  —  defensabilidade
+# O percentil pedido só é aplicado onde o n de formadores o sustenta; abaixo,
+# NÃO há critério (nunca outro percentil no lugar): posição descritiva, sem
+# sinalização. O mínimo é o mesmo que torna uma referência apresentável
+# (N_MINIMO_PEER_GROUP): com 10 a 19 formadores o P90 sinaliza só quem está
+# no topo do grupo — conservador — e a qualificação continua nos degraus
+# seguintes (persistência, contexto, intervalo de confiança). Era 20 (v1,
+# provisório): com as áreas finas da classificação v2 isso deixava Endoscopia
+# Ginecológica (18 formadores) sem régua, e com ela um dos cooperados mais
+# caros da rede fora da sinalização.
 # ---------------------------------------------------------------------------
-N_MINIMO_P90 = 20                # PROVISÓRIO, recalibrar com áreas reais
-N_MINIMO_P75 = 10                # PROVISÓRIO, coincide com N_MINIMO_PEER_GROUP por ora
+N_MINIMO_P90 = 10                # = N_MINIMO_PEER_GROUP
+N_MINIMO_P75 = 10                # = N_MINIMO_PEER_GROUP
 
 
 # ---------------------------------------------------------------------------
@@ -709,14 +713,14 @@ SMOKE_N_TOTAL_AREA = 55
 # Pares (cooperado, procedimento) que passam os TRÊS portões (avaliavel &
 # apresentavel & sinalizado — pipeline.filtrar_sinalizados). Positivos trazem a
 # contagem de procedimentos sinalizados; negativos exigem zero. cooperado_85 e
-# cooperado_79 e cooperado_70 são de Obstetrícia.
-# Re-baseline 2026-09-11 (P90/P90 por padrão, sem substituição de critério):
-# Endoscopia Ginecológica (18 formadores) fica sem régua, e cooperado_85/71
-# (52/73 procedimentos sob P75) deixam de ser sinalizados. Os positivos passam
-# a Obstetrícia (49 formadores, P90 pleno).
-SMOKE_AREA_SINALIZADOS = "Obstetrícia"   # área dos positivos e do topo por razão da tela
-SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_79": 49, "cooperado_70": 46}
-SMOKE_TOPO_RAZAO_AREA = ('cooperado_70', 'cooperado_64', 'cooperado_103')   # topo por razão DENTRO da área acima (tela de Área)
+# cooperado_85 e cooperado_71 são de Endoscopia Ginecológica.
+# Re-baseline 2026-09-11 (P90/P90 por padrão, sem substituição de critério,
+# N_MINIMO_P90 = 10): Endoscopia Ginecológica (18 formadores) tem régua P90;
+# cooperado_85/71 sinalizados em 22/51 procedimentos (eram 52/73 sob P75 com
+# referência mediana).
+SMOKE_AREA_SINALIZADOS = "Endoscopia Ginecológica"   # área dos positivos e do topo por razão da tela
+SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 22, "cooperado_71": 51}
+SMOKE_TOPO_RAZAO_AREA = ("cooperado_71", "cooperado_85", "cooperado_19")   # topo por razão DENTRO da área acima
 SMOKE_NAO_SINALIZADOS_ESPERADOS = ("cooperado_61", "cooperado_116")
 # Referência agregada da MESMA janela: avaliáveis e o topo por razão — ancoram a
 # migração no lado agregado, não só na norma. Os dois atravessaram a v2 intactos.

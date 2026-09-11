@@ -162,7 +162,7 @@ def main() -> int:
 
         print("\n2. CHIPS DE RECORTE FILTRAM A TABELA E O GRÁFICO")
         for chave, linhas in (("todos", 55), ("qualificados", 15),
-                              ("persistente", 25), ("comparaveis", 45)):
+                              ("persistente", 26), ("comparaveis", 45)):
             chip(pg, chave).click()
             pg.wait_for_function(
                 "n => document.querySelectorAll('.vista-painel tbody tr').length === n", arg=linhas,
@@ -346,7 +346,7 @@ def main() -> int:
         # NINGUÉM DESAPARECE: as áreas sem régua continuam na tela, recuadas e
         # com o motivo no lugar dos números que não existem.
         checar("as áreas sem referência continuam na tela",
-               pg.locator(".kpi-sem-regua").count(), 6)
+               pg.locator(".kpi-sem-regua").count(), 5)
         # O CARTÃO NÃO É LINK: ele descreve a área, e o gesto útil da tela é
         # comparar as áreas entre si, não entrar numa delas.
         checar("e o cartão de área não é link",
