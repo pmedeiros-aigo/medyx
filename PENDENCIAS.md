@@ -72,26 +72,22 @@ e inventar a continuação seria pior que o corte. A tela mostra o que veio e re
 **Destrava com:** conferir na extração se o campo de descrição do procedimento está
 truncado na consulta ou já vem assim do sistema de origem.
 
-### 5. A fila de triagem clínica não tem superfície
+### 5. A fila de observação da classificação não tem tela própria
 
-**O que falta.** `config.COOPERADOS_CLASSIFICACAO_EM_REVISAO` (3 cooperados) e
-`config.COOPERADOS_PERFIL_FORA_DA_ESPECIALIDADE` (1, acrescentado em 31/jul/2026) registram
-casos que voltaram para a triagem clínica. **Dois dos quatro não aparecem em lugar nenhum
-do app.**
+**O que falta.** A classificação v2.0 traz por dado quem tem rótulo de área frágil
+(`no_limiar`: a frente que define a área está entre 12% e 18% das consultas;
+`perfil_instavel_no_ano`: a mistura mudou ≥ 20 pontos entre os semestres) — 25 cooperados
+em set/2026. Eles aparecem com a etiqueta "classificação em observação" na linha, contam na
+linha de justificativa da área e saem no degrau de artefato da cascata. O que não existe é
+uma superfície que liste a fila inteira, com o motivo de cada um, para quem governa a
+classificação.
 
-**Por que.** O motivo registrado só é impresso pelo painel de excluídos, e lá só entra quem
-já está fora da construção da referência — decidido por `elegivel_norma` no CSV da
-classificação, não por estas listas. Hoje: `cooperado_110` aparece (`elegivel_norma=False`);
-`cooperado_61`, `cooperado_97` e `cooperado_112` não (todos `True`).
+**Por que.** A v1 guardava a fila em listas no `config.py` e nem isso era visível; a v2
+resolveu a visibilidade caso a caso, não a governança.
 
-A consequência é que a fila que "alimenta o loop de correção da classificação" só é legível
-abrindo o `config.py`.
-
-**Destrava com:** decidir ONDE ela aparece. Três lugares plausíveis, e a escolha muda o
-significado: (a) etiqueta na linha do cooperado na tabela, que a põe no campo de trabalho
-mas sugere ressalva sobre o número dele; (b) contagem no cabeçalho da página, ao lado de
-"Comparáveis"; (c) tela própria de governança da classificação, que é o que a fila é de
-fato. Nenhuma exige mudar o cálculo.
+**Destrava com:** tela de governança da classificação (versão, vigência, quem forma a
+referência e por quê, a fila de observação, o cadastro agregado pendente de confirmação).
+Não muda cálculo nenhum.
 
 ### 6. Busca na barra superior
 
@@ -111,6 +107,50 @@ coisa; buscar na especialidade inteira e navegar para a área do achado é outra
 segunda justifica ocupar a barra superior.
 
 ---
+
+## Classificação v2.0 (set/2026)
+
+### 6a. A régua ainda é por médico; a classificação já é por consulta
+
+**O que falta.** A v2 classifica cada consulta por tipo de atendimento e sabe que o médico é
+uma mistura, mas o app compara médico com médico dentro da `area_mvp` (etapa 1, MVP). O
+cooperado com 41% de rotina e 23% de cirurgia é medido só entre os 20 de Endoscopia
+Ginecológica. A comparação que a classificação sustenta é **por tipo de atendimento**: os
+atendimentos de dor pélvica dele contra os de dor pélvica de todos que fazem dor pélvica.
+
+**O que já existe.** `unimed_natal/marts/dim_consulta_familia.csv` (ID_CONSULTA → tipo de
+atendimento, o mesmo id do fato) e `dim_familia_procedimento.csv`.
+
+**Destrava com:** o motor agrupar pela família da consulta (volume do cooperado por família,
+piso por família recalibrado), e as telas de Área/Panorama passarem a falar de tipo de
+atendimento. Etapa 2 do plano de 2026-09-11.
+
+### 6b. Três tipos de atendimento carregados por um exame de hábito
+
+**O que falta.** Dor pélvica (43% das consultas definidas só por CA-125 + CEA), PTGI (71% só
+por vulvoscopia) e mama diagnóstica (84% só por Rx ampliação) são inflados por exames que
+qualquer cooperado pede. A correção proposta e ainda não aplicada: "dosagem não define, ato
+define" (o grupo TUSS 4.03 nunca define a consulta; só atos definem) e mover vulvoscopia para
+rotina e Rx ampliação para rastreio, com base na coesão medida (< 1 para os dois). Efeito
+esperado: PTGI deixa de ser área principal; Endoscopia Ginecológica perde ~4 cooperados.
+
+**Destrava com:** aplicar no `mapa_procedimentos.csv` e no notebook, reexecutar, regerar os
+marts com `preparar_marts.py` e re-baselinear os `SMOKE_*`.
+
+### 6c. Piso por área e validação clínica
+
+**O que falta.** `PISO_CONSULTAS_ANO` continua 100 para todas as áreas (calibrado na v1); o
+mapa de procedimentos teve revisão médica parcial (15 perguntas); RQE pendente. Os `SMOKE_*`
+foram re-baselineados na v2 (área de referência: Ginecologia Geral).
+
+### 6d. Página do cooperado: composição e comparação por tipo de atendimento
+
+**O que falta.** A dim v2 traz a mistura (`pratica_*`), a estabilidade no ano e a comparação
+por tipo de atendimento (`unimed_natal/dados/v2/comparacao_por_familia.csv`). Nada disso está
+na tela. Proposta de 2026-09-11: composição do atendimento (barra empilhada, com a da área ao
+lado), comparação por tipo de atendimento (solicitações por atendimento vs. quem faz o mesmo
+tipo), observações de prática com a referência ao lado, estabilidade no período. Mostrar
+resultados, nunca regras.
 
 ## Contrato visual
 

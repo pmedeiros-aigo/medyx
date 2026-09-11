@@ -252,11 +252,17 @@ Python: `/Users/pedromedeiros/.venvs/global-env/bin/python`
   - `base_requisicoes_gineco_obs_202504_202604.csv` — ~1.3M linhas, sep=`;`, latin1 (lado solicitante)
   - Amostra de **1 ano** fornecida para o MVP.
 - **Marts** (processados): `../unimed_natal/marts/` — caminhos no `config.py` (`CAMINHO_*`).
-  - `fato_solicitacoes.parquet` — já carrega `AREA_ATUACAO` (classificação v1.0) e `elegivel_norma`
-  - `contas.parquet`, `dim_classificacao.csv`, `dim_executantes_cooperado.parquet`
-  - Gerados pelo notebook `calculos_iniciais.ipynb` (ou `app/utils/preparar_fato.py`, migração fiel).
-- **Classificação**: `../unimed_natal/dados/classificacao_v1.csv` (+ LEIAME com a genealogia).
-  v1.0 NÃO homologada — banner de homologação obrigatório em toda página.
+  - `fato_solicitacoes.parquet` — já carrega `AREA_ATUACAO` (classificação v2.0, `area_mvp`) e `elegivel_norma`
+  - `contas.parquet`, `dim_classificacao_v2.csv`, `dim_executantes_cooperado.parquet`
+  - Gerados por `preparar_marts.py` (chama `app/utils/preparar_fato.py`) a partir dos CSVs brutos e da dim v2.
+- **Classificação v2.0**: `../unimed_natal/marts/dim_classificacao_v2.csv`, gerada pelo notebook
+  `../unimed_natal/classificacao_cooperados.ipynb` (Parte 15); genealogia e dicionário das colunas em
+  `../unimed_natal/marts/LEIAME_classificacao_v2.md`. Cada consulta recebe uma família de atendimento
+  pelo pacote de procedimentos; o médico é a mistura das suas consultas; `area_mvp` agrupa a área
+  principal em nomes de especialidade (config.ESPECIALIDADES). `dados.carregar_classificacao` deriva
+  as colunas que o app consome (especialidade, badges, motivos). NÃO homologada — banner obrigatório.
+  A v1 (rótulo do médico revisor, jul/2026) fica em `../unimed_natal/dados/classificacao_v1.csv`
+  e viaja na dim v2 como `especialidade_v1`, só para cruzamento.
 - **Eixo temporal** de toda análise = **data de solicitação** (`config.COLUNA_DATA_SOLICITACAO`
 = `DT_REQUISICAO`, confirmada). Ver `METODOLOGIA_ANALITICA.md` §5.1.
 

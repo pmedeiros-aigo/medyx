@@ -67,16 +67,17 @@ def main() -> int:
           .to_string(index=False, float_format=lambda v: f"{v:.4f}"))
     print("─" * 78)
 
-    gin = tabela[tabela["AREA_ATUACAO"] == "Ginecologia"].iloc[0]
+    gin = tabela[tabela["AREA_ATUACAO"] == config.SMOKE_AREA_REFERENCIA].iloc[0]
     n_norma = int(gin["n_na_norma"])
     mediana = float(gin["mediana"])
     n_total = int(gin["n_total_area"])
 
-    print("GINECOLOGIA — conferência contra o gabarito do notebook (config.SMOKE_*)")
+    print(f"{config.SMOKE_AREA_REFERENCIA.upper()} — conferência contra o gabarito "
+          "(config.SMOKE_*)")
     checks = [
-        ("elegíveis que formam a norma", n_norma, config.SMOKE_N_NA_NORMA_GINECOLOGIA),
-        ("mediana da área", round(mediana, 2), config.SMOKE_MEDIANA_GINECOLOGIA),
-        ("cooperados na área (medidos)", n_total, config.SMOKE_N_TOTAL_GINECOLOGIA),
+        ("elegíveis que formam a norma", n_norma, config.SMOKE_N_NA_NORMA_AREA),
+        ("mediana da área", round(mediana, 2), config.SMOKE_MEDIANA_AREA),
+        ("cooperados na área (medidos)", n_total, config.SMOKE_N_TOTAL_AREA),
     ]
 
     # lado agregado (notebook §9, bloco "ANO"): quantos são avaliáveis e o topo por razão
@@ -104,7 +105,8 @@ def main() -> int:
         print(f"  [{'ok' if ok else 'FALHA'}] {rotulo}: {obtido}"
               + ("" if ok else f"   (esperado {esperado})"))
 
-    print(f"\n  taxa mediana Ginecologia = {mediana:.6f} itens por consulta inferida")
+    print(f"\n  taxa mediana {config.SMOKE_AREA_REFERENCIA} = {mediana:.6f} "
+          "itens por consulta inferida")
     print(f"  IQR (p75−p25) = {gin['p75'] - gin['p25']:.4f}  |  "
           f"p75 = {gin['p75']:.4f}  |  p90 (gatilho) = {gin['p90']:.4f}")
     print(f"  pares sinalizados (3 portões): {len(conf):,} | "

@@ -22,8 +22,10 @@ Proveniência geral dos PROVISÓRIOS: calibrações do unimed_natal/calculos_ini
 # ---------------------------------------------------------------------------
 # CAMINHOS DOS DADOS  —  contrato de dados  —  fora do repo do app
 # Raw e marts vivem em ../unimed_natal (irmão de medyx/). O fato dos marts JÁ
-# carrega AREA_ATUACAO real (classificação v1.0) e elegivel_norma — gerado pelo
-# notebook calculos_iniciais.ipynb (célula do mart, 27/07/2026).
+# carrega AREA_ATUACAO (classificação v2.0, coluna area_mvp) e elegivel_norma —
+# gerado por preparar_marts.py a partir dos CSVs brutos e da dim v2.
+# A dim v2 é gerada pelo notebook unimed_natal/classificacao_cooperados.ipynb
+# (Parte 15) e documentada em unimed_natal/marts/LEIAME_classificacao_v2.md.
 # ---------------------------------------------------------------------------
 from pathlib import Path as _Path
 
@@ -33,68 +35,84 @@ CAMINHO_FATO_SOLICITACOES = DIR_MARTS / "fato_solicitacoes.parquet"
 CAMINHO_CONTAS = DIR_MARTS / "contas.parquet"
 CAMINHO_DIM_EXECUTANTES = DIR_MARTS / "dim_executantes_cooperado.parquet"
 CAMINHO_DIM_BENEFICIARIOS = DIR_MARTS / "dim_beneficiarios.parquet"
-CAMINHO_DIM_CLASSIFICACAO = DIR_MARTS / "dim_classificacao.csv"
-CAMINHO_CLASSIFICACAO_V1 = DIR_UNIMED / "dados" / "classificacao_v1.csv"
+CAMINHO_DIM_CLASSIFICACAO = DIR_MARTS / "dim_classificacao_v2.csv"
+DIR_RAW = DIR_UNIMED / "dados_iniciais"
+CAMINHO_RAW_REQUISICOES = DIR_RAW / "base_requisicoes_gineco_obs_202504_202604.csv"
+CAMINHO_RAW_CONTAS = DIR_RAW / "base_contas_gineco_obs_202504_202604.csv"
 
 
 # ---------------------------------------------------------------------------
-# PEER GROUP / GRANULARIDADE  —  classificação v1.0 (jul/2026)
-# O peer group de SINALIZAÇÃO é a ESPECIALIDADE da classificacao_v1.csv
-# (coluna AREA_ATUACAO do fato). GO e Ginecologia SEPARADOS — decisão jul/2026,
-# ratificada pelo Mov 4 (perfis por procedimento distintos: 27% dentro de
-# [0.8, 1.25] << critério de fusão 70%). Sub-área/sub-perfil é IDENTIDADE
+# PEER GROUP / GRANULARIDADE  —  classificação v2.0 (set/2026)
+# O peer group de SINALIZAÇÃO é a área do MVP (coluna area_mvp da dim v2, que
+# vira AREA_ATUACAO no fato). A v2 classifica cada consulta por família de
+# atendimento a partir do pacote de procedimentos pedido; o médico é a MISTURA
+# das suas consultas, e a área principal é a maior família específica com
+# >= 15% das consultas ("Ginecologia Geral" quando nenhuma chega lá). A
+# area_mvp agrupa as áreas finas em nomes de especialidade (decisão de produto,
+# 2026-09-11). A mistura, as áreas secundárias e a execução são IDENTIDADE
 # visível (badges), nunca subdivisão de régua (espec funcional, regra 2).
-# INDEFINIDO é estado legítimo: sem peer group, fora de comparação.
+# INDEFINIDO é estado legítimo: sem área principal (volume insuficiente,
+# prática pouco visível, só pronto-socorro), fora de comparação.
 # ---------------------------------------------------------------------------
 ESPECIALIDADES = [
-    "Ginecologia",
-    "GO",
-    "Mastologia",
+    "Ginecologia Geral",
     "Obstetrícia",
-    "Reprodução",
-    "Ultrassonografista",
-    "Geral",
+    "Endoscopia Ginecológica",
+    "Mastologia",
+    "Ginecologia Endócrina",
+    "PTGI",
+    "Ultrassonografia",
+    "Patologia",
 ]
-AREA_INDEFINIDA = "INDEFINIDO"   # sem rótulo ou rótulo com "?" na classificação
+AREA_INDEFINIDA = "INDEFINIDO"   # sem área principal na classificação
+# A área fina da classificação -> a área do MVP. É o MESMO dicionário do
+# notebook (AREA_MVP, Parte 12); aqui serve para saber se a área secundária de
+# um cooperado cai na própria área do MVP (aí a etiqueta "também X" repete o
+# rótulo e não entra).
+AREA_MVP_DAS_FINAS = {
+    "cirurgia / histeroscopia": "Endoscopia Ginecológica",
+    "dor pélvica / endometriose": "Endoscopia Ginecológica",
+    "generalista": "Ginecologia Geral",
+    "climatério": "Ginecologia Endócrina",
+    "infertilidade": "Ginecologia Endócrina",
+    "pré-natal": "Obstetrícia",
+    "ultrassonografia obstétrica": "Ultrassonografia",
+    "ultrassonografia": "Ultrassonografia",
+    "laudos de citopatologia": "Patologia",
+    "mastologia": "Mastologia",
+    "PTGI": "PTGI",
+}
 
 # ---------------------------------------------------------------------------
 # RÓTULOS DE EXIBIÇÃO  —  o CSV fala a língua do pipeline; a tela, a do cliente.
-# Camada de tradução, não renomeação na origem: a classificação v1.0 continua
-# carimbando "GO" em toda saída do motor, e o Mov 4 (que ratificou a separação
-# GO × Ginecologia) segue válido sem revalidar nada.
-#
-# Por que "GO" não podia ficar: é a SIGLA DA PRÓPRIA ESPECIALIDADE, e o seletor
-# logo acima dela lê "Ginecologia & Obstetrícia". Lidos em sequência, sugerem
-# que a área é a especialidade inteira — quando o que "GO" significa é atuar nas
-# duas frentes. Mesmo mecanismo que já traduzia INDEFINIDO para
-# "Classificação pendente"; ele existia e não tinha sido aplicado aos demais.
-#
-# Área ausente do mapa aparece com o rótulo da classificação, sem tradução.
+# Camada de tradução, não renomeação na origem. Na v2 os nomes da area_mvp já
+# são os de tela; só INDEFINIDO precisa de tradução. Área ausente do mapa
+# aparece com o rótulo da classificação, sem tradução.
 # ---------------------------------------------------------------------------
 ROTULOS_AREA = {
-    "GO": "Ginecologia e Obstetrícia",
-    AREA_INDEFINIDA: "Classificação pendente",
+    AREA_INDEFINIDA: "Sem área de atuação",
 }
 
 # Perfil de cada área numa linha, para o `title` da opção do seletor: o rótulo
 # diz o nome, o perfil diz o que distingue a área das vizinhas.
 #
-# QUALITATIVO de propósito, sem número. A caracterização vem da medição
-# (jul/2026: ultrassonografia obstétrica em 98% dos comparáveis de GO contra 38%
-# em Ginecologia; sub_alto_risco em 10 de GO contra 1 de Ginecologia) e do
-# critério do Mov 4, mas percentual escrito aqui não recalcula quando o analista
-# muda a janela — número na tela tem de sair do motor, sempre.
+# QUALITATIVO de propósito, sem número: percentual escrito aqui não recalcula
+# quando o analista muda a janela — número na tela tem de sair do motor.
 PERFIS_AREA = {
-    "Ginecologia": "Predomínio ginecológico; parte também acompanha gestação.",
-    "GO": "Atua nas duas frentes: ginecologia e obstetrícia, inclusive gestação "
-          "de alto risco.",
-    "Obstetrícia": "Predomínio obstétrico.",
-    "Mastologia": "Mama.",
-    "Reprodução": "Reprodução humana.",
-    "Ultrassonografista": "Perfil de execução: lauda procedimentos, não os solicita.",
-    "Geral": "Perfil de solicitação fora do escopo da especialidade; "
-             "em triagem clínica.",
-    AREA_INDEFINIDA: "Sem área de atuação atribuída: fora de comparação.",
+    "Ginecologia Geral": "Rotina ginecológica; nenhuma frente específica chega a "
+                         "15% das consultas.",
+    "Obstetrícia": "Acompanhamento de gestação é a maior frente da prática.",
+    "Endoscopia Ginecológica": "Cirurgia ginecológica, histeroscopia, dor pélvica e "
+                               "endometriose.",
+    "Mastologia": "Mama: rastreio e investigação diagnóstica.",
+    "Ginecologia Endócrina": "Climatério, osteoporose e infertilidade.",
+    "PTGI": "Patologia do trato genital inferior: vulvoscopia, biópsia, "
+            "cauterização.",
+    "Ultrassonografia": "Perfil de execução: realiza ultrassonografia mais do que "
+                        "solicita.",
+    "Patologia": "Perfil de execução: lauda citopatologia mais do que solicita.",
+    AREA_INDEFINIDA: "Sem área principal: volume insuficiente ou prática pouco "
+                     "visível nas solicitações. Fora de comparação.",
 }
 
 # Versão/status da classificação injetada — carimbo em TODA saída do pipeline
@@ -102,45 +120,25 @@ PERFIS_AREA = {
 # DECISÃO 2026-08-14: o status de homologação NÃO aparece para o usuário — o
 # carimbo diz só a versão. O status vive na documentação (LEIAME da
 # classificação e Nota Metodológica), não na tela.
-CLASSIFICACAO_VERSAO = "v1.0"
+CLASSIFICACAO_VERSAO = "v2.0"
 CLASSIFICACAO_HOMOLOGADA = False
 
-# Divergências rótulo do médico × estatística, roteadas de volta ao médico
-# (notebook §13.4): aparecem na UI esmaecidos, "classificação em revisão" —
-# artefato de classificação, não achado.
-COOPERADOS_CLASSIFICACAO_EM_REVISAO = ("cooperado_61", "cooperado_97", "cooperado_110")
-
-# Perfil de solicitação FORA DO ESCOPO da especialidade classificada — mesma
-# fila de triagem clínica das divergências acima, motivo diferente.
-# cooperado_112 está classificado como "Geral" dentro de Ginecologia &
-# Obstetrícia, mas o que ele solicita é clínica geral: patologia
-# osteomioarticular, teste ergométrico, audiometria tonal, prova de função
-# pulmonar. Nenhum procedimento ginecológico ou obstétrico na lista.
-# Levantado em 31/jul/2026. Possível erro de classificação, não achado sobre o
-# cooperado.
-#
-# ATENÇÃO ao alcance desta lista: ela REGISTRA o motivo, não exclui ninguém.
-# Quem forma a referência é decidido por `elegivel_norma` no CSV da
-# classificação, e cooperado_112 tem `elegivel_norma=True`. O motivo só aparece
-# na tela quando o cooperado JÁ está fora da construção da referência — é o que
-# acontece hoje com cooperado_110 e NÃO acontece com cooperado_61 nem
-# cooperado_97, que estão na fila acima e não aparecem em lugar nenhum.
-# Tornar a fila visível por si exige uma superfície que o app ainda não tem
-# (ver PENDENCIAS.md).
-COOPERADOS_PERFIL_FORA_DA_ESPECIALIDADE = ("cooperado_112",)
-
-# ---------------------------------------------------------------------------
-# ALERTA DE PERFIL MASCULINO  —  regra PROVISÓRIA da classificação v1.0
-# O alerta marca cooperado com fração atípica de pacientes homens. Em
-# especialidades cuja prática inclui o paciente masculino POR DESENHO, ele é
-# FALSO POSITIVO PREVISÍVEL — assinatura da especialidade, não anomalia:
-#   Reprodução -> espermograma (o paciente É o homem).
-# Nessas áreas o cooperado continua fora da CONSTRUÇÃO da norma (a regra v1.0
-# ainda vigora e não se burla regra em silêncio), mas a UI exibe o status de
-# triagem clínica pendente — é esse status que alimenta o loop de correção da
-# classificação. Lista revisada na homologação clínica.
-# ---------------------------------------------------------------------------
-ESPECIALIDADES_PACIENTE_MASCULINO_ESPERADO = ("Reprodução",)
+# O que a dim v2 traz por cooperado e o app usa (o resto é identidade):
+#   situacao            classificável · classificável pela execução · volume
+#                       insuficiente · prática pouco visível · só pronto-socorro
+#   area_mvp            o peer group (ESPECIALIDADES acima); vazio -> INDEFINIDO
+#   area_principal      a área fina; area_secundaria; area_execucao
+#   confianca           alta · média · baixa · indicativa (não classificável)
+#   cadastro_agregado   >= 25% de pacientes homens: cadastro que agrega mais de
+#                       um profissional, não um perfil clínico
+#   elegivel_norma      quem FORMA a referência: classificável, sem cadastro
+#                       agregado, sem a execução como prática principal e sem
+#                       confiança baixa. Todos os demais seguem MEDIDOS.
+#   no_limiar           área principal entre 12% e 18% das consultas (perto do
+#                       corte de 15%): o rótulo é frágil
+#   perfil_instavel_no_ano  a mistura mudou >= 20 pontos entre os semestres
+# As duas últimas são a fila de observação da classificação: a v1 mantinha
+# listas de cooperados no config; a v2 traz o sinal por dado.
 
 
 # ---------------------------------------------------------------------------
@@ -159,13 +157,14 @@ ESPECIALIDADES_PACIENTE_MASCULINO_ESPERADO = ("Reprodução",)
 # Mantido 100, por especialidade só quando a calibração MOSTRAR diferença.
 PISO_CONSULTAS_ANO = {
     "_default": 100,             # PROVISÓRIO, re-justificado com áreas reais (Mov 3)
-    "Ginecologia": None,
-    "GO": None,
-    "Mastologia": None,
+    "Ginecologia Geral": None,
     "Obstetrícia": None,
-    "Reprodução": None,
-    "Ultrassonografista": None,
-    "Geral": None,
+    "Endoscopia Ginecológica": None,
+    "Mastologia": None,
+    "Ginecologia Endócrina": None,
+    "PTGI": None,
+    "Ultrassonografia": None,
+    "Patologia": None,
 }
 
 
@@ -576,69 +575,55 @@ MIN_COBERTURA_AUTORREF_PROC = 0.50 # PROVISÓRIO, fração de itens com conta
 
 
 # ---------------------------------------------------------------------------
-# EXCLUSÃO POR PAR (Mov 5)  —  DECISÃO (PROVISÓRIO)  —  notebook §13.3
-# Portadores de sub-perfil não FORMAM a norma dos pares (área, procedimento)
-# onde o teste de distorção mostrou movimento >15% da mediana; seguem MEDIDOS.
-# Ativado: sub_alto_risco em GO (cesta trombofilia/vitalidade fetal, mediana
-# −25 a −40% sem portadores) e sub_opera em Ginecologia (os 2 pares que moveram
-# >15%). As cestas são regex sobre DS_PROCEDIMENTO (resolvidas em códigos pelo
-# construtor montar_exclusao_por_par em app/utils/pipeline.py).
-# Limiares PROVISÓRIOS — o teste re-roda na homologação e confirma/ajusta.
+# EXCLUSÃO POR PAR (Mov 5)  —  DECISÃO  —  desligada na classificação v2.0
+# Na v1 os portadores de sub-perfil (opera, alto risco) saíam da formação da
+# norma nas cestas que o perfil explicava. Na v2 as áreas já separam essas
+# práticas (Endoscopia Ginecológica, Obstetrícia), e a mistura por médico é
+# identidade visível. O mecanismo continua no motor (montar_exclusao_por_par);
+# a lista de regras está vazia. Formato de cada regra, se voltar a ser usada:
+# (flag booleana da dim, área onde vale, regex da cesta sobre DS_PROCEDIMENTO).
 # ---------------------------------------------------------------------------
-RGX_CESTA_ALTO_RISCO = (
-    r"Anticardiolipina|Anticoagulante Lúpico|Obstétrica Com Doppler"
-    r"|Perfil Biofísico|Cardiotocografia Anteparto"
-)
-RGX_CESTA_OPERA = r"Procedimento Diagnóstico Em Peça|Tempo De Tromboplastina"
-EXCLUSOES_SUBPERFIL = (
-    ("sub_alto_risco", "GO", RGX_CESTA_ALTO_RISCO),
-    ("sub_opera", "Ginecologia", RGX_CESTA_OPERA),
-)
+EXCLUSOES_SUBPERFIL = ()
 LIMIAR_DISTORCAO_EXCLUSAO = 0.15   # PROVISÓRIO, movimento de mediana que ativa exclusão
 
 # ---------------------------------------------------------------------------
 # O QUE CADA SUB-PERFIL MUDA NA COMPARAÇÃO  —  hover do badge na tabela
 # Uma frase por sub-perfil. O badge é IDENTIDADE (espec funcional, regra 2) e
-# nunca subdivide a régua; o que ele muda, quando muda, é a formação da norma em
-# UMA cesta de procedimentos — e é exatamente isso que quem lê a tabela não tem
-# como adivinhar de um rótulo de duas palavras.
-#
-# Dois tipos de frase, e a diferença importa:
-#   · sub-perfil COM exclusão ativa (EXCLUSOES_SUBPERFIL acima): diz que ele
-#     forma a referência, exceto na cesta, e que o limiar está em validação;
-#   · sub-perfil INFORMATIVO: diz que não muda cálculo nenhum, para ninguém
-#     supor que muda.
+# nunca subdivide a régua. Na v2 nenhum badge altera cálculo: todos são
+# informativos, e a frase diz isso para ninguém supor que muda.
+# As chaves são as colunas booleanas que dados.carregar_classificacao deriva da
+# dim v2 (ver blocos._BADGES).
 # ---------------------------------------------------------------------------
 AJUDA_SUBPERFIL = {
-    "sub_opera": (
-        "Integra o cálculo da referência da área, exceto nos procedimentos "
-        "próprios do perfil cirúrgico (peça cirúrgica, pré-operatório). "
-        "Exclusão aplicada apenas onde há evidência de distorção; limiar em "
-        "validação clínica."
+    "faz_cirurgia": (
+        "Informativo. Cirurgia e histeroscopia respondem por uma fatia das "
+        "consultas acima do corte natural do dado (7%). Não altera o cálculo "
+        "da referência."
     ),
-    "sub_alto_risco": (
-        "Integra o cálculo da referência da área, exceto nos procedimentos "
-        "próprios do acompanhamento de alto risco (trombofilia, vitalidade "
-        "fetal), em Ginecologia e Obstetrícia. Exclusão aplicada apenas onde "
-        "há evidência de distorção; limiar em validação clínica."
+    "faz_mastologia": (
+        "Informativo. Mama responde por uma fatia das consultas acima do corte "
+        "natural do dado (38%). Não altera o cálculo da referência."
     ),
-    "sub_plantao_ps": (
-        "Informativo. Os atendimentos de pronto socorro já são excluídos do "
-        "cálculo para todos os cooperados."
+    "tem_secundaria": (
+        "Informativo. Uma segunda frente de prática com pelo menos 15% das "
+        "consultas. Não altera o cálculo da referência."
     ),
-    "sub_ptgi": (
-        "Informativo. Identifica a prática e não altera o cálculo da "
-        "referência."
+    "executa": (
+        "Informativo. Também atua no lado da execução (ultrassonografia, "
+        "colposcopia, citopatologia ou imagem mamária). Não altera o cálculo "
+        "da referência; quando a execução é a prática principal, o cooperado "
+        "não a forma."
     ),
-    "sub_ultrassonografista": (
-        "Atua no lado da execução, enquanto a referência mede solicitação. "
-        "Por isso não integra o cálculo da referência da área."
+    "carteira_jovem": (
+        "Informativo. Carteira predominantemente jovem (pacientes de 20 a 39 "
+        "anos). Não altera o cálculo da referência."
+    ),
+    "carteira_climaterio": (
+        "Informativo. Carteira predominantemente de 50 anos ou mais. Não "
+        "altera o cálculo da referência."
     ),
 }
 
-# Nome da CESTA de cada sub-perfil, para o hover da etiqueta "perfil explica a
-# origem". A composição da cesta é a regex em EXCLUSOES_SUBPERFIL; aqui fica só
-# como ela se chama em português.
 # MIN_PORTADORES_RECORTE_PERFIL  —  DECISÃO (2026-08-13)  —  recorte por perfil
 # Mínimo de portadores para o sub-perfil ser SELECIONÁVEL no recorte.
 # Era 3 (proteção contra "1º de 2" ler como posição); baixado para 1 por decisão
@@ -654,10 +639,9 @@ MIN_PORTADORES_RECORTE_PERFIL = 1
 # acumulado REAL do núcleo, não o limiar.
 LIMIAR_CONCENTRACAO_PARETO = 0.80
 
-CESTA_SUBPERFIL = {
-    "sub_opera": "peça cirúrgica e pré-operatório",
-    "sub_alto_risco": "trombofilia e vitalidade fetal",
-}
+# Nome da CESTA de cada sub-perfil com exclusão por par ativa (hover da etiqueta
+# "perfil explica a origem"). Vazio na v2: nenhuma exclusão por par ativa.
+CESTA_SUBPERFIL = {}
 
 
 # ---------------------------------------------------------------------------
@@ -719,22 +703,24 @@ SEM_SINALIZACAO = "sem sinalização comparativa"
 # re-execução do notebook com dado novo.
 # ---------------------------------------------------------------------------
 SMOKE_JANELA = ("2025-05-01", "2026-04-30")        # 12m do teste de aceitação
-# RE-BASELINE ago/2026: a consulta inferida passou de "mesma data" para janela
-# de JANELA_CONSULTA_MINUTOS entre lançamentos, o que mudou o DENOMINADOR de
-# todas as taxas. Valores da régua anterior, preservados para rastreabilidade:
-#   SMOKE_MEDIANA_GINECOLOGIA = 5.25   ·   cooperado_85: 75 procedimentos
-# O resto do gabarito (n na norma, total da área, avaliáveis, topo por razão,
-# cooperado_71, os zeros) atravessou a mudança sem se mover.
-SMOKE_MEDIANA_GINECOLOGIA = 5.11
-SMOKE_N_NA_NORMA_GINECOLOGIA = 58                  # elegíveis que formam a norma
-SMOKE_N_TOTAL_GINECOLOGIA = 64
-# As 4 previsões do notebook §13.4 rodam sobre posicao_proc COM OS TRÊS PORTÕES
-# (avaliavel & apresentavel & sinalizado — pipeline.filtrar_sinalizados), NÃO sobre
-# o agregado: são pares (cooperado, procedimento). Positivos trazem a contagem de
-# procedimentos sinalizados; negativos exigem zero.
-SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 76, "cooperado_71": 97}   # 85: era 75 (ver re-baseline acima)
-SMOKE_NAO_SINALIZADOS_ESPERADOS = ("cooperado_31", "cooperado_116")
-# Referência agregada da MESMA janela (notebook §9, bloco "ANO"): avaliáveis e o
-# topo por razão — ancoram a migração no lado agregado, não só na norma.
+# RE-BASELINE set/2026 (classificação v2.0): a área de referência do gabarito
+# passou de "Ginecologia" (v1, 64 medidos / 58 na norma / mediana 5,11) para
+# "Ginecologia Geral" (v2). A régua da consulta inferida (JANELA_CONSULTA_MINUTOS,
+# ago/2026) não mudou. Valores v1 preservados para rastreabilidade:
+#   SMOKE_MEDIANA 5.11 · N_NA_NORMA 58 · N_TOTAL 64 · cooperado_85: 76 ·
+#   cooperado_71: 97 · zeros: cooperado_31, cooperado_116.
+SMOKE_AREA_REFERENCIA = "Ginecologia Geral"
+SMOKE_MEDIANA_AREA = 4.96
+SMOKE_N_NA_NORMA_AREA = 44                         # elegíveis que formam a norma
+SMOKE_N_TOTAL_AREA = 55
+# Pares (cooperado, procedimento) que passam os TRÊS portões (avaliavel &
+# apresentavel & sinalizado — pipeline.filtrar_sinalizados). Positivos trazem a
+# contagem de procedimentos sinalizados; negativos exigem zero. cooperado_85 e
+# cooperado_71 são de Endoscopia Ginecológica (critério p75, 18 formadores).
+SMOKE_AREA_SINALIZADOS = "Endoscopia Ginecológica"   # área dos positivos e do topo por razão
+SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 52, "cooperado_71": 73}
+SMOKE_NAO_SINALIZADOS_ESPERADOS = ("cooperado_61", "cooperado_116")
+# Referência agregada da MESMA janela: avaliáveis e o topo por razão — ancoram a
+# migração no lado agregado, não só na norma. Os dois atravessaram a v2 intactos.
 SMOKE_N_AVALIAVEIS = 132
 SMOKE_TOPO_RAZAO = ("cooperado_71", "cooperado_85", "cooperado_19")

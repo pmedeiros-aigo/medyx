@@ -27,8 +27,8 @@ def mes_ano(data: str) -> str:
 def rotulo_exibicao(area: str) -> str:
     """Nome da área na TELA. O CSV da classificação fala a língua do pipeline.
 
-    Tradução, não renomeação: o motor continua carimbando "GO", e nada do que
-    foi calibrado sobre esse rótulo precisa ser revalidado. Área sem tradução
+    Tradução, não renomeação: o motor carimba o rótulo da classificação e nada
+    do que foi calibrado sobre ele precisa ser revalidado. Área sem tradução
     definida sai como está — o mapa é exceção, não obrigação.
     """
     return config.ROTULOS_AREA.get(area, area)
@@ -108,7 +108,7 @@ def linha_justificativa(area: str, n_comparaveis: int, base: str,
     exclusoes = " · ".join(
         f"{flag.removeprefix('sub_').replace('_', ' ')} em {area_regra}"
         for flag, area_regra, _ in config.EXCLUSOES_SUBPERFIL
-    )
+    ) or "nenhuma exclusão por par ativa"
     gatilho_txt = gatilho_efetivo if gatilho_efetivo else "não aplicável (grupo pequeno)"
     return {
         # Sem a versão da classificação: o status de homologação é GOVERNANÇA, e
@@ -137,14 +137,14 @@ def linha_justificativa(area: str, n_comparaveis: int, base: str,
             {"rotulo": "Referência de adequação", "valor": alvo},
             {"rotulo": "Excluídos da construção da referência",
              "valor": f"pares de sub-perfil: {exclusoes}"},
-            # A fila de triagem clínica passa a ser contável na tela. Antes só
-            # aparecia quem já estava fora da construção da referência, e três
-            # dos quatro casos da fila não apareciam em lugar nenhum.
-            {"rotulo": "Classificação em revisão",
+            # A fila de observação da classificação é contável na tela: rótulo
+            # de área perto do corte, ou perfil que mudou no período.
+            {"rotulo": "Classificação em observação",
              "valor": ("nenhum cooperado desta área" if not n_em_revisao else
                        f"{n_em_revisao} cooperado"
-                       f"{'s' if n_em_revisao != 1 else ''} na fila de triagem "
-                       "clínica; a classificação está sob revisão, o número não")},
+                       f"{'s' if n_em_revisao != 1 else ''} com rótulo de área "
+                       "frágil (perto do corte ou perfil que mudou no período); "
+                       "a classificação está em observação, o número não")},
         ],
     }
 

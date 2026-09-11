@@ -15,15 +15,20 @@ Valores: `config.py`. Regras de construção: `CLAUDE.md`.
 
 ## REGRAS DE COMPARAÇÃO (valem em todas as páginas — são O PRODUTO)
 
-1. **Peer group de sinalização = especialidade** (`classificacao_v1.csv`). GO e
-  Ginecologia **separados** — decisão corroborada por dado (só 30% dos 30
-   procedimentos principais têm medianas equivalentes entre os dois grupos).
+1. **Peer group de sinalização = área do MVP da classificação v2.0** (`area_mvp` de
+  `dim_classificacao_v2.csv`): Ginecologia Geral, Obstetrícia, Endoscopia Ginecológica,
+   Mastologia, Ginecologia Endócrina, PTGI, Ultrassonografia, Patologia. A área vem
+   da mistura de famílias de atendimento das consultas do cooperado, não de rótulo
+   dado por médico (METODOLOGIA §4.1).
 2. **Sub-perfil é recorte de leitura, nunca base de comparação.** Filtrar por um
   sub-perfil destaca os membros e acrescenta o **posto interno** ("3º de 12"); a
    régua continua sendo a da especialidade e nenhuma coluna vira travessão.
 3. **Norma construída só com** `elegivel_norma=True`**; todos são MEDIDOS contra ela.**
   Quem não forma aparece com o **motivo**, e o motivo distingue exclusão definitiva
-   (perfil de execução) de provisória (alerta de perfil — triagem pendente).
+   (perfil de execução) de provisória (cadastro agregado — confirmação pendente;
+   confiança baixa; sem área). Rótulo de área frágil (perto do corte, ou perfil que
+   mudou no período) é **observação**, não exclusão: etiqueta na linha e degrau de
+   artefato na cascata.
 4. **Base eletiva por padrão** (`incluir_ps=False`); carimbo BASE_ELETIVA visível.
 5. **Critério degradado pelo n**: pleno → percentil padrão; intermediário → percentil
   inferior com o rótulo "critério ajustado ao tamanho do grupo"; abaixo do mínimo →
@@ -45,7 +50,7 @@ Valores: `config.py`. Regras de construção: `CLAUDE.md`.
 8. **Linha de justificativa em toda tela**: "Comparado com: <área> · n= elegíveis ·
   base eletiva · exclusões: <...>" — a categorização condensada, sempre visível.
 9. Todo valor carrega período colado, selo de quarentena no R$, e o carimbo de
-  proveniência com a versão da classificação (v1.0, não homologada).
+  proveniência com a versão da classificação (v2.0, não homologada).
 10. **Percentil nunca sem tradução** ("P92 · acima de 9 em cada 10 colegas da área").
   **Ausência de atributo não vira etiqueta.** **Padrão marcado como recomendado**,
     com aviso e ação de restaurar ao desviar.

@@ -41,7 +41,7 @@ falhas = 0
 
 # A área agora é CAMINHO (`/area/{id}`), não query: o caminho diz o que se
 # olha, a query diz como. A régua (janela, critério, piso) continua na query.
-AREA = "/area/ginecologia"
+AREA = "/area/ginecologia-geral"   # a área de referência da classificação v2
 
 
 def checar(nome: str, obtido, esperado):
@@ -133,7 +133,7 @@ def main() -> int:
         # o Perfil usam o mesmo componente, e é isso que os torna irmãos na tela
         checar("Recorte e Perfil na faixa", pg.locator(".pf-trig").count(), 2)
         checar("gráfico de distribuição tem um ponto por comparável",
-               pg.locator(".plot .pt").count(), 63)
+               pg.locator(".plot .pt").count(), 45)
         vista_grafico(pg, "Concentração")
         # O PARETO FOI PARA DENTRO DAS ABAS DE GRÁFICO (set/2026): Concentração,
         # Distribuição e Quantidade × custo dividem um container e se alternam,
@@ -141,7 +141,7 @@ def main() -> int:
         checar("Concentração é a vista de gráfico padrão",
                pg.locator(".graficos-vistas .vista-painel.on .tbl-hd .t")
                  .inner_text().startswith("Concentração"), True)
-        checar("tabela de cooperados", pg.locator(".vista-painel tbody tr").count(), 63)
+        checar("tabela de cooperados", pg.locator(".vista-painel tbody tr").count(), 45)
 
         # A LATERAL RECOLHE, e recolhida sobra o essencial: a marca, o ícone de
         # cada tela e o avatar. Nenhum destino some — o que sai é a etiqueta, e
@@ -161,8 +161,8 @@ def main() -> int:
         checar("e volta ao expandir", pg.evaluate(largura), aberta)
 
         print("\n2. CHIPS DE RECORTE FILTRAM A TABELA E O GRÁFICO")
-        for chave, linhas in (("todos", 64), ("qualificados", 21),
-                              ("persistente", 38), ("comparaveis", 63)):
+        for chave, linhas in (("todos", 55), ("qualificados", 13),
+                              ("persistente", 27), ("comparaveis", 45)):
             chip(pg, chave).click()
             pg.wait_for_function(
                 "n => document.querySelectorAll('.vista-painel tbody tr').length === n", arg=linhas,
@@ -174,7 +174,7 @@ def main() -> int:
         checar("gráfico recuado no recorte",
                pg.locator(".plot.com-recorte").count(), 1)
         checar("pontos em cena no gráfico = linhas da tabela",
-               pg.locator(".pt-no-recorte").count(), 21)
+               pg.locator(".pt-no-recorte").count(), 13)
 
         # TROCAR A ORDEM DO PARETO não pode levar a faixa de abas junto. Ela mora
         # DENTRO do cartão do gráfico em cena, e o Pareto se redesenha com
@@ -200,11 +200,13 @@ def main() -> int:
         abrir(pg, AREA)
         pg.locator(".pf-trig", has_text="Perfil").first.click()
         pg.wait_for_timeout(250)
-        pg.locator(".pf-opt", has_text="opera").first.click()
+        # v2: os badges são identidade da mistura (carteira, área secundária,
+        # cirurgia, executa); "carteira jovem" tem 7 portadores na área de referência
+        pg.locator(".pf-opt", has_text="carteira jovem").first.click()
         pg.wait_for_selector("th:has-text('Posto no perfil')", timeout=15_000)
         checar("coluna do posto entra em cena",
                pg.locator("th", has_text="Posto no perfil").count(), 1)
-        checar("só os portadores na tabela", pg.locator(".vista-painel tbody tr").count(), 3)
+        checar("só os portadores na tabela", pg.locator(".vista-painel tbody tr").count(), 7)
 
         print("\n4. ESCOLHA NO GRÁFICO CONVERSA COM A TABELA")
         abrir(pg, AREA)
@@ -323,10 +325,10 @@ def main() -> int:
         # A ÁREA continua a um clique, na linha de contexto do cabeçalho: ela é
         # fato analítico (contra quem o caso é medido), não degrau do rastro.
         # Sem este link o dossiê ficaria sem porta para o próprio grupo.
-        pg.locator(".sub a", has_text="Ginecologia").first.click()
+        pg.locator(".sub a", has_text="Ginecologia Geral").first.click()
         pg.wait_for_selector("tbody tr", timeout=60_000)
         checar("volta à área pelo link do contexto",
-               caminho_de(pg.url).startswith("/area/ginecologia"), True)
+               caminho_de(pg.url).startswith("/area/ginecologia-geral"), True)
 
         print("\n8. PANORAMA É A PORTA DE ENTRADA")
         pg.locator(".navitem", has_text="Panorama").click()
@@ -340,7 +342,7 @@ def main() -> int:
         # ser esqueleto: cada área tem o seu, com régua ou sem.
         pg.wait_for_selector(".kpis-areas .kpi", timeout=60_000)
         checar("e mostra todas as áreas de atuação",
-               pg.locator(".kpis-areas .kpi").count(), 7)
+               pg.locator(".kpis-areas .kpi").count(), 8)
         # NINGUÉM DESAPARECE: as áreas sem régua continuam na tela, recuadas e
         # com o motivo no lugar dos números que não existem.
         checar("as áreas sem referência continuam na tela",
@@ -366,7 +368,7 @@ def main() -> int:
         # todos os cartões.
         checar("uma grade só, com todas as áreas",
                (pg.locator(".kpis-areas").count(),
-                pg.locator(".kpis-areas > .kpi").count()), (1, 7))
+                pg.locator(".kpis-areas > .kpi").count()), (1, 8))
         checar("e o título não promete concentração",
                pg.locator("h3").first.inner_text(), "Áreas de atuação")
         pg.locator(".navitem", has_text="Nota Metodológica").click()
@@ -375,10 +377,10 @@ def main() -> int:
                pg.locator("h2").first.inner_text(), "Nota metodológica")
 
         print("\n8b. LINKS ANTIGOS CONTINUAM VALENDO")
-        pg.goto(f"{BASE}/?area=ginecologia")
+        pg.goto(f"{BASE}/?area=ginecologia-geral")
         pg.wait_for_selector("tbody tr", timeout=120_000)
         checar("/?area=x redireciona para /area/x",
-               caminho_de(pg.url), "/area/ginecologia")
+               caminho_de(pg.url), "/area/ginecologia-geral")
         pg.goto(f"{BASE}/dossie/cooperado_85")
         pg.wait_for_selector("[data-slot=\'conteudo\'] h2", timeout=120_000)
         checar("/dossie/{id} redireciona para /cooperado/{id}",
@@ -388,7 +390,7 @@ def main() -> int:
         abrir(pg, "/area/mastologia")
         checar("área sem referência plena não desenha distribuição",
                pg.locator(".plot").count(), 0)
-        checar("mas a lista continua", pg.locator(".vista-painel tbody tr").count(), 4)
+        checar("mas a lista continua", pg.locator(".vista-painel tbody tr").count(), 6)
         pg.goto(f"{BASE}/cooperado/cooperado_inexistente")
         pg.wait_for_selector(".banner-err", timeout=30_000)
         checar("cooperado desconhecido vira estado declarado",

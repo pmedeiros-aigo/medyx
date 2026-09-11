@@ -494,7 +494,9 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
     confundidores &= set(posicao["ID_COOPERADO"])
 
     # piso de confiança: bootstrap só nos pares que chegam ao degrau anterior
-    parcial = cascata.qualificar(sinal, persist, len(fatias), confundidores, None)
+    em_observacao = dados.classificacao_em_observacao()
+    parcial = cascata.qualificar(sinal, persist, len(fatias), confundidores, None,
+                                 em_observacao=em_observacao)
     pares_boot = (parcial[parcial["sem_fator_de_contexto"]]
                   [["ID_COOPERADO", "CD_PROCEDIMENTO", referencia]]
                   .rename(columns={referencia: "alvo_valor"}))
@@ -508,7 +510,8 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
             min_pacientes_proc=config.MIN_PACIENTES_BOOTSTRAP, area=area,
             incluir_ps=incluir_ps)
 
-    q = cascata.qualificar(sinal, persist, len(fatias), confundidores, conf)
+    q = cascata.qualificar(sinal, persist, len(fatias), confundidores, conf,
+                           em_observacao=em_observacao)
     linhas_funil = cascata.funil(q, n_medidos)
     escolha = cascata.escolher_default(linhas_funil)
 
@@ -1025,7 +1028,8 @@ def meta(p: ParametrosDep) -> dict[str, Any]:
         **desvios,
         "banner": {
             "texto": config.BANNER_HOMOLOGACAO,
-            "detalhe": (f"Classificação de áreas de atuação {config.CLASSIFICACAO_VERSAO}. "
+            "detalhe": (f"Classificação de áreas de atuação {config.CLASSIFICACAO_VERSAO}, "
+                        "inferida do perfil de solicitação; validação clínica pendente. "
                         "Resultados preliminares, não destinados a deliberação de comitê."),
             "ativo": not config.CLASSIFICACAO_HOMOLOGADA,
         },
@@ -1306,16 +1310,18 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
                             f"P90 {blocos.fmt(norma_linha['p90'])}"),
             },
         },
-        # Classificação pendente: a fila REAL é quem passa o piso — só esses
-        # têm volume para uma triagem clínica render decisão. O restante é baixo
-        # volume, indefinido legítimo: fica listado, fora da fila.
+        # Sem área de atuação: a fila REAL é quem passa o piso — cooperados com
+        # volume e ainda assim sem área (prática pouco visível nas solicitações,
+        # só pronto-socorro). O restante é baixo volume, indefinido legítimo:
+        # fica listado, fora da fila.
         "fila_classificacao_pendente": None if nome != config.AREA_INDEFINIDA else {
             "n_fila": int(posicao["avaliavel"].sum()),
             "n_baixo_volume": int((~posicao["avaliavel"]).sum()),
             "n_total": len(posicao),
             "ids_fila": sorted(posicao.loc[posicao["avaliavel"], "ID_COOPERADO"]),
             "nota": (f"{int(posicao['avaliavel'].sum())} cooperados têm volume "
-                     f"para triagem clínica; os outros "
+                     f"e mesmo assim ficaram sem área (prática pouco visível "
+                     f"nas solicitações); os outros "
                      f"{int((~posicao['avaliavel']).sum())} estão abaixo do "
                      "volume mínimo, indefinido legítimo, sem fila."),
         },
