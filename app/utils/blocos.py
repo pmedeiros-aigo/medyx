@@ -4143,8 +4143,13 @@ def pareto_cooperados(reais_coop: dict[str, float],
                       linhas_coop: list[dict],
                       ids: list[str] | None = None,
                       subtitulo: str | None = None,
-                      custos_coop: dict[str, float] | None = None) -> dict | None:
+                      custos_coop: dict[str, float] | None = None,
+                      sem_regua: bool = False) -> dict | None:
     """Pareto de custo por cooperado, com o EXCEDENTE aninhado dentro do custo.
+
+    `sem_regua`: a área não tem critério (grupo insuficiente). O custo aparece
+    igual; o excedente sai como SEM_MEDIDA em vez de R$ 0, porque zero afirmaria
+    "dentro da referência" onde não há referência (ajuste 4 do CLAUDE.md).
 
     A barra inteira é o custo do período valorado a preços de referência
     internos; o trecho preenchido é a parcela acima da referência do grupo, ou
@@ -4171,16 +4176,19 @@ def pareto_cooperados(reais_coop: dict[str, float],
     """
     em_cena = None if ids is None else set(ids)
     exc = {c: float(v) for c, v in reais_coop.items()
-           if em_cena is None or c in em_cena}
+           if (em_cena is None or c in em_cena) and (v or 0) > 0}
+    # o CUSTO é de todo cooperado em cena com preço apurado, tenha excedente ou
+    # não (decisão 2026-09-11: custo de solicitação nunca deixa de aparecer).
+    # A ordem "custo" desenha todas as barras; o preenchimento (excedente) só
+    # existe onde foi medido.
     custos = {c: float(v) for c, v in (custos_coop or {}).items()
-              if c in exc and (v or 0) > 0}
-    # sem custo apurado a barra aninhada não existe: o bloco volta a ser o
-    # Pareto de uma grandeza só, em vez de desenhar um todo que não foi medido
-    duplo = len(custos) == len(exc) and bool(custos)
+              if (em_cena is None or c in em_cena) and (v or 0) > 0}
+    # a barra aninhada só existe se TODO cooperado com excedente tem custo
+    duplo = bool(custos) and all(c in custos for c in exc)
 
     colunas = {"rotulo": "Cooperado", "valor": "Excesso (R$)",
                "acumulado_reais": "Acumulado (R$)", "acumulado": "% acum."}
-    if not exc or sum(exc.values()) <= 0:
+    if not exc and not custos:
         return None if em_cena is None else _pareto_vazio(
             "Excesso em R$ por cooperado", colunas, subtitulo, len(em_cena))
 
@@ -4203,10 +4211,16 @@ def pareto_cooperados(reais_coop: dict[str, float],
             linha["rotulo_linha"] = linha["id"]
             linha["rotulo_tooltip"] = (f"{linha['id']} · posição {pos} na área"
                                        if pos else linha["id"])
+            tem_exc = exc.get(linha["id"], 0.0) > 0
+            if sem_regua and not tem_exc:
+                linha["excedente_rs_fmt"] = config.SEM_MEDIDA
             linha["detalhes"] = [
                 (f"Custo total: {linha['custo_fmt']}" if duplo else None),
-                f"Variação excedente: "
-                f"{linha.get('excedente_rs_fmt', linha['reais_fmt'])}",
+                (f"Variação excedente: "
+                 f"{linha.get('excedente_rs_fmt', linha['reais_fmt'])}"
+                 if tem_exc else
+                 ("Sem referência da área: excedente não medido" if sem_regua
+                  else "Sem variação excedente medida")),
                 (f"Solicitações excedentes: {l.get('excedente_fmt', config.SEM_MEDIDA)}"
                  f" · {linha['pct_do_total_fmt']} {de_quem}"),
             ]
@@ -4243,18 +4257,19 @@ def pareto_cooperados(reais_coop: dict[str, float],
                 "linhas": linhas,
         }
 
-    ordens = {"excedente": _bloco("excedente")}
-    if duplo:
-        ordens["custo"] = _bloco("custo")
-    if ordens["excedente"] is None:
+    ordens = {"excedente": _bloco("excedente") if exc else None,
+              "custo": _bloco("custo") if duplo else None}
+    if ordens["excedente"] is None and ordens["custo"] is None:
         return None if em_cena is None else _pareto_vazio(
             "Excesso em R$ por cooperado", colunas, subtitulo, len(em_cena))
-    if not duplo:
+    if ordens["custo"] is None:
         return ordens["excedente"]
+    # sem excedente medido, a ordem "custo" é a única — e é a que fica
     return {
-        "ordem_default": "excedente",
-        "ordens": [{"chave": "custo", "rotulo": "Custo total"},
-                   {"chave": "excedente", "rotulo": "Custo excedente"}],
+        "ordem_default": "excedente" if ordens["excedente"] else "custo",
+        "ordens": [o for o in ({"chave": "custo", "rotulo": "Custo total"},
+                               {"chave": "excedente", "rotulo": "Custo excedente"})
+                   if ordens[o["chave"]] is not None],
         "dados": {k: v for k, v in ordens.items() if v is not None},
     }
 
@@ -4262,8 +4277,10 @@ def pareto_cooperados(reais_coop: dict[str, float],
 def pareto_procedimentos(rs_area: pd.DataFrame,
                          ids: list[str] | None = None,
                          subtitulo: str | None = None,
-                         custo_pares: pd.DataFrame | None = None) -> dict | None:
+                         custo_pares: pd.DataFrame | None = None,
+                         sem_regua: bool = False) -> dict | None:
     """Pareto de custo por procedimento, com o EXCEDENTE aninhado dentro dele.
+    `sem_regua`: como em pareto_cooperados — custo igual, excedente SEM_MEDIDA.
 
     Mesma construção do Pareto de cooperados, agregada pelo outro eixo — os
     totais de excedente são, por construção, idênticos, e seguem idênticos sob
@@ -4283,21 +4300,24 @@ def pareto_procedimentos(rs_area: pd.DataFrame,
     vazio = (None if ids is None else
              lambda: _pareto_vazio("Excesso em R$ por procedimento",
                                    colunas, subtitulo, len(ids)))
-    if rs_area is None or not len(rs_area):
-        return None if vazio is None else vazio()
-    if ids is not None:
+    rs_area = rs_area if rs_area is not None else pd.DataFrame()
+    if ids is not None and len(rs_area):
         rs_area = rs_area[rs_area["ID_COOPERADO"].isin(list(ids))]
-        if not len(rs_area):
-            return vazio()
-    agg = (rs_area.groupby("CD_PROCEDIMENTO")
-           .agg(reais=("excedente_reais", "sum"),
-                itens=("excedente_itens", "sum"),
-                n_coop=("ID_COOPERADO", "nunique")))
-    descricoes = (rs_area.drop_duplicates("CD_PROCEDIMENTO")
-                  .set_index("CD_PROCEDIMENTO")["DS_PROCEDIMENTO"])
-    exc = {cd: float(v) for cd, v in agg["reais"].items()}
+    if len(rs_area):
+        agg = (rs_area.groupby("CD_PROCEDIMENTO")
+               .agg(reais=("excedente_reais", "sum"),
+                    itens=("excedente_itens", "sum"),
+                    n_coop=("ID_COOPERADO", "nunique")))
+        exc = {cd: float(v) for cd, v in agg["reais"].items() if (v or 0) > 0}
+    else:
+        agg = pd.DataFrame(columns=["reais", "itens", "n_coop"])
+        exc = {}
 
+    # o CUSTO é de todo procedimento solicitado em cena com preço apurado,
+    # tenha excedente ou não (decisão 2026-09-11): a ordem "custo" desenha
+    # todas as barras; o preenchimento só existe onde o excedente foi medido
     custos: dict[str, float] = {}
+    descricoes = pd.Series(dtype=object)
     if custo_pares is not None and len(custo_pares):
         cp = custo_pares
         if ids is not None:
@@ -4305,10 +4325,19 @@ def pareto_procedimentos(rs_area: pd.DataFrame,
         if len(cp):
             custos = {cd: float(v) for cd, v
                       in cp.groupby("CD_PROCEDIMENTO")["custo"].sum().items()
-                      if cd in exc and (v or 0) > 0}
-    duplo = len(custos) == len(exc) and bool(custos)
+                      if (v or 0) > 0}
+            if "DS_PROCEDIMENTO" in cp.columns:
+                descricoes = (cp.drop_duplicates("CD_PROCEDIMENTO")
+                              .set_index("CD_PROCEDIMENTO")["DS_PROCEDIMENTO"])
+    if len(rs_area):
+        descricoes = pd.concat([
+            descricoes,
+            rs_area.drop_duplicates("CD_PROCEDIMENTO")
+                   .set_index("CD_PROCEDIMENTO")["DS_PROCEDIMENTO"]])
+        descricoes = descricoes[~descricoes.index.duplicated()]
+    duplo = bool(custos) and all(cd in custos for cd in exc)
 
-    if not exc or sum(exc.values()) <= 0:
+    if not exc and not custos:
         return None if vazio is None else vazio()
 
     def _bloco(medida: str) -> dict | None:
@@ -4325,16 +4354,25 @@ def pareto_procedimentos(rs_area: pd.DataFrame,
             # na linha vai a descrição (o que se lê); o código TUSS no tooltip
             linha["rotulo_linha"] = desc
             linha["rotulo_tooltip"] = desc
+            tem_exc = cd in agg.index and exc.get(cd, 0.0) > 0
+            if sem_regua and not tem_exc:
+                linha["excedente_rs_fmt"] = config.SEM_MEDIDA
             linha["detalhes"] = [
                 f"Código TUSS: {cd}",
                 (f"Custo total: {linha['custo_fmt']}" if duplo else None),
-                f"Variação excedente: "
-                f"{linha.get('excedente_rs_fmt', linha['reais_fmt'])}",
+                (f"Variação excedente: "
+                 f"{linha.get('excedente_rs_fmt', linha['reais_fmt'])}"
+                 if tem_exc else
+                 ("Sem referência da área: excedente não medido" if sem_regua
+                  else "Sem variação excedente medida")),
                 (f"Solicitações excedentes: {fmt(agg['itens'][cd], 0)}"
                  f" · {linha['pct_do_total_fmt']} "
+                 f"{'do total da área' if ids is None else 'do total em cena'}"
+                 if tem_exc else
+                 f"{linha['pct_do_total_fmt']} "
                  f"{'do total da área' if ids is None else 'do total em cena'}"),
-                f"Cooperados acima do critério neste procedimento: "
-                f"{int(agg['n_coop'][cd])}",
+                (f"Cooperados acima do critério neste procedimento: "
+                 f"{int(agg['n_coop'][cd])}" if tem_exc else None),
             ]
             linha["detalhes"] = [d for d in linha["detalhes"] if d]
         # "Concentração do custo", e não "Custo excedente por procedimento": o
@@ -4364,17 +4402,18 @@ def pareto_procedimentos(rs_area: pd.DataFrame,
                 "linhas": linhas,
         }
 
-    ordens = {"excedente": _bloco("excedente")}
-    if duplo:
-        ordens["custo"] = _bloco("custo")
-    if ordens["excedente"] is None:
+    ordens = {"excedente": _bloco("excedente") if exc else None,
+              "custo": _bloco("custo") if duplo else None}
+    if ordens["excedente"] is None and ordens["custo"] is None:
         return None if vazio is None else vazio()
-    if not duplo:
+    if ordens["custo"] is None:
         return ordens["excedente"]
+    # sem excedente medido, a ordem "custo" é a única — e é a que fica
     return {
-        "ordem_default": "excedente",
-        "ordens": [{"chave": "custo", "rotulo": "Custo total"},
-                   {"chave": "excedente", "rotulo": "Custo excedente"}],
+        "ordem_default": "excedente" if ordens["excedente"] else "custo",
+        "ordens": [o for o in ({"chave": "custo", "rotulo": "Custo total"},
+                               {"chave": "excedente", "rotulo": "Custo excedente"})
+                   if ordens[o["chave"]] is not None],
         "dados": {k: v for k, v in ordens.items() if v is not None},
     }
 
@@ -5197,15 +5236,16 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
     # mais fora do padrão; 28% e 24% dizem.
     def _linhas_do_cartao(a: dict, t: dict) -> list[dict]:
         custo = t.get("custo_total")
+        custo_comp = t.get("custo_comparaveis") or custo
         exc = t.get("excedente_reais") if a["comparavel"] else None
-        pct = (exc / custo) if (custo and exc is not None) else None
+        pct = (exc / custo_comp) if (custo_comp and exc is not None) else None
         return [
             {"rotulo": "Custo total",
              "valor_fmt": config.SEM_MEDIDA if not custo else fmt_reais(custo),
              "motivo": None if custo else "sem procedimento com preço apurado",
-             "titulo": ("Valor de tudo que os cooperados comparáveis desta área "
-                        "solicitaram no período, a preços de referência "
-                        "internos derivados das contas.")},
+             "titulo": ("Valor de tudo que os cooperados desta área solicitaram "
+                        "no período, a preços de referência internos derivados "
+                        "das contas. Existe com ou sem referência da área.")},
             # O % ANDA COM O VALOR, não em linha própria: é a mesma medida em
             # duas leituras (quanto é, e quanto pesa), e uma linha para cada
             # fazia o cartão parecer ter três medidas onde há duas.

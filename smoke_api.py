@@ -302,9 +302,11 @@ checar("pareto · ordem por custo tem o próprio acumulado, fechando em 100%",
 checar("pareto · ordem por custo é decrescente NO CUSTO",
        all(a["custo"] >= b["custo"] for a, b in zip(_pc["linhas"], _pc["linhas"][1:])),
        True)
-checar("pareto · as duas ordens têm as mesmas linhas",
-       sorted(l["id"] for l in _pc["linhas"]) == sorted(l["id"] for l in par["linhas"]),
-       True)
+# a ordem "custo" desenha TODOS os cooperados em cena com preço (decisão
+# 2026-09-11: custo nunca deixa de aparecer); a ordem "excedente" só quem tem
+# excedente — logo a primeira contém a segunda
+checar("pareto · a ordem por custo contém todas as linhas da ordem por excedente",
+       {l["id"] for l in par["linhas"]} <= {l["id"] for l in _pc["linhas"]}, True)
 checar("pareto · acumulado fecha em 100%",
        par["linhas"][-1]["pct_acumulado"], 1.0)
 # A nota de método do Pareto ("Estimativa de teto…") foi removida do app em

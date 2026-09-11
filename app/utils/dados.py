@@ -485,23 +485,18 @@ def resolver_janela(rotulo: str) -> tuple[str, str]:
 
 
 def custo_por_area(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
-                   gatilho: str, alvo: str, incluir_ps: bool) -> dict[str, float]:
-    """Custo total solicitado por ÁREA, entre os cooperados comparáveis.
-
-    O denominador do "% excedente" do Panorama. Sai daqui, e não de uma soma no
+                   gatilho: str, alvo: str, incluir_ps: bool,
+                   so_comparaveis: bool = False) -> dict[str, float]:
+    """Custo total solicitado por ÁREA. Sai daqui, e não de uma soma no
     endpoint, porque é agregação sobre a saída de um motor — a API entrega
     blocos, não calcula (CLAUDE.md, mapa dos documentos).
 
-    ── por que só os COMPARÁVEIS ────────────────────────────────────────────
-    O excedente que divide este número é medido só entre quem tem volume para
-    comparação: quem está abaixo do piso não é sinalizado e não contribui com
-    excedente nenhum. Somar o custo dele no denominador daria uma fração cujo
-    numerador e denominador vêm de conjuntos diferentes (rigor-estatistico §9),
-    e o % excedente da área sairia menor do que é, por diluição.
-
-    É também o que faz o número fechar com a tela de Área: o "custo total" da
-    Leitura é o do recorte em cena, e o recorte default é justamente os
-    comparáveis.
+    Por padrão soma TODOS os cooperados com atividade na área: o custo de
+    solicitação é dado real e nunca deixa de aparecer, tenha a área régua ou
+    não (decisão 2026-09-11). Com `so_comparaveis=True` soma só quem tem volume
+    para comparação — é o denominador do "% excedente" do Panorama, porque o
+    excedente do numerador só existe entre os comparáveis; somar o custo de
+    quem está abaixo do piso ali diluiria a fração (rigor-estatistico §9).
 
     ── parcial por construção, e declarado ─────────────────────────────────
     Só entra procedimento com preço apurado nas contas do período. A cobertura
@@ -512,7 +507,9 @@ def custo_por_area(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
                                   config.PISO_EXECUCOES_ANO, config.Q_CONFUNDIDOR,
                                   None, gatilho, alvo, incluir_ps)
     rs = re_["posicao_proc_rs"]
-    rs = rs[rs["avaliavel"] & rs["preco_mediano"].notna()]
+    rs = rs[rs["preco_mediano"].notna()]
+    if so_comparaveis:
+        rs = rs[rs["avaliavel"]]
     if not len(rs):
         return {}
     custo = (rs["taxa"] * rs["consultas_totais"] * rs["preco_mediano"])

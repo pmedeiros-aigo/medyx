@@ -546,7 +546,7 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
         com_preco.assign(
             custo=com_preco["taxa"] * com_preco["consultas_totais"]
             * com_preco["preco_mediano"])[
-                ["ID_COOPERADO", "CD_PROCEDIMENTO", "custo"]]
+                ["ID_COOPERADO", "CD_PROCEDIMENTO", "DS_PROCEDIMENTO", "custo"]]
         if len(com_preco) else com_preco)
     # cobertura de PREÇO na área: o custo total só conta procedimento com preço
     # apurado nas contas, e o bloco de leitura declara essa base
@@ -698,9 +698,10 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
     cards = blocos.cards_do_recorte(casc["excedente_reais_coop"],
                                     itens_por_coop, ids, rotulo,
                                     n_comparaveis, base_por_coop)
+    sem_regua = (contexto or {}).get("gatilho") is None
     par_coop = blocos.pareto_cooperados(
         casc["excedente_reais_coop"], linhas_coop, ids, None,
-        casc["valor_total_coop"])
+        casc["valor_total_coop"], sem_regua=sem_regua)
     # a concentração e o custo total saem do PARETO já montado: um número, um
     # lugar. O de custo total é a soma das linhas na ordem "custo".
     _exc = (par_coop.get("dados") or {}).get("excedente") or {}
@@ -729,7 +730,7 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
             (contexto or {}).get("gatilho"), (contexto or {}).get("n_formam", 0)),
         "pareto_cooperados": par_coop,
         "pareto_procedimentos": blocos.pareto_procedimentos(
-            casc["rs"], ids, None, casc["custo_pares"]),
+            casc["rs"], ids, None, casc["custo_pares"], sem_regua=sem_regua),
         # O DEGRAU "o que eu faço agora" (§9 do guia de produto): a página
         # respondia o que está acontecendo, por quê e onde, e parava antes da
         # última pergunta. Segue o recorte como os demais achados.
@@ -840,11 +841,20 @@ def panorama(p: ParametrosDep,
         if recorte:
             _todas = recorte
     # o CUSTO TOTAL de todas as áreas numa chamada só: ele não depende de régua
-    # (é o que a área solicitou), então existe também para quem não sinaliza
+    # (é o que a área solicitou), então existe também para quem não sinaliza —
+    # e é de TODOS os cooperados com atividade, não só dos comparáveis (decisão
+    # 2026-09-11: custo de solicitação nunca deixa de aparecer). O denominador
+    # do % excedente continua sendo o custo dos comparáveis (mesma população
+    # do numerador; rigor-estatistico §9).
     custos = dados.custo_por_area(p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
                                   p.criterio, p.referencia, p.incluir_ps)
+    custos_comp = dados.custo_por_area(p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
+                                       p.criterio, p.referencia, p.incluir_ps,
+                                       so_comparaveis=True)
 
-    totais = {a["id"]: {"custo_total": custos.get(a["nome"])} for a in _todas}
+    totais = {a["id"]: {"custo_total": custos.get(a["nome"]),
+                        "custo_comparaveis": custos_comp.get(a["nome"])}
+              for a in _todas}
     # os pares das áreas COM RÉGUA, empilhados: é o que sustenta a lista de
     # oportunidades da especialidade inteira. Empilhar é legítimo porque cada
     # excedente já foi medido contra a referência da PRÓPRIA área — junta-se o
