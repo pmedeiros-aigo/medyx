@@ -967,15 +967,18 @@ th{vertical-align:middle}
 .fil{display:flex;flex-direction:column;gap:6px}
 .fil-lbl{font-size:var(--fs-xs);font-weight:500;color:var(--g-500)}
 .critbar .sel-trig{height:32px;min-width:220px;font-size:var(--fs-sm);padding:0 12px;border-radius:var(--r-sm)}
-.critbar .critact{margin-left:8px;display:flex;align-items:center;gap:8px}
-/* o botão da régua carrega o resumo: rótulo em ink, valores em cinza */
+.critbar .critact{display:flex;align-items:center;gap:8px}
+/* o botão da régua é a caixa do "filtro" Critérios: mesma altura, mesmo
+   raio, mesmo texto dos seletores ao lado, e o rótulo fica em cima como nos
+   outros. O resumo vai por extenso: rótulo curto + valor, separados por · */
 .critbar .btn-crit{height:32px;display:flex;align-items:center;gap:8px;white-space:nowrap;
+  padding:0 12px;border-radius:var(--r-sm);font-size:var(--fs-sm);font-weight:400;
   /* tracejado: a régua NÃO é filtro. Os três à esquerda mudam quem está em
      cena; este declara a regra em vigor, e o contorno aberto marca a diferença
      antes da leitura do rótulo. */
   border-style:dashed}
 .btn-crit svg{stroke:var(--g-600);flex:none}
-.btn-crit .critset{font-weight:400;color:var(--g-400);font-family:var(--font-num);font-size:var(--fs-sm)}
+.btn-crit .critset{font-weight:400;color:var(--g-800);font-size:var(--fs-sm);font-variant-numeric:tabular-nums}
 /* Junto da barra superior a faixa forma UM cabeçalho de duas linhas, não duas
    barras: a divisória interna sai e só o bloco inteiro fecha com uma linha. */
 .crithead{background:var(--canvas);border-bottom:0}

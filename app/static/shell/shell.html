@@ -291,12 +291,18 @@
             </div>
           </div>
 
-          <div class="critact" data-critact>
-            <label class="btn btn-crit" for="crit-sh" tabindex="0">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v3M12 11v9M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="9" r="2"/><circle cx="18" cy="15" r="2"/></svg>
-              Critérios
-              <span class="critset" data-critset></span>
-            </label>
+          <!-- A régua segue o MESMO padrão dos filtros: rótulo em cima, caixa
+               embaixo. O nome "Critérios" sai de dentro do botão e vira o
+               rótulo; o botão passa a dizer a régua por extenso
+               ("Critério P90 · Referência mediana · Confiança 90%"). -->
+          <div class="fil fil-crit">
+            <span class="fil-lbl">Critérios</span>
+            <div class="critact" data-critact>
+              <label class="btn btn-crit" for="crit-sh" tabindex="0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 4v6M6 14v6M12 4v3M12 11v9M18 4v9M18 17v3"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="9" r="2"/><circle cx="18" cy="15" r="2"/></svg>
+                <span class="critset" data-critset></span>
+              </label>
+            </div>
           </div>
         </div>
 

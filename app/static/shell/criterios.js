@@ -83,19 +83,21 @@ function elem(tag, classe, texto) {
 
 /** Desenha os seis pares rótulo/valor e o estado da ação. */
 export function montarFaixaCriterios(meta) {
-  /* CLEAN V3: a régua virou RESUMO dentro do botão, não seis chips na faixa.
-     Só os valores entram ("P90 · mediana") — os rótulos estão no diálogo, ao
-     lado de cada controle, que é onde eles são necessários.
+  /* A régua é um RESUMO dentro do botão, não seis chips na faixa. Entram os
+     três que governam a sinalização, cada um com rótulo curto e valor
+     ("Critério P90 · Referência mediana · Confiança 90%"); o rótulo completo
+     está no diálogo, ao lado de cada controle. O nome "Critérios" é o rótulo
+     acima do botão, no mesmo padrão dos filtros ao lado (set/2026).
 
      A JANELA não entra: ela tem controle próprio a dois centímetros dali (o
      seletor de Período), e repetir o intervalo aqui era dizer duas vezes o que
      já estava dito. Critério é critério. */
   const set = document.querySelector('[data-critset]');
   const criterios = meta.faixa_criterios ?? [];
-  const RESUMO = ['criterio', 'referencia'];
-  const resumo = criterios.filter((c) => RESUMO.includes(c.chave));
+  const CURTO = { criterio: 'Critério', referencia: 'Referência', confianca: 'Confiança' };
+  const resumo = criterios.filter((c) => c.chave in CURTO);
   set.textContent = (resumo.length ? resumo : criterios)
-    .map((c) => c.valor_fmt).join(' · ');
+    .map((c) => `${CURTO[c.chave] ?? c.rotulo} ${c.valor_fmt}`).join(' · ');
   set.title = criterios.map((c) => `${c.rotulo}: ${c.valor_fmt}`).join(' · ');
   const fora = criterios.filter((c) => c.fora_do_padrao).length;
 

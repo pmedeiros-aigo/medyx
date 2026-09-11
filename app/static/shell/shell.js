@@ -110,7 +110,7 @@ function ajustarControlesDaTela() {
   for (const campo of fora) {
     document.querySelector(`[data-trig="${campo}"]`)?.closest('.fil')?.remove();
   }
-  if (tela === 'cooperados') document.querySelector('[data-critact]')?.remove();
+  if (tela === 'cooperados') document.querySelector('[data-critact]')?.closest('.fil')?.remove();
 }
 
 
