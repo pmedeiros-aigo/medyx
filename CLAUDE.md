@@ -237,6 +237,30 @@ python smoke_front.py                          # exige o servidor no ar
 
 ---
 
+## Como publicar
+
+```bash
+./deploy.sh            # pull no servidor, sincroniza os marts, ensaia e reinicia
+./deploy.sh --ensaio   # faz tudo menos reiniciar (conferência antes de publicar)
+```
+
+Instância Lightsail `medyx-portal` (sa-east-1). O acesso sai de
+`aws lightsail get-instance-access-details` e vale minutos: **não há chave de
+longa duração** no projeto, e quem publica é quem já tem credencial AWS.
+
+Duas coisas que o script protege, e que o deploy manual não protegia:
+
+- **O dado não vai pelo git.** O `.gitignore` é explícito, e o fato carrega
+  `ID_BENEFICIARIO`. Os marts viajam por `rsync`, e a LISTA deles sai do
+  `config.py` — mart novo passa a ser publicado no dia em que a constante
+  nasce, sem ninguém lembrar de editar o script.
+- **Ele ensaia a carga antes de tocar no serviço.** O unit tem
+  `Restart=always`: app que sobe quebrado (mart faltando, coluna renomeada)
+  entra em laço de reinício e fica fora do ar. O ensaio roda num processo
+  separado e aborta com o serviço intocado.
+
+---
+
 ## Ambiente Python
 
 Usar **sempre** o ambiente global `global-env`. Nunca criar `.venv/` local.
