@@ -856,7 +856,7 @@ def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_
 
 
 def custo_mensal(fato, janela_ini, janela_fim, precos, area=None,
-                 incluir_ps=config.INCLUIR_PS_DEFAULT):
+                 cooperado=None, incluir_ps=config.INCLUIR_PS_DEFAULT):
     """O custo das solicitações MÊS A MÊS, ao mesmo preço da janela inteira.
 
     É a série trimestral vista de perto, e por construção soma-se a ela: o custo
@@ -878,6 +878,9 @@ def custo_mensal(fato, janela_ini, janela_fim, precos, area=None,
     Mês sem nenhuma solicitação com preço apurado sai com `custo` nulo, nunca
     zero: zero é afirmação sobre o custo, ausência de preço não é.
 
+    `area` e `cooperado` são recortes independentes e combináveis: a tela de
+    Área passa a primeira, o dossiê passa o segundo, e o cálculo é o mesmo.
+
     Devolve uma linha por mês do calendário coberto pela janela, na ordem do
     tempo: `mes` ('2025-05'), `custo`, `itens`, `itens_com_preco`, `consultas`.
     """
@@ -885,6 +888,12 @@ def custo_mensal(fato, janela_ini, janela_fim, precos, area=None,
              & (fato["DATA_REQUISICAO"] <= janela_fim)]
     if area is not None:
         f = f[f["AREA_ATUACAO"] == area]
+    # O RECORTE POR COOPERADO é o mesmo cálculo com outro sujeito, e é por isso
+    # que ele entra aqui em vez de virar uma segunda função: a identidade que
+    # faz os meses somarem o trimestre não depende de quem está em cena, só de
+    # o preço ser o da janela. Dois motores dariam duas chances de divergir.
+    if cooperado is not None:
+        f = f[f["ID_COOPERADO"] == cooperado]
     f = filtrar_ps(f, incluir_ps)
     vazio = pd.DataFrame(columns=["mes", "custo", "itens", "itens_com_preco",
                                   "consultas"])

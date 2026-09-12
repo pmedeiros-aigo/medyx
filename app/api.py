@@ -1239,9 +1239,10 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
     # deixava a tela muda na janela de 3m, onde a exploração começa.
     # Os rótulos de mês saem das PRÓPRIAS fatias: escritos à mão eles mentem sob
     # outra janela.
-    evolucao = blocos.evolucao_mensal_da_area(
+    evolucao = blocos.evolucao_mensal(
         dados.rodar_custo_mensal(p.janela_ini, p.janela_fim, nome, p.incluir_ps),
-        p.janela_ini, p.janela_fim, pj_area, cpj, rotulos_tri, resto_dias)
+        p.janela_ini, p.janela_fim,
+        blocos.evolucao_da_area(pj_area, cpj, rotulos_tri, resto_dias))
 
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
                          p.criterio, p.referencia, p.incluir_ps)
@@ -1747,7 +1748,7 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
 
     fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
     persist_coop = None
-    evolucao = None
+    trimestral = None
     if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
         pers = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
                                         p.referencia, None,
@@ -1757,12 +1758,22 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
         # os meses de cada trimestre vêm das PRÓPRIAS fatias: um rótulo escrito
         # à mão diria "mai–jul" sob uma janela que começa em novembro
         rotulos = [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias]
-        evolucao = blocos.evolucao_trimestral(
+        trimestral = blocos.evolucao_trimestral(
             pers.get("por_janela_cooperado"), pers.get("custo_por_janela"),
             cooperado_id, rotulos,
             # o pedaço da janela que não formou trimestre completo: sem ele o
             # bloco afirmaria uma identidade que só vale quando o resto é zero
             dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim))
+
+    # ── O CASO NO TEMPO: barra por MÊS, fechamento por TRIMESTRE ────────────
+    # O MESMO bloco da tela de Área (set/2026), com o cooperado no lugar dela.
+    # Fora do `if` pela mesma razão de lá: o custo do mês é soma de solicitações
+    # valoradas e existe em qualquer janela; o excedente é que depende de
+    # trimestre fechado. Na janela de 3m o dossiê ficava sem série nenhuma.
+    evolucao = blocos.evolucao_mensal(
+        dados.rodar_custo_mensal(p.janela_ini, p.janela_fim, None,
+                                 p.incluir_ps, cooperado=cooperado_id),
+        p.janela_ini, p.janela_fim, trimestral)
 
     pares, conf = casc.get("pares"), casc.get("conf")
     pares_coop = (pares[pares["ID_COOPERADO"] == cooperado_id]

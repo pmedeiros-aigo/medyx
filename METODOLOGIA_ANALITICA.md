@@ -267,8 +267,8 @@ Ginecologia, com diferença máxima de R$ 0,005.
 
 #### 5.4.2 A granularidade mensal do custo, e por que o excedente não desce a ela (set/2026)
 
-A tela de Área mostra a mesma série em **duas unidades**, e a fronteira entre elas é de método,
-não de desenho:
+A tela de Área e o dossiê do cooperado mostram a mesma série em **duas unidades**, e a fronteira
+entre elas é de método, não de desenho:
 
 | Grandeza | Unidade | Por quê |
 | --- | --- | --- |
@@ -287,7 +287,12 @@ um mês de consultas, exatamente o que o piso de volume (§5.2) existe para impe
 **A série mensal não passa pelo portão da persistência.** Janela que não fecha nenhum trimestre
 (a de 3m) continua com as barras de custo, que são dado real, e sem a faixa de fechamento, cuja
 ausência é declarada. Esconder o custo conhecido deixava a tela muda justamente onde a
-exploração começa.
+exploração começa: em 3m a Área e o dossiê ficavam os dois sem série nenhuma.
+
+**O sujeito é argumento, não é uma segunda função.** `pipeline.custo_mensal` recorta por área ou
+por cooperado; o bloco recebe a faixa trimestral pronta de quem sabe montá-la. A identidade que
+faz os meses somarem o trimestre não depende de quem está em cena, só de o preço ser o da janela,
+e dois motores dariam duas chances de divergir.
 
 **Mês parcial não vira barra.** A janela é ancorada no fim da amostra e pode começar no meio de
 um mês (a de 3m começa dia 31). Um mês coberto por um dia desenharia uma barra rasteira que se

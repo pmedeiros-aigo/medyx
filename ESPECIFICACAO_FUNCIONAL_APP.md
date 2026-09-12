@@ -299,9 +299,19 @@ Cooperado"]
     desenho a que elas se referem.
   - **NÃO segue o recorte** (Lei 0), como a distribuição: a série é da área inteira, e
     trocar os chips não muda quem está sendo medido nela.
-  - **O bloco é da Área, não compartilhado.** O dossiê e os dois painéis de
-    procedimento continuam no `blocos/evolucao.js` trimestral: na coluna estreita de um
-    painel o mês não cabe, e o dossiê não pediu a troca.
+  - **O MESMO bloco serve a Área e o dossiê** (set/2026). As duas telas respondem a
+    mesma pergunta em escalas diferentes (a área e um cooperado), e um desenho por
+    escala obrigaria o leitor a reaprender o gráfico ao descer de uma para a outra.
+    O bloco recebe a faixa trimestral PRONTA (de `evolucao_da_area` num caso, de
+    `evolucao_trimestral` no outro): quem é o sujeito só muda quem monta a série de
+    trimestres, e nada do desenho depende disso.
+    A linha de apoio **pacientes** aparece só onde o dado existe — no dossiê ela
+    separa "atendeu mais gente" de "pediu mais para a mesma gente"; na área não sobe,
+    porque o mesmo beneficiário pode ter passado por dois cooperados e a soma das
+    contagens não seria contagem de distintos. A célula não escreve a linha, em vez
+    de imprimir um traço.
+    Os **dois painéis de procedimento** continuam no `blocos/evolucao.js` trimestral:
+    na coluna estreita de um painel o mês não cabe.
 - **Distribuição** (dentro do container de gráficos, aba "Distribuição"): 1 ponto
 por cooperado avaliável, haste do menor ao maior, faixa IQR do grupo que forma a
 referência, régua de referência e de critério. Clicar num ponto destaca a linha na

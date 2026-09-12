@@ -665,23 +665,35 @@ checar("dossiê · soma dos procedimentos devolve o excedente do cooperado (±0,
 checar("dossiê · cabeçalho com o par da área em todo número",
        all("referência" in c["par_fmt"] for c in dossie["cabecalho"]), True)
 
-# ── ACEITE PERMANENTE (METODOLOGIA §5.4.1) ───────────────────────────────────
+# ── ACEITE PERMANENTE (METODOLOGIA §5.4.1 e §5.4.2) ──────────────────────────
 # A série trimestral é a DISTRIBUIÇÃO NO TEMPO do excedente do ano, medida com a
 # régua do ano. Se algum dia ela voltar a ser medida com a régua de cada
 # trimestre, a soma deixa de fechar e é aqui que isso aparece. Tolerância de um
 # centavo, que é ruído de arredondamento e não de método.
+#
+# O dossiê passou ao bloco MENSAL em set/2026, o mesmo da tela de Área: o custo
+# vive nas barras de mês, o excedente nas células de trimestre da faixa. O aceite
+# não mudou de conteúdo, só de endereço — era `linhas[]`, agora é
+# `grupos[].trimestre`.
 _ev = dossie.get("evolucao")
 _par = (dossie.get("pareto_custo") or {}).get("dados", {}).get("excedente") or {}
-if _ev and _par:
-    _soma = sum(l["excedente_reais"] or 0 for l in _ev["linhas"])
+_cels = [g["trimestre"] for g in (_ev or {}).get("grupos", []) if g["trimestre"]]
+if _ev and _par and _cels:
+    _soma = sum(c["excedente_reais"] or 0 for c in _cels)
     checar("dossiê · trimestres somam o excedente do ano (régua congelada)",
            abs(_soma - _par["total"]) <= 0.01, True)
-    checar("dossiê · trimestre sem barra só por falta de preço, nunca por piso",
-           all(l["avaliavel"] or l["motivo"] for l in _ev["linhas"]), True)
+    checar("dossiê · trimestre sem custo só por falta de preço, nunca por piso",
+           all(c["custo"] is not None or c["motivo"] for c in _cels), True)
     # o piso de volume vira RESSALVA, não portão: trimestre de volume baixo
-    # continua com custo apurado e com barra (METODOLOGIA §5.4.1)
-    checar("dossiê · volume baixo não esconde a barra do trimestre",
-           all(l["avaliavel"] for l in _ev["linhas"] if l["volume_baixo"]), True)
+    # continua com custo apurado (METODOLOGIA §5.4.1)
+    checar("dossiê · volume baixo não esconde o custo do trimestre",
+           all(c["custo"] is not None for c in _cels if c["volume_baixo"]), True)
+    # §5.4.2: o mês carrega o custo, o trimestre carrega o excedente
+    checar("dossiê · os meses de cada grupo somam o trimestre",
+           _ev["fecha"], True)
+    checar("dossiê · nenhum mês carrega excedente",
+           all("excedente_reais" not in m
+               for g in _ev["grupos"] for m in g["meses"]), True)
 checar("dossiê · em revisão só quem passa os três portões",
        all(l["sinalizado"] is False for l in dossie["procedimentos"]["linhas"]
            if l["excedente_itens"] is None), True)

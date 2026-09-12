@@ -1,4 +1,4 @@
-/* evolucao-mensal.js — a área no tempo, em duas unidades.
+/* evolucao-mensal.js — o sujeito no tempo, em duas unidades.
  *
  * Uma barra por MÊS: a altura é o custo das solicitações do mês. Abaixo, a
  * faixa de FECHAMENTO por trimestre, cada célula sob as três barras que ela
@@ -14,8 +14,14 @@
  * Não há duas grades para manter em acordo.
  *
  * Nada é calculado aqui: alturas, marcas da régua, rótulos, variações e frases
- * vêm prontos de `blocos.evolucao_mensal_da_area`. As alturas e os pesos saem em
+ * vêm prontos de `blocos.evolucao_mensal`. As alturas e os pesos saem em
  * `style` porque são DADO, como `largura_pct` no Pareto.
+ *
+ * Serve a tela de ÁREA e o dossiê do COOPERADO com o mesmo desenho: as duas
+ * respondem a mesma pergunta em escalas diferentes, e um desenho por escala
+ * obrigaria o leitor a reaprender o gráfico ao descer de uma para a outra. Os
+ * dois painéis de procedimento seguem no `evolucao.js` trimestral, porque numa
+ * coluna estreita o mês não cabe.
  */
 'use strict';
 
@@ -24,7 +30,7 @@ import { colapsavel } from '../lib/colapsar.js';
 
 /**
  * @param {HTMLElement} destino
- * @param {object} d  bloco `evolucao` de /api/area/{id}
+ * @param {object} d  bloco `evolucao` de /api/area/{id} ou /api/cooperado/{id}
  */
 export function montarEvolucaoMensal(destino, d) {
   if (!d?.grupos?.length) return;

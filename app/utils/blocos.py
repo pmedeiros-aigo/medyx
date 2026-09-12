@@ -3842,13 +3842,17 @@ def evolucao_da_area(por_janela: pd.DataFrame | None,
     return evolucao_trimestral(pj, cj, _ID_AREA, rotulos, resto_dias)
 
 
-def evolucao_mensal_da_area(custo_mes: pd.DataFrame | None,
-                            janela_ini: str, janela_fim: str,
-                            por_janela: pd.DataFrame | None = None,
-                            custo_por_janela: pd.DataFrame | None = None,
-                            rotulos: list[str] | None = None,
-                            resto_dias: int | None = None) -> dict | None:
-    """A área no tempo: uma barra por MÊS, e o fechamento por TRIMESTRE embaixo.
+def evolucao_mensal(custo_mes: pd.DataFrame | None,
+                    janela_ini: str, janela_fim: str,
+                    trimestral: dict | None = None) -> dict | None:
+    """O sujeito no tempo: uma barra por MÊS, e o fechamento por TRIMESTRE embaixo.
+
+    Serve a ÁREA e o COOPERADO com o mesmo desenho, e é por isso que ele recebe
+    a faixa trimestral PRONTA (`trimestral`) em vez de construí-la: quem é o
+    sujeito só muda quem monta a série de trimestres (`evolucao_da_area` de um
+    lado, `evolucao_trimestral` do outro), e nada do que este bloco faz depende
+    disso. Construir aqui obrigaria a passar um sinalizador de tipo, que é o
+    começo de duas versões do mesmo bloco (DIRETRIZES §5).
 
     Duas grandezas, duas unidades, e é essa a razão do bloco existir em duas
     camadas em vez de uma:
@@ -3877,8 +3881,10 @@ def evolucao_mensal_da_area(custo_mes: pd.DataFrame | None,
     meses COMPLETOS dentro da janela; os dias das pontas são declarados na nota,
     nunca descartados em silêncio (mesma disciplina de `fatiar_trimestres`).
 
-    `custo_mes` = saída de `pipeline.custo_mensal`; `por_janela` e
-    `custo_por_janela` = as mesmas tabelas que `evolucao_da_area` consome.
+    `custo_mes` = saída de `pipeline.custo_mensal` com o mesmo recorte do
+    `trimestral`; `trimestral` = bloco de `evolucao_da_area` (tela de Área) ou de
+    `evolucao_trimestral` (dossiê), ou `None` quando a janela não fecha trimestre
+    nenhum — e aí ficam só as barras, com a ausência declarada.
     """
     if custo_mes is None or not len(custo_mes):
         return None
@@ -3966,12 +3972,12 @@ def evolucao_mensal_da_area(custo_mes: pd.DataFrame | None,
         m["tooltip"] = "\n".join(linhas_dica)
         m.pop("_mes_anterior", None)
 
-    # ── o fechamento trimestral, reaproveitado inteiro ──────────────────────
-    # Mesma função que desenha a série trimestral do dossiê: custo, excedente,
-    # índice, custo por consulta, variação contra o trimestre anterior e o ajuste
-    # de arredondamento que faz os trimestres somarem o excedente do período.
+    # ── o fechamento trimestral, recebido pronto ────────────────────────────
+    # Vem da função que já desenha a série trimestral: custo, excedente, índice,
+    # custo por consulta, variação contra o trimestre anterior e o ajuste de
+    # arredondamento que faz os trimestres somarem o excedente do período.
     # Dois blocos sobre o mesmo dinheiro não podem ter dois arredondamentos.
-    tri = evolucao_da_area(por_janela, custo_por_janela, rotulos, resto_dias)
+    tri = trimestral
     linhas_tri = (tri or {}).get("linhas") or []
 
     # ── os grupos: três meses e o trimestre que eles fecham ─────────────────
@@ -4070,8 +4076,16 @@ def _celula_trimestre(q: dict | None, linhas: list[dict], k: int,
             d = (exc - a) / a
             var_exc = (f"{'+' if d >= 0 else '−'}{fmt_pct(abs(d))} "
                        f"vs {anterior['rotulo']}")
+    # ── AS LINHAS DE APOIO: volume, intensidade, preço ──────────────────────
+    # PACIENTES entra quando existe, e some quando não existe, sem ramo por
+    # tela: no dossiê ele separa "atendeu mais gente" de "pediu mais para a
+    # mesma gente"; na área ele não sobe, porque o mesmo beneficiário pode ter
+    # passado por dois cooperados e a soma das contagens não seria uma contagem
+    # de distintos (ver `evolucao_da_area`). A célula simplesmente não escreve a
+    # linha, que é o certo, e não um traço no lugar de um número.
     apoio = []
-    for rot, chave, valor in (("procedimentos por consulta", "indice", q.get("indice_fmt")),
+    for rot, chave, valor in (("pacientes", "pacientes", q.get("pacientes_fmt")),
+                              ("procedimentos por consulta", "indice", q.get("indice_fmt")),
                               ("custo por consulta", "custo_por_consulta",
                                q.get("custo_por_consulta_fmt"))):
         if not valor:
@@ -4093,6 +4107,12 @@ def _celula_trimestre(q: dict | None, linhas: list[dict], k: int,
         "custo": custo,
         "custo_fmt": q.get("custo_fmt"),
         "linhas_apoio": apoio,
+        # O VALOR CRU ao lado do formatado, como manda a regra de formatação do
+        # módulo: é sobre ele que o aceite permanente da METODOLOGIA §5.4.1 é
+        # cobrado (a soma dos trimestres tem de fechar com o excedente do
+        # período, na casa do centavo). Prova que lê frase formatada quebra na
+        # primeira vírgula.
+        "excedente_reais": exc,
         "excedente_fmt": q.get("excedente_reais_fmt"),
         "exc_negativo": bool(q.get("exc_negativo")),
         # a barrinha da fatia só existe quando há fatia POSITIVA para desenhar:

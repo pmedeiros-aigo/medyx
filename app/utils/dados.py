@@ -362,16 +362,20 @@ def rodar_persistencia(janelas: tuple, piso: int, n_minimo: int,
 
 @lru_cache(maxsize=32)
 def rodar_custo_mensal(janela_ini: str, janela_fim: str, area: str | None,
-                       incluir_ps: bool):
-    """custo_mensal() de uma área, memoizado.
+                       incluir_ps: bool, cooperado: str | None = None):
+    """custo_mensal() de uma ÁREA ou de um COOPERADO, memoizado.
 
     O PREÇO entra aqui pelo mesmo motivo que em `rodar_persistencia`: tabela não
     é hashável e quebraria o cache. E é a MESMA tabela, sobre a MESMA janela —
     é ela que faz os meses somarem os trimestres.
+
+    `cooperado` vem por último e com default para não invalidar o cache das
+    chamadas de área que já existem.
     """
     return pl.custo_mensal(carregar_fato(), janela_ini, janela_fim,
                            rodar_precos(janela_ini, janela_fim),
-                           area=area, incluir_ps=incluir_ps)
+                           area=area, cooperado=cooperado,
+                           incluir_ps=incluir_ps)
 
 
 @lru_cache(maxsize=32)

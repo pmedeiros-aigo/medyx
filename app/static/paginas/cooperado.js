@@ -22,7 +22,7 @@ import { buscar } from '../lib/api.js';
 import { abrirPagina } from '../lib/pagina.js';
 import { TELAS, comRegua, rotaAtual } from '../lib/rotas.js';
 import { abrirPainel } from '../blocos/painel-procedimento.js';
-import { montarEvolucao } from '../blocos/evolucao.js';
+import { montarEvolucaoMensal } from '../blocos/evolucao-mensal.js';
 import { montarPareto } from '../blocos/pareto.js';
 import { montarResumoDoCaso } from '../blocos/resumo-caso.js';
 import { el, ordenar, cabecalho, ordemDaURL, gravarOrdem, proximaOrdem, moldura,
@@ -485,8 +485,14 @@ await abrirPagina({
        Área — aqui as barras vêm com o nível de excesso dentro. */
     /* ANTES do Pareto: ele responde "em que procedimento está o dinheiro", e a
        pergunta anterior é se o caso está estável ou piorando. Quem já sabe que
-       o excedente cresceu lê o Pareto procurando o que cresceu. */
-    montarEvolucao(conteudo, d.evolucao);
+       o excedente cresceu lê o Pareto procurando o que cresceu.
+
+       O MESMO bloco da tela de Área desde set/2026: barra por mês para o custo,
+       faixa de fechamento por trimestre para o excedente. Duas telas que
+       respondem a mesma pergunta em escalas diferentes (a área e um cooperado)
+       não podem ter dois desenhos, senão o leitor reaprende o gráfico ao descer
+       de uma para a outra. */
+    montarEvolucaoMensal(conteudo, d.evolucao);
     /* O Pareto é montado ANTES da tabela, mas quem sabe abrir o painel é a
        tabela. O gancho fica numa referência mutável: o clique só pode acontecer
        depois que a página inteira montou, e aí ela já está preenchida. */
