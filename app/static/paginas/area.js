@@ -6,7 +6,7 @@
  *
  * Blocos na tela, na ordem em que a pergunta se faz:
  *   · cabeçalho da página — título e a linha de contexto fixa da área
- *   · chips de recorte + perfis — o eixo aninhado da cascata
+ *   · chips de recorte — o eixo da cascata
  *   · Leitura da área — o que a tela produziu, seguindo o recorte
  *   · abas Cooperados | Procedimentos — o conteúdo de trabalho, e dentro de
  *     cada uma: o Pareto do eixo, a tabela e (na de Cooperados) os gráficos
@@ -14,13 +14,13 @@
  *
  * ── quem é dono do quê ──────────────────────────────────────────────────────
  *
- * ESTA PÁGINA é dona do ESTADO DA VISTA (recorte, perfil, aba, ordenação) e de
- * decidir QUEM ESTÁ EM CENA. Os blocos desenham o que recebem e avisam quando
- * são acionados — nenhum bloco comanda outro.
+ * ESTA PÁGINA é dona do ESTADO DA VISTA (recorte, aba, ordenação) e de decidir
+ * QUEM ESTÁ EM CENA. Os blocos desenham o que recebem e avisam quando são
+ * acionados — nenhum bloco comanda outro.
  *
- * Foi assim que se desfez o nó anterior: a tabela guardava o estado, o bloco de
- * perfis tinha de pedir a ela para trocar de perfil, e a tabela é que avisava o
- * gráfico. Três blocos amarrados para uma decisão que é da página.
+ * Foi assim que se desfez o nó anterior: a tabela guardava o estado, o bloco que
+ * escolhia o recorte tinha de pedir a ela para trocar, e a tabela é que avisava
+ * o gráfico. Três blocos amarrados para uma decisão que é da página.
  */
 'use strict';
 
@@ -32,7 +32,6 @@ import { criarVista } from '../lib/vista.js';
 import { ordenar, ordemDaURL, proximaOrdem, casa } from '../lib/tabelas.js';
 import { montarCabecalho } from '../blocos/cabecalho.js';
 import { montarExcluidos } from '../blocos/excluidos.js';
-import { montarPerfis } from '../blocos/perfis.js';
 import { montarRecorte, recortePorChave } from '../blocos/recorte.js';
 import { montarAbas } from '../blocos/abas.js';
 import { montarTabela, COLUNAS } from '../blocos/tabela.js';
@@ -43,7 +42,7 @@ import { montarLeituraDaArea } from '../blocos/leitura-area.js';
 import { montarOportunidades } from '../blocos/oportunidades.js';
 import { abrirPainelDoExame } from '../blocos/painel-procedimento-area.js';
 import { montarDispersao } from '../blocos/dispersao.js';
-import { montarEvolucao } from '../blocos/evolucao.js';
+import { montarEvolucaoMensal } from '../blocos/evolucao-mensal.js';
 
 await abrirPagina({
   titulo: 'Área de atuação',
@@ -65,7 +64,6 @@ await abrirPagina({
     /* Só o que o SERVIDOR reagrega. `q` e a localização por exame ficam de
        fora de propósito: elas encontram dentro do que já veio. */
     return { recorte: q.get('recorte') || RECORTE_PADRAO,
-             perfil: q.get('perfil') || null,
              q: q.get('q') || null };
   }
 
@@ -78,22 +76,32 @@ await abrirPagina({
   const excluidos = montarExcluidos(conteudo, dados.composicao);
   montarCabecalho(conteudo, dados, () => excluidos.abrir());
 
-  /* Recorte e perfil na MESMA faixa, acima do gráfico e da tabela: são a mesma
-     pergunta ("quem aparece") e recortam os dois blocos. O perfil era um cartão
-     à parte, com título e subtítulo, ocupando a dobra do conteúdo. */
+  /* O RECORTE, acima do gráfico e da tabela: é ele que responde "quem aparece",
+     e recorta os dois blocos.
+
+     ── O FILTRO DE PERFIL SAIU DAQUI (2026-09-11) ─────────────────────────
+     Ao lado dele morava um segundo botão, "Perfil", que recortava a tela pelos
+     sub-perfis (cirurgia, executa, carteira jovem, carteira climatério, área
+     secundária). Saiu a pedido do médico que auditou a tela, e a auditoria do
+     código concordou:
+
+       · os cinco perfis se declaram INFORMATIVOS ("não altera o cálculo da
+         referência"), então o filtro prometia um corte e não mexia na régua;
+       · a identidade já está na TABELA, como etiqueta em cada linha, com o
+         hover explicando — 29 das 55 linhas de Ginecologia Geral a carregam.
+         Quem pergunta "quem opera?" lê a coluna, não o filtro;
+       · o que só ele fazia era reagregar a Leitura, os dois Paretos e as
+         Oportunidades sobre grupos de 2 a 7 cooperados. Estatística de grupo
+         minúsculo é anedota (rigor §2), e o bloco saía dizendo "1 de 2
+         cooperados concentram 98% do valor".
+
+     O que ficou: as etiquetas nas linhas, que são exibição de identidade e não
+     recorte. */
   const faixaChips = document.createElement('div');
   faixaChips.className = 'row flexwrap';
   conteudo.appendChild(faixaChips);
   const chips = montarRecorte(faixaChips, dados,
     (chave) => definir({ recorte: chave }));
-  /* Perfis são MÚLTIPLOS e viajam na URL separados por vírgula
-     (?perfil=opera,alto-risco). `null` limpa tudo. */
-  const perfis = montarPerfis(faixaChips, dados, (chave) => {
-    if (chave === null) { definir({ perfil: null }); return; }
-    const atuais = new Set(perfisEscolhidos());
-    if (atuais.has(chave)) atuais.delete(chave); else atuais.add(chave);
-    definir({ perfil: [...atuais].join(',') || null });
-  });
 
   /* A LEITURA DA ÁREA fica ABAIXO dos chips e segue o recorte: é o tamanho do
      que está em cena. O contexto fixo da área é a linha sob o título, acima
@@ -132,22 +140,23 @@ await abrirPagina({
     (id) => comRegua(TELAS.cooperado.caminho(id)));
 
   /* ── A ÁREA NO TEMPO, logo abaixo das oportunidades ──────────────────────
-     O MESMO bloco do dossiê (`blocos/evolucao.js`), com a área no lugar do
-     cooperado: uma barra por trimestre, a barra inteira é o custo do período e
-     o trecho preenchido é o excedente dentro dele.
+     Uma barra por MÊS (o custo das solicitações) e, embaixo, a faixa de
+     fechamento por TRIMESTRE (o excedente apurado ali), cada célula sob as
+     barras que ela fecha. Duas unidades porque são duas grandezas: custo é
+     soma e desce ao mês; excedente é apurado por trimestre.
 
      Aqui porque a pergunta dele vem depois da lista de prioridades e antes da
      bancada: sabendo o que fazer agora, a próxima é se o problema está crescendo
      ou parado. E ele NÃO segue o recorte, como a distribuição: a série é da
      área inteira, e trocar os chips não muda quem está sendo medido nela. */
-  montarEvolucao(conteudo, dados.evolucao);
+  montarEvolucaoMensal(conteudo, dados.evolucao);
 
   /* ── as duas unidades de análise, LOGO ABAIXO DOS CARDS ──────────────────
      As abas subiram em 2026-08-20, para o lugar que era da distribuição. O que
      a página responde primeiro é "quem" ou "o quê" — a lista de trabalho —, e
      ela vinha depois de dois gráficos altos: quem abria a tela para trabalhar
      rolava por eles toda vez.
-     A régua continua a mesma nas duas abas (janela, critério, recorte, perfil),
+     A régua continua a mesma nas duas abas (janela, critério, recorte),
      e por isso a faixa de filtros e a Leitura ficam ACIMA delas. */
   const abas = montarAbas(conteudo, [
     { chave: 'cooperados', rotulo: 'Cooperados', n: dados.cooperados.total },
@@ -174,7 +183,9 @@ await abrirPagina({
   const graficos = montarAbas(abas.paineis.cooperados, [
     { chave: 'pareto', rotulo: 'Concentração' },
     { chave: 'distribuicao', rotulo: 'Distribuição' },
-    { chave: 'dispersao', rotulo: 'Quantidade × custo' },
+    /* "Quantidade × custo" até 2026-09-11. "Quantidade" era vago (de quê?) e
+       não é termo do léxico, que diz SOLICITAÇÕES desde set/2026. */
+    { chave: 'dispersao', rotulo: 'Solicitações × custo' },
   ], (k) => { graficos.marcar(k); encaixar(k); }, { forma: 'seg' });
   /* A MARCA que reserva a altura da vista mais alta (ver `.graficos-vistas` no
      CSS): trocar de gráfico não pode sacudir a tabela logo abaixo. Fica na
@@ -356,7 +367,7 @@ await abrirPagina({
    * do CLAUDE.md); "Todos" fica a um clique, e é lá que essas linhas são
    * vistas de propósito. */
   const { estado, definir } = criarVista(
-    { recorte: RECORTE_PADRAO, perfil: null, aba: 'cooperados', q: null, qp: null,
+    { recorte: RECORTE_PADRAO, aba: 'cooperados', q: null, qp: null,
       pexc: null,
       ...ordemInicial() },
     aplicar);
@@ -376,42 +387,24 @@ await abrirPagina({
    * QUEM ESTÁ EM CENA — a única função que decide isso, e ela é da página.
    *
    * Não calcula nada: filtra o que a API já entregou, por campos que o motor
-   * marcou (`grupos`, `avaliavel`, `sub_perfis`). Ordenar também não é
-   * calcular — é reordenar o que já veio, e por isso não custa ida ao servidor.
+   * marcou (`grupos`, `avaliavel`). Ordenar também não é calcular — é reordenar
+   * o que já veio, e por isso não custa ida ao servidor.
    */
-  /** As chaves de perfil da URL, já sem os vazios. */
-  function perfisEscolhidos() {
-    return (estado.perfil ?? '').split(',').filter(Boolean);
-  }
-
   function emCena() {
     const r = recortePorChave(estado.recorte);
     let linhas = r.filtro ? dados.cooperados.linhas.filter(r.filtro)
                           : dados.cooperados.linhas;
-    const chaves = new Set(perfisEscolhidos());
-    const escolhidos = (dados.cooperados.perfis ?? [])
-      .filter((p) => chaves.has(p.chave) && p.selecionavel);
-    /* O perfil recorta por cima do recorte da cascata: quem aparece é quem
-       CARREGA algum dos perfis marcados (UNIÃO, não interseção — identidades
-       se acumulam, e ninguém procura "quem opera E é de alto risco"). A régua
-       não muda: sub-perfil é identidade. */
     /* A BUSCA é o último filtro e o mais fraco: ela LOCALIZA dentro do que o
-       recorte e o perfil deixaram em cena, e não muda nenhum agregado. Por
-       isso não entra em `recorteAtivo()`, que é o que o servidor reagrega. */
+       recorte deixou em cena, e não muda nenhum agregado. Por isso não entra em
+       `recorteAtivo()`, que é o que o servidor reagrega. */
     if (estado.q) linhas = linhas.filter((l) => casa(l.id, estado.q));
-    if (escolhidos.length) {
-      const flags = new Set(escolhidos.map((p) => p.flag));
-      linhas = linhas.filter(
-        (l) => l.sub_perfis?.some((sp) => flags.has(sp.chave)));
-    }
-    return { recorte: r, perfis: escolhidos, linhas };
+    return { recorte: r, linhas };
   }
 
   /** Redistribui a vista para todos os blocos. */
   function aplicar() {
-    const { recorte, perfis: escolhidos, linhas } = emCena();
+    const { recorte, linhas } = emCena();
     chips.marcar(recorte.chave);
-    perfis?.marcar(escolhidos.map((p) => p.chave));
 
     /* O contador da aba conta QUEM ESTÁ EM CENA, não o total da área: ele fica
        encostado no rótulo que nomeia a lista logo abaixo, e um número parado
@@ -424,8 +417,7 @@ await abrirPagina({
     /* O gráfico acompanha o que está em cena; "Todos" e "Comparáveis" não
        recuam ninguém, porque o gráfico só desenha avaliáveis e mandar o
        conjunto inteiro derrubaria o esmaecimento da escolha de um ponto. */
-    const recorta = escolhidos.length > 0
-      || !['todos', 'comparaveis'].includes(recorte.chave);
+    const recorta = !['todos', 'comparaveis'].includes(recorte.chave);
     const ids = recorta ? linhas.map((l) => l.id) : null;
     grafico?.realcar(ids);
     bolhas?.realcar(ids);
@@ -441,18 +433,15 @@ await abrirPagina({
     const visiveis = ordenar(linhas, coluna, estado.dir);
     tabela.atualizar({
       linhas: visiveis,
-      /* A coluna do posto só entra com UM perfil: posto é a posição dentro de
-         um perfil, e entre dois não há definição honesta. */
-      perfilFlag: escolhidos.length === 1 ? escolhidos[0].flag : null,
       ordem: estado.ord,
       direcao: estado.dir,
-      rodape: rodape(recorte, escolhidos, visiveis, coluna),
+      rodape: rodape(recorte, visiveis, coluna),
     });
   }
 
   /** O recorte ativo, na forma em que a API o recebe. */
   function recorteAtivo() {
-    return { recorte: estado.recorte, perfil: estado.perfil || null };
+    return { recorte: estado.recorte };
   }
 
   /* ── os blocos de ACHADO, que o servidor reagrega ─────────────────────────
@@ -476,8 +465,8 @@ await abrirPagina({
      Pareto no servidor. */
   let achadoEmCena = chaveDoRecorte(recorteInicial());
 
-  function chaveDoRecorte({ recorte, perfil }) {
-    return `${recorte ?? ''}|${perfil ?? ''}`;
+  function chaveDoRecorte({ recorte }) {
+    return `${recorte ?? ''}`;
   }
 
   async function buscarAchados() {
@@ -509,13 +498,9 @@ await abrirPagina({
   }
 
   /** O estado da vista em uma frase: o que está em cena e sob que ordem. */
-  function rodape(recorte, escolhidos, visiveis, coluna) {
+  function rodape(recorte, visiveis, coluna) {
     let diz = `${visiveis.length} de ${dados.cooperados.total} · `
             + `recorte: ${recorte.rotulo.toLowerCase()}`;
-    if (escolhidos.length) {
-      diz += ` · ${escolhidos.length === 1 ? 'perfil' : 'perfis'}: `
-           + escolhidos.map((p) => p.rotulo).join(', ');
-    }
     /* A busca entra no rodapé como os outros filtros: o estado da vista é uma
        frase só, e um filtro que não aparece nela é um filtro que o leitor
        esquece que ligou. */

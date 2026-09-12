@@ -275,7 +275,7 @@ function montarEvolucaoDoExame(destino, d) {
       if (q.estado === 'sinalizado') marca.className = 'on';
       else if (q.estado === 'nao_avaliavel') marca.className = 'na';
       marca.title = q.estado === 'nao_avaliavel'
-        ? (q.motivo ?? 'Trimestre sem medida.')
+        ? (q.motivo ?? 'Trimestre não apurado.')
         : (q.sinalizado ? 'Acima do critério de revisão neste trimestre.'
                         : 'Dentro da referência neste trimestre.');
       quadro.appendChild(marca);
@@ -465,8 +465,7 @@ function montarPeso(destino, d) {
   if (!p) return;
   const { cartao, corpo } = secao('Participação no período',
     'Participação deste procedimento no total solicitado pelo cooperado no '
-    + 'período e valor correspondente. Preços internos provisórios, ainda não '
-    + 'homologados contra a tabela contratual.');
+    + 'período e valor correspondente.');
   corpo.appendChild(el('span', 'v',
     `${p.proporcao_fmt} do total solicitado pelo cooperado.`));
   corpo.appendChild(el('span', 'sub',

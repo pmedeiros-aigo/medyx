@@ -28,7 +28,7 @@ import { el } from './dom.js';
  *  chaveia os motores memoizados —, mas passaram a decidir QUEM ENTRA NA SOMA
  *  dos blocos de achado, e isso é cálculo. Quem os quiser fora de um pedido
  *  específico manda `soMotor`; quem os quiser dentro manda `extra`. */
-const SO_DA_TELA = ['aba', 'ord', 'dir', 'recorte', 'perfil', 'q'];
+const SO_DA_TELA = ['aba', 'ord', 'dir', 'recorte', 'q'];
 
 /**
  * Busca JSON da API com a régua da página.

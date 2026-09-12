@@ -86,9 +86,9 @@ export function rotaAtual() {
 export function comRegua(caminho, extras = null) {
   const [base, queryDoCaminho] = String(caminho).split('?');
   const q = new URLSearchParams(location.search);
-  /* `ord`, `dir`, `recorte`, `perfil` e `aba` são estado de apresentação da
+  /* `ord`, `dir`, `recorte` e `aba` são estado de apresentação da
      tela de origem e não significam nada na de destino. */
-  for (const chave of ['ord', 'dir', 'recorte', 'perfil', 'aba']) q.delete(chave);
+  for (const chave of ['ord', 'dir', 'recorte', 'aba']) q.delete(chave);
   q.delete('area');   // a área agora é caminho, não query
   /* O que o DESTINO pede entra depois de limpar a origem: é assim que `aba`,
      apagada acima como estado de origem, sobrevive quando é pedida de propósito. */

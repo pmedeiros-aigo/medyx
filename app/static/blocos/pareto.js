@@ -266,7 +266,13 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto',
     /* Na linha, o rótulo CURTO (id do cooperado, descrição do procedimento);
        a frase inteira fica no tooltip, que tem espaço para ela. */
     const rot = el('span', 'rot', l.rotulo_linha ?? l.id);
-    rot.title = l.rotulo_tooltip ?? l.id;
+    /* O `title` do rótulo só existe quando ele DIZ algo que a linha não mostra:
+       na lista de procedimentos a descrição é longa e vem truncada, e aí o
+       hover devolve o nome inteiro. Na de cooperados os dois são o mesmo texto
+       desde set/2026 (a posição saiu do tooltip), e um hover que repete a
+       palavra sob o cursor aparecia sobre a ficha que o leitor veio ler. */
+    const completo = l.rotulo_tooltip ?? l.id;
+    if (completo !== (l.rotulo_linha ?? l.id)) rot.title = completo;
     /* Duas colunas de acumulado, e não uma célula com os dois valores: o R$ diz
        QUANTO vale parar nesta linha, o % diz que FRAÇÃO do total é isso. São
        leituras diferentes, e juntas num campo só viram um par de números

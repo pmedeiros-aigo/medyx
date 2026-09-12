@@ -166,8 +166,17 @@ checar("gráfico · em cena + fora == avaliáveis, nas três medidas",
 checar("gráfico · nenhum ponto de dinheiro em zero",
        all(p["valor"] > 0 for chave in ("custo", "excesso")
            for p in _medidas_gin[chave]["pontos"]), True)
-checar("gráfico · toda medida declara o n da caixa no rodapé",
-       all("caixa" in m["nota"].lower() for m in _medidas_gin.values()), True)
+# O N DA CAIXA continua obrigatório (rigor §2: estatística de grupo sem n é
+# anedota), mas mudou de SUPORTE em 2026-09-11: era a primeira frase da nota do
+# rodapé, que repetia o rótulo da marca na legenda logo acima e cobrava uma
+# segunda linha da faixa. Agora vive no hover da própria marca da caixa, como o
+# denominador da leitura de concentração do Pareto. A prova segue o fato, não a
+# superfície: o n tem de estar escrito em algum lugar de cada medida.
+checar("gráfico · toda medida declara o n da caixa",
+       all(str(m["n_na_caixa"]) in m["caixa_titulo"] for m in _medidas_gin.values()),
+       True)
+checar("gráfico · e a nota do rodapé só fala quando há exceção",
+       [m["nota"] for m in _medidas_gin.values()], ["", "", ""])
 checar("tabela · linhas == total da área",
        len(gin["cooperados"]["linhas"]), gin["area"]["n_total"])
 checar("gatilho_usado presente em toda linha avaliável",
@@ -252,17 +261,38 @@ checar("acima do critério · sem a palavra 'sinalizados' (léxico)",
 # set/2026, por decisão do produto: descreviam o estado do projeto (a tabela
 # contratual não chegou), não a natureza do número. O que a base de preço é
 # continua na definição das colunas de R$ e no hover do valor no dossiê.
-# O R$ agora é o DESTAQUE da Leitura da área, não mais uma parte da linha de
-# contexto — as checagens seguem o número.
-exc_txt = (gin["leitura"]["destaque"]["valor_fmt"] + " "
-           + gin["leitura"]["destaque"]["apoio"])
-checar("o R$ é o destaque da Leitura da área", "R$ " in exc_txt, True)
+# O R$ vive na LINHA "excedente" do grupo "Custo" da Leitura, logo sob o total
+# de que ele é a parte. Era uma faixa de destaque abaixo da grade até
+# 2026-09-11, e antes disso uma parte da linha de contexto — as checagens
+# seguem o número, não a superfície.
+_exc_linha = linha_leitura(gin, "_custo_exc")
+exc_txt = _exc_linha["valor_fmt"] + " " + (_exc_linha["apoio"] or "")
+checar("o R$ excedente está na Leitura da área", "R$ " in exc_txt, True)
 checar("sem vocabulário de quarentena", "quarentena" in exc_txt, False)
 checar("sem o rótulo 'estimativa'", "estimad" in exc_txt, False)
 # guia, tabela de formatos: "R$ abreviado, 1 casa · R$ 1,2 mi". Sete dígitos num
 # número-herói não se leem; o valor exato pertence ao dossiê.
-checar("R$ abreviado no destaque",
+checar("R$ abreviado na linha do excedente",
        bool(re.search(r"R\$ [\d.,]+ (mi|mil)\b", exc_txt)), True)
+# O PAR VIVE JUNTO: total e excedente são as duas linhas do MESMO grupo, nesta
+# ordem. Era o total num grupo e o excedente numa faixa de destaque abaixo da
+# grade, e o leitor tinha de atravessar o cartão para comparar a parte com o
+# todo.
+_g_custo = next(g for g in gin["leitura"]["grupos"] if g["rotulo"] == "Custo")
+checar("Leitura · o custo é um grupo de total e excedente",
+       [l["chave"] for l in _g_custo["linhas"]], ["_custo_total", "_custo_exc"])
+_g_sol = next(g for g in gin["leitura"]["grupos"] if g["rotulo"] == "Solicitações")
+checar("Leitura · e as solicitações também",
+       [l["chave"] for l in _g_sol["linhas"]], ["solicitacoes", "_itens"])
+# A FRASE NOMEIA A GRANDEZA. Ela dizia "concentram 81% do valor", e o mesmo
+# bloco imprime dois R$ diferentes (custo total e custo excedente).
+checar("Leitura · a frase diz de que valor fala",
+       "do custo excedente" in (gin["leitura"]["frase"] or ""), True)
+# E NÃO REPETE A LINHA DE CONTEXTO. "N também atípicos no índice agregado" é da
+# linha de contexto (espec funcional: o escopo, que nenhum outro bloco repete),
+# e a Leitura a duplicava com um número que não seguia o recorte.
+checar("Leitura · não repete o índice agregado da linha de contexto",
+       "índice agregado" in (gin["leitura"]["frase"] or ""), False)
 
 # Pareto do custo evitável potencial: ordem e acumulado nascem no motor e têm
 # de concordar com a faixa (mesma fonte, casc["excedente_reais*"]).
@@ -340,7 +370,7 @@ checar("sem régua · nenhuma parte afirma zero",
         if k in stats_mast], [])
 checar("sem régua · a ressalva diz o motivo",
        stats_mast["sem_regua"]["titulo_longo"],
-       "grupo insuficiente para formar referência")
+       "Grupo insuficiente para formar referência.")
 
 print("\n2a-bis. CABEÇALHO DA PÁGINA")
 # o subtítulo saiu (2026-08-19): dizia "64 cooperados na área", e a linha de
@@ -370,6 +400,38 @@ checar("sem medida declara o motivo (não é zero medido)",
            if linha["excedente_itens"] is None), True)
 print(f"      {len(com_exc_sem_realce)} cooperados medem excedente sem realce agregado; "
       f"maior: {com_exc_sem_realce[0]['id']} = {com_exc_sem_realce[0]['excedente_fmt']}")
+
+print("\n2b1. EVOLUÇÃO MENSAL DA ÁREA — o mês soma, o trimestre apura")
+# ACEITE PERMANENTE do bloco. Ele existe em duas unidades por razão de método, e
+# as duas checagens abaixo cobram exatamente a fronteira entre elas:
+#   · o CUSTO é soma, e desce ao mês sem deixar de ser o mesmo número. Quando o
+#     bloco AFIRMA a identidade (`fecha`), os três meses de cada grupo têm de
+#     devolver o custo da célula abaixo deles, ao centavo. Se algum dia o preço
+#     deixar de ser o da janela inteira, a soma abre e é aqui que aparece.
+#   · o EXCEDENTE não desce ao mês: nenhum mês pode carregá-lo.
+_evo = gin.get("evolucao")
+checar("evolução mensal · o bloco existe na área", bool(_evo), True)
+if _evo:
+    _grupos = _evo["grupos"]
+    checar("evolução mensal · nenhum mês carrega excedente",
+           all("excedente_reais" not in m and "excedente_fmt" not in m
+               for g in _grupos for m in g["meses"]), True)
+    if _evo["fecha"]:
+        checar("evolução mensal · os meses de cada grupo somam o trimestre",
+               all(abs(round(sum(m["custo"] or 0 for m in g["meses"])
+                             - g["trimestre"]["custo"], 2)) <= 0.01
+                   for g in _grupos), True)
+    checar("evolução mensal · a faixa só aparece com trimestre fechado",
+           _evo["tem_faixa"], any(g["trimestre"] for g in _grupos))
+# A SÉRIE NÃO DEPENDE DO PORTÃO DA PERSISTÊNCIA (decisão set/2026): com janela
+# curta não há trimestre fechado, e o custo do mês continua sendo dado real.
+_, _gin3 = get(f"/api/area/{AREA_REF}", janela="3m")
+_evo3 = _gin3.get("evolucao")
+checar("evolução mensal · janela sem trimestre fechado mantém as barras",
+       bool(_evo3 and _evo3["grupos"]), True)
+if _evo3:
+    checar("evolução mensal · e declara por que não há fechamento",
+           _evo3["tem_faixa"] is False and bool(_evo3["nota"]), True)
 
 print("\n2c. CASCATA DE QUALIFICAÇÃO — os chips são os degraus")
 chips = gin["cooperados"]["filtros"]
@@ -420,22 +482,48 @@ checar("P75 · carimbo de proveniência acompanha",
        "gatilho P75" in gin75["proveniencia"]["carimbo"], True)
 
 print("\n4. ESTADOS DE BORDA — sem terceiro componente")
-for area_id, estado_esperado, variante, tem_grafico in (
-        ("mastologia", "grupo_insuficiente", "grupo_pequeno", False),
-        ("patologia", "grupo_insuficiente", "sem_formadores", False),
-        ("ultrassonografia", "grupo_insuficiente", "sem_formadores", False),
-        ("indefinido", "sem_peer_group", None, False),
-        ("obstetricia", "plena", None, True)):
+# TER GRÁFICO e SER COMPARÁVEL deixaram de ser a mesma pergunta (2026-09-11).
+# A distribuição descritiva existe onde o critério não existe: Mastologia tem
+# gráfico e não tem percentil; Patologia não tem nem um nem outro, porque lá
+# faltam os valores, não a régua.
+for area_id, estado_esperado, variante, tem_grafico, comparavel in (
+        ("mastologia", "grupo_insuficiente", "grupo_pequeno", True, False),
+        ("patologia", "grupo_insuficiente", "sem_formadores", False, False),
+        ("ultrassonografia", "grupo_insuficiente", "sem_formadores", False, False),
+        ("indefinido", "sem_peer_group", None, False, False),
+        ("obstetricia", "plena", None, True, True)):
     _, a = get(f"/api/area/{area_id}")
     checar(f"{area_id} · estado", a["estado"]["codigo"], estado_esperado)
     checar(f"{area_id} · variante", a["estado"]["variante"], variante)
     checar(f"{area_id} · distribuição servida", a["distribuicao"] is not None, tem_grafico)
-    if not tem_grafico:
+    if not comparavel:
         checar(f"{area_id} · sem percentil (posto ou indisponível)",
                all(linha["posicao"]["tipo"] != "percentil"
                    for linha in a["cooperados"]["linhas"]), True)
         checar(f"{area_id} · ninguém sinalizado",
                any(linha["acima_do_criterio"] for linha in a["cooperados"]["linhas"]), False)
+    if not tem_grafico:
+        # e a tela tem o que dizer no lugar do gráfico: painel em branco é o
+        # defeito que este campo veio fechar
+        checar(f"{area_id} · a ausência do gráfico vem redigida",
+               bool(a["estado"]["sem_distribuicao"] or a["estado"]["descricao"]), True)
+        continue
+    if comparavel:
+        continue
+    # ── a DESCRITIVA desenha os pontos e NADA de régua ──────────────────────
+    _ms = a["distribuicao"]["medidas"]
+    checar(f"{area_id} · descritiva · tem ponto", min(m["n_pontos"] for m in _ms) > 0, True)
+    checar(f"{area_id} · descritiva · sem régua desenhada",
+           [r for m in _ms for r in m["referencias"]], [])
+    checar(f"{area_id} · descritiva · sem caixa",
+           [m["chave"] for m in _ms if m["faixa_iqr"]], [])
+    checar(f"{area_id} · descritiva · ninguém marcado no gráfico",
+           any(p["acima"] for m in _ms for p in m["pontos"]), False)
+    # legenda é contrato: o que ela nomeia, o desenho mostra. E ela nomeia só o
+    # que SÓ ela explica — o ponto neutro saiu em set/2026, quando o subtítulo
+    # passou a abrir com "Distribuição dos cooperados por…".
+    checar(f"{area_id} · descritiva · legenda só do que está no desenho",
+           [i["classe"] for i in a["distribuicao"]["legenda"]], ["mk-haste"])
 
 print("\n4b. A DISTINÇÃO VIVE NA COMPOSIÇÃO E NO MOTIVO POR COOPERADO")
 _, mast = get("/api/area/mastologia")
@@ -713,9 +801,11 @@ _, _pnl0 = get(f"/api/area/{AREA_REF}/procedimento/{_l0['codigo']}")
 checar("oportunidades · o R$ do par bate com o do painel do procedimento",
        next((c["reais_fmt"] for c in _pnl0["acima"]["linhas"]
              if c["id"] == _l0["id"]), None), _l0["excedente_reais_fmt"])
-# SEGUE O RECORTE, como todo achado (Lei 0)
-_, _ach_op = get(f"/api/area/{AREA_REF}/achados", perfil="opera")
-checar("oportunidades · o recorte de perfil reduz o conjunto",
+# SEGUE O RECORTE, como todo achado (Lei 0). O eixo era o PERFIL, que saiu da
+# tela em 2026-09-11; o degrau continua, e é ele que a prova pergunta — um
+# recorte mais estrito não pode devolver mais casos que o aberto.
+_, _ach_op = get(f"/api/area/{AREA_REF}/achados", recorte="qualificados")
+checar("oportunidades · o recorte reduz o conjunto",
        _ach_op["oportunidades"]["n"] <= _opo["n"], True)
 # A REGRA DA QUALIFICAÇÃO é dita UMA VEZ, no rodapé, e nomeia o gatilho ativo:
 # ela vale para todas as linhas, e repeti-la em cada uma gastava três linhas de
@@ -796,22 +886,79 @@ _pop = sum(int(num_ptbr(c["populacao"].split(" de ")[1])) for c in _cartoes.valu
 checar("panorama · ninguém desaparece da especialidade",
        _pop + int(num_ptbr(pano["pendente"]["valor_fmt"])),
        pano["totais"]["cooperados"])
-# O EXCEDENTE DE CADA ÁREA é o mesmo que a tela de Área imprime no destaque da
-# Leitura, sob o recorte default. Duas telas, um número.
+# O EXCEDENTE DE CADA ÁREA é o mesmo que a tela de Área imprime na linha
+# "excedente" do grupo "Custo" da Leitura, sob o recorte default. Duas telas, um
+# número.
 _linhas_gin = {l["rotulo"]: l["valor_fmt"]
                for l in _com_regua[AREA_REF]["linhas"]}
 checar("panorama · o excedente da área bate com a tela de Área",
-       _linhas_gin["Custo excedente"], gin["leitura"]["destaque"]["valor_fmt"])
+       _linhas_gin["Custo excedente"], linha_leitura(gin, "_custo_exc")["valor_fmt"])
 # e o custo total, e a fração entre os dois: os três números do cartão são os
 # mesmos que a Leitura da área imprime, palavra por palavra
 checar("panorama · o custo total bate com a Leitura da área",
        _linhas_gin["Custo total"],
        linha_leitura(gin, "_custo_total")["valor_fmt"])
-# o % ANDA COM O VALOR, e é o mesmo que o destaque da Leitura imprime
+# O % CONTINUA NO PANORAMA, e SÓ nele: a Leitura da área deixou de imprimir
+# apoio sob os números em 2026-09-11 (texto de 11px sob cada valor, e um vão sob
+# as linhas que nem apoio tinham). Lá a fração se lê sozinha — total e excedente
+# são as duas linhas do mesmo grupo, uma sob a outra, na mesma escala; aqui o
+# cartão traz um valor por linha e o % é o que dá a proporção.
+# A prova que importa é a de cima: as duas telas dizem o MESMO R$. O que sobra
+# aqui é que o cartão não perdeu a própria fração.
 _apoio_gin = next(l["apoio"] for l in _com_regua[AREA_REF]["linhas"]
                   if l["rotulo"] == "Custo excedente")
-checar("panorama · e o % excedente é o mesmo do destaque",
-       _apoio_gin in gin["leitura"]["destaque"]["apoio"], True)
+checar("panorama · o cartão traz a fração ao lado do excedente",
+       bool(_apoio_gin and _apoio_gin.endswith("%")), True)
+checar("Leitura · e não imprime mais apoio sob nenhum número",
+       [l["apoio"] for g in gin["leitura"]["grupos"] for l in g["linhas"]
+        if l["apoio"]], [])
+checar("Leitura · nem notas de rodapé", "notas" in gin["leitura"], False)
+# ── O BLOCO NÃO TEM RODAPÉ (set/2026) ───────────────────────────────────────
+# Ele já levou dois parágrafos de prosa, depois uma linha só. A linha que restou
+# era afirmação de MÉTODO (a unidade em que o excedente é medido), e um resumo
+# de números não fecha com uma frase sobre como eles nascem. O fato vive na
+# definição da coluna "Excesso em R$", no painel de cada procedimento e na Nota
+# Metodológica.
+#
+# O que se cobra agora é que ele não volte, e que nenhum número da RÉGUA
+# AGREGADA (a mediana das taxas individuais dos formadores, o critério do índice)
+# reapareça no bloco: a grade imprime a RAZÃO DE TOTAIS do recorte, e as duas
+# lado a lado eram duas médias diferentes sem nada dizendo que eram duas.
+checar("Leitura · o bloco não tem rodapé", "regua" in gin["leitura"], False)
+checar("Leitura · e só carrega título, afirmação e grade",
+       sorted(gin["leitura"]), ["frase", "grupos", "titulo"])
+# ── O PLACEHOLDER DE AUSÊNCIA ───────────────────────────────────────────────
+# "sem medida" saiu do app em set/2026: soava como defeito do instrumento, e o
+# fato é que o número não foi levantado.
+checar("nenhum 'sem medida' em superfície nenhuma",
+       [c for c, pl in (("área", gin), ("dossiê", dossie), ("meta", meta))
+        if "sem medida" in json.dumps(pl, ensure_ascii=False)], [])
+# ── A LINHA DE CONTEXTO É CURTA, E O HOVER CARREGA A MEDIDA ─────────────────
+# Duas correções sucessivas na mesma parte. Primeiro ela dizia "N também
+# atípicos no índice agregado" ("atípico" não é termo do produto, "índice
+# agregado" é nome interno da razão) e passou a nomear a medida por extenso.
+# Depois (set/2026) a linha inteira tinha virado quatro orações, e a medida
+# desceu para o hover: a linha é ENQUADRAMENTO, e o comprimento de uma parte
+# custa a leitura das outras três. O que se cobra agora é a divisão: texto
+# curto, `titulo_longo` dizendo contra o quê.
+_ctx = {p["chave"]: p for p in gin["contexto"]["partes"]}
+checar("contexto · a última parte é curta e não usa termo interno",
+       ("atípico" not in _ctx["em_revisao"]["texto"],
+        _ctx["em_revisao"]["texto"].endswith("acima do critério")), (True, True))
+checar("contexto · e o hover nomeia a medida e a comparação",
+       "procedimentos por consulta" in _ctx["em_revisao"]["titulo_longo"], True)
+checar("contexto · a primeira parte declara a unidade que todas contam",
+       "cooperados" in _ctx["na_area"]["texto"], True)
+checar("contexto · 'com excedente' guarda a qualificação no hover",
+       ("em algum procedimento" not in _ctx["com_excedente"]["texto"],
+        "procedimento" in _ctx["com_excedente"]["titulo_longo"]), (True, True))
+checar("contexto · o link dos fora da referência continua na parte comparáveis",
+       bool(_ctx["comparaveis"]["acao"]), True)
+# o que era a terceira oração da nota vive no hover da linha que ele qualifica
+_, _gin_q = get(f"/api/area/{AREA_REF}", recorte="qualificados")
+checar("Leitura · sob recorte, o hover ancora o número no total da área",
+       "Este recorte responde por" in
+       (linha_leitura(_gin_q, "_custo_exc")["titulo_longo"] or ""), True)
 # as áreas COM RÉGUA vêm primeiro, e entre elas manda o excedente: sem ordem,
 # um cartão de uma pessoa se intercalaria com o que carrega R$ 2,9 mi
 _ordem = [c["comparavel"] for c in pano["areas"]["cartoes"]]
@@ -904,15 +1051,23 @@ print("\n8. TEXTO DE TELA  (LEXICO_PRODUTO.md, PADRÃO DE REDAÇÃO)")
 # um rótulo e não são sentenças. Cobrar maiúscula e ponto neles seria a prova
 # exigindo o contrário do que o produto decidiu.
 CHAVES_DE_FRASE = ("nota", "leitura", "frase", "detalhe", "resumo_detalhe",
-                   "base", "tendencia", "ajuda", "tooltip")
+                   "base", "tendencia", "ajuda", "tooltip", "sem_distribuicao")
 # regra 1: a tela não se descreve; regra 9: estado de projeto não é atributo.
 # "provisório" ficou fora da lista: ele é legítimo onde qualifica a REGRA da
 # classificação ("Regra provisória da classificação v1.0, em validação
 # clínica"), que é governança declarada, e não o estado do projeto colado num
 # número. Varrer por ele reprovaria o texto certo.
+# "provisório" sozinho continua FORA da lista, pelo motivo do comentário acima:
+# ele é legítimo onde qualifica a REGRA da classificação ("Regra provisória da
+# classificação v1.0, em validação clínica"). O que entrou em 2026-09-11, por
+# decisão do usuário, é a linguagem de PREÇO provisório: o app não hesita sobre
+# o próprio número em superfície nenhuma. A frase de método fica na Nota
+# Metodológica, que é onde ela pertence.
 PROIBIDOS = ("o gráfico", "este gráfico", "esta série", "série limitada",
              "este bloco", "nesta tela", "as barras", "a barra inteira",
-             "quarentena", "estimativa de teto")
+             "quarentena", "estimativa de teto",
+             "preço interno provisório", "preços internos provisórios",
+             "homologad")
 
 
 def _frases(no, caminho=""):
@@ -928,7 +1083,14 @@ def _frases(no, caminho=""):
             yield from _frases(v, f"{caminho}[{i}]")
 
 
-_payloads = {"area": gin, "dossiê": dossie, "meta": meta}
+# A área SEM referência entra na varredura junto com as outras: metade das
+# frases de estado (a ressalva, o motivo da ausência do gráfico) só existe nela,
+# e varrer apenas a área plena deixava exatamente esse texto sem prova. Foi
+# assim que a primeira redação de `sem_distribuicao` começou descrevendo a tela
+# ("O gráfico distribui cada cooperado...") sem nada reprovar.
+_, _area_sem_ref = get("/api/area/mastologia")
+_payloads = {"area": gin, "área sem referência": _area_sem_ref,
+             "dossiê": dossie, "meta": meta}
 _faltas = {"travessão": [], "palavra proibida": []}
 for _nome, _p in _payloads.items():
     for _cam, _txt in _frases(_p, _nome):
@@ -948,12 +1110,28 @@ for _regra, _casos in _faltas.items():
     for _cam, _ex in _casos[:6]:
         print(f"         {_cam}: {_ex}")
 
-# ── TOOLTIP começa em maiúscula e termina em ponto ───────────────────────────
+# ── TOOLTIP: FRASE termina em ponto, FICHA é rótulo de dado por linha ───────
 # Aqui a regra 5 do padrão VALE sem ambiguidade, e é por isso que ela é cobrada
-# nestas chaves e não nas outras: o que entra num `title` é sempre uma frase de
-# explicação. Não há fragmento telegráfico entre elas.
+# nestas chaves e não nas outras: o que entra num `title` é sempre explicação.
+#
+# Duas formas, e a regra 5 já previa as duas. Dica de UMA linha é FRASE:
+# maiúscula e ponto final. Dica de várias linhas é FICHA (set/2026) — título na
+# primeira, um dado por linha depois, `lib/dica.js` monta —, e linha de dado é
+# RÓTULO DE DADO, que a regra 5 isenta de ponto.
+#
+# Numa ficha cobram-se os BULLETS: cada um começa em maiúscula (é rótulo
+# autorado) e nenhuma linha termina em ponto — ponto solto no meio de uma lista
+# de rótulos é o sinal de que alguém emendou uma frase ali.
+#
+# O TÍTULO fica de fora da regra de maiúscula, e é decisão: ele costuma ser um
+# VALOR, não texto autorado (o identificador do cooperado, um rótulo de período),
+# e a amostra os imprime em minúscula por formato ("cooperado_68"). Forçar
+# maiúscula ali faria a ficha chamar o cooperado por um nome que não é o que a
+# tabela ao lado mostra. Onde o título É autorado, o padrão do app é prefixá-lo
+# com o substantivo ("Trimestre mai/25–jul/25"), e isso fica para revisão
+# humana, como as demais regras não mecânicas do padrão.
 CHAVES_DE_TOOLTIP = ("titulo_longo", "ajuda", "par_titulo", "detalhe", "tooltip",
-                     "leitura_titulo", "resumo_detalhe")
+                     "leitura_titulo", "resumo_detalhe", "caixa_titulo")
 
 
 def _tooltips(no, caminho=""):
@@ -968,15 +1146,28 @@ def _tooltips(no, caminho=""):
             yield from _tooltips(v, f"{caminho}[{i}]")
 
 
-_tt = []
+_tt, _tf = [], []
 for _nome, _p in _payloads.items():
     for _cam, _txt in _tooltips(_p, _nome):
         t = _txt.strip()
         if not t:
             continue
-        if (t[0].isalpha() and not t[0].isupper()) or t[-1] not in ".?!":
-            _tt.append((_cam, t[:70]))
-checar("texto · tooltip com maiúscula e ponto", len(_tt), 0)
+        linhas = [x.strip() for x in t.split("\n") if x.strip()]
+        baixa = [x for x in linhas if x[0].isalpha() and not x[0].isupper()]
+        if len(linhas) == 1:
+            if baixa or t[-1] not in ".?!":
+                _tt.append((_cam, t[:70]))
+        else:
+            bullets = linhas[1:]
+            if ([x for x in bullets if x[0].isalpha() and not x[0].isupper()]
+                    or any(x[-1] in ".?!" for x in linhas)):
+                _tf.append((_cam, t.replace("\n", " | ")[:70]))
+checar("texto · dica de frase com maiúscula e ponto", len(_tt), 0)
+for _cam, _ex in _tt[:6]:
+    print(f"         {_cam}: {_ex}")
+checar("texto · dica em ficha com rótulo de dado por linha", len(_tf), 0)
+for _cam, _ex in _tf[:6]:
+    print(f"         {_cam}: {_ex}")
 for _cam, _ex in _tt[:6]:
     print(f"         {_cam}: {_ex}")
 

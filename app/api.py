@@ -181,10 +181,6 @@ RecorteQ = Annotated[str | None, Query(
     description="degrau do recorte (todos | comparaveis | persistente | "
                 "qualificados). Alcança só os blocos de achado; régua, "
                 "distribuição e estatísticas do topo são sempre da área")]
-PerfilQ = Annotated[str | None, Query(
-    description="sub-perfis escolhidos, separados por vírgula (união, não "
-                "interseção). Recorta por cima do degrau")]
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Blocos comuns a toda resposta
@@ -625,29 +621,23 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
             "n_persistentes": n_persistentes}
 
 
-def _em_cena(recorte: str | None, perfil: str | None,
-             linhas_coop: list[dict], perfis_area: list[dict]) -> tuple:
-    """Traduz o recorte da URL para (ids em cena, rótulo, perfis escolhidos).
+def _em_cena(recorte: str | None, linhas_coop: list[dict]) -> tuple:
+    """Traduz o recorte da URL para (ids em cena, rótulo).
 
-    A tela manda `recorte` (chave do degrau) e `perfil` (chaves separadas por
-    vírgula), o mesmo par que já viaja na URL — e não a lista de ids. O motor
-    deriva o conjunto do que ele próprio produziu, então não há como a tela
-    pedir uma agregação sobre uma população que o motor não reconhece.
+    A tela manda `recorte` (a chave do degrau), a mesma que já viaja na URL — e
+    não a lista de ids. O motor deriva o conjunto do que ele próprio produziu,
+    então não há como a tela pedir uma agregação sobre uma população que o motor
+    não reconhece.
 
-    Perfil não selecionável é ignorado, como no front: poucos portadores não
-    sustentam leitura interna, e o chip nem responde ao clique.
+    Havia um segundo eixo, `perfil`, que recortava por sub-perfil POR CIMA do
+    degrau. Saiu em 2026-09-11 junto com o filtro da tela (ver `paginas/area.js`
+    e `blocos.ids_em_cena`).
     """
-    chaves = [c for c in (perfil or "").split(",") if c]
-    escolhidos = [pf for pf in perfis_area
-                  if pf["chave"] in chaves and pf["selecionavel"]]
-    ids = blocos.ids_em_cena(linhas_coop, recorte,
-                             [pf["flag"] for pf in escolhidos])
-    rotulo = blocos.rotulo_recorte(recorte, [pf["rotulo"] for pf in escolhidos])
-    return ids, rotulo, escolhidos
+    ids = blocos.ids_em_cena(linhas_coop, recorte)
+    return ids, blocos.rotulo_recorte(recorte)
 
 
-def _linhas_para_recorte(posicao_area: pd.DataFrame, casc: dict,
-                         perfis_area: list[dict]) -> list[dict]:
+def _linhas_para_recorte(posicao_area: pd.DataFrame, casc: dict) -> list[dict]:
     """A linha do cooperado reduzida ao que o PREDICADO DO RECORTE lê, para os
     endpoints que precisam do conjunto em cena mas não da tabela inteira.
 
@@ -655,18 +645,13 @@ def _linhas_para_recorte(posicao_area: pd.DataFrame, casc: dict,
     passam por `ids_em_cena`, e um campo com outro nome aqui viraria um recorte
     que discorda do da tela sem ninguém perceber.
     """
-    colunas = [pf["flag"] for pf in perfis_area]
-    flags = dados.carregar_classificacao().set_index("ID_COOPERADO")
     linhas = []
     for _, linha in posicao_area.iterrows():
         coop = linha["ID_COOPERADO"]
-        f = flags.loc[coop] if coop in flags.index else None
         linhas.append({
             "id": coop,
             "avaliavel": bool(linha["avaliavel"]),
             "grupos": casc["por_cooperado"].get(coop, ["medidos"]),
-            "sub_perfis": ([] if f is None else
-                           [{"chave": c} for c in colunas if bool(f.get(c))]),
         })
     return linhas
 
@@ -716,18 +701,20 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
         # lugar produzindo os mesmos números.
         "leitura": blocos.leitura_da_area(
             cards, ids, n_comparaveis,
-            _exc.get("leitura_concentracao"), _exc.get("n_nucleo"),
-            (contexto or {}).get("n_sinalizados", 0),
-            (contexto or {}).get("n_com_excedente"),
+            _exc.get("concentracao_partes"),
+            # `n_sinalizados`, `referencia`, `criterio`, `n_formam` e
+            # `n_com_excedente` saíram daqui em 2026-09-11: alimentavam a segunda
+            # frase e as duas notas de rodapé, que repetiam a linha de contexto,
+            # a própria grade e a faixa de critérios. Continuam indo para esses
+            # blocos, que são de quem os fatos são. `gatilho` saiu em set/2026,
+            # com a última linha do rodapé.
             (contexto or {}).get("excedente_itens_area", 0.0),
             (contexto or {}).get("excedente_reais_area"),
             float(sum(v for c, v in itens_por_coop.items() if c in em_cena)),
             float(sum(v for c, v in casc["excedente_reais_coop"].items()
                       if c in em_cena)) or None,
             _cus.get("total"), casc.get("n_procs_preco"),
-            casc.get("n_procs_area"),
-            (contexto or {}).get("referencia"), (contexto or {}).get("criterio"),
-            (contexto or {}).get("gatilho"), (contexto or {}).get("n_formam", 0)),
+            casc.get("n_procs_area")),
         "pareto_cooperados": par_coop,
         "pareto_procedimentos": blocos.pareto_procedimentos(
             casc["rs"], ids, None, casc["custo_pares"], sem_regua=sem_regua),
@@ -1188,11 +1175,11 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
 @app.get("/api/area/{area_id}", tags=["tela área"])
 def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /api/meta")],
          p: ParametrosDep,
-         recorte: RecorteQ = None, perfil: PerfilQ = None) -> dict[str, Any]:
+         recorte: RecorteQ = None) -> dict[str, Any]:
     """Título, justificativa, composição da referência, estatísticas,
     distribuição e lista de cooperados, na ordem dos blocos da tela.
 
-    `recorte`/`perfil` só alcançam os blocos de ACHADO (os dois Paretos e a
+    `recorte` só alcança os blocos de ACHADO (os dois Paretos e a
     três cards); a linha de contexto, a distribuição, a régua e a lista de
     cooperados vêm sempre da área inteira — a tela é que esconde linhas.
     Vêm na carga inicial para que um link compartilhado com recorte já abra
@@ -1218,7 +1205,9 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
     # na proveniência, nunca descartado em silêncio.
     fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
     resto_dias = dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim)
-    persistencia = evolucao = None
+    persistencia = None
+    pj_area = cpj = None
+    rotulos_tri = [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias]
     if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
         pers = dados.rodar_persistencia(
             fatias, p.piso, p.n_minimo, p.criterio, p.referencia, None,
@@ -1241,10 +1230,18 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
         cpj = pers.get("custo_por_janela")
         if cpj is not None and len(cpj):
             cpj = cpj[cpj["ID_COOPERADO"].isin(posicao["ID_COOPERADO"])]
-        evolucao = blocos.evolucao_da_area(
-            persistencia["por_janela_cooperado"], cpj,
-            [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias],
-            resto_dias)
+        pj_area = persistencia["por_janela_cooperado"]
+
+    # ── A ÁREA NO TEMPO: barra por MÊS, fechamento por TRIMESTRE ────────────
+    # Fora do `if` de propósito (set/2026). O custo do mês é uma soma de
+    # solicitações valoradas e existe em qualquer janela; o excedente é que
+    # depende de trimestre fechado. Amarrar a série ao portão da persistência
+    # deixava a tela muda na janela de 3m, onde a exploração começa.
+    # Os rótulos de mês saem das PRÓPRIAS fatias: escritos à mão eles mentem sob
+    # outra janela.
+    evolucao = blocos.evolucao_mensal_da_area(
+        dados.rodar_custo_mensal(p.janela_ini, p.janela_fim, nome, p.incluir_ps),
+        p.janela_ini, p.janela_fim, pj_area, cpj, rotulos_tri, resto_dias)
 
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
                          p.criterio, p.referencia, p.incluir_ps)
@@ -1272,7 +1269,6 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
                                  sinal, persistencia, len(fatias), rotulos_posicao,
                                  casc["por_cooperado"], origem, concentracao,
                                  serie, dados.exclusao_por_par(),
-                                 blocos.postos_por_perfil(posicao, classificacao),
                                  casc["excedente_reais_coop"], custo_coop),
         key=lambda linha: (-(linha["excedente_itens"] or 0), -linha["indice"]))
 
@@ -1282,10 +1278,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
     composicao = blocos.composicao_referencia(
         posicao, classificacao, r["piso_aplicado"])
 
-    # os perfis sobem para cá porque o recorte precisa deles para traduzir
-    # `?perfil=opera` na coluna de classificação correspondente
-    perfis_area = blocos.perfis_da_area(posicao, classificacao)
-    ids, rotulo_rec, _ = _em_cena(recorte, perfil, linhas_coop, perfis_area)
+    ids, rotulo_rec = _em_cena(recorte, linhas_coop)
     # o que a Leitura da área precisa e não vem do recorte: os totais da ÁREA e
     # a régua ativa. Eles não se movem com o filtro, e é isso que o bloco diz.
     _contexto_area = {
@@ -1387,10 +1380,9 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
             "total": len(posicao),
             "ordenado_por": "variação excedente",
             "filtros": _chips_cascata(casc),
-            # RECORTE POR PERFIL: quem aparece, nunca contra quem se compara
-            "perfis": perfis_area,
-            # fecha a conta da composição: comparáveis sem nenhum sub-perfil
-            "sem_perfil": blocos.sem_sub_perfil(posicao, classificacao),
+            # `perfis` e `sem_perfil` saíram em 2026-09-11 com o filtro de
+            # perfil da tela de Área. As ETIQUETAS de identidade ficaram, em
+            # `linhas[].sub_perfis`: elas são exibição, não recorte.
             "linhas": linhas_coop,
             "rodape": {
                 "esquerda": (f"{n_formam} formam a referência · "
@@ -1449,7 +1441,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
 @app.get("/api/area/{area_id}/achados", tags=["tela área"])
 def area_achados(area_id: Annotated[str, PathParam(description="id da área (slug), de /api/meta")],
                  p: ParametrosDep,
-                 recorte: RecorteQ = None, perfil: PerfilQ = None) -> dict[str, Any]:
+                 recorte: RecorteQ = None) -> dict[str, Any]:
     """Só os blocos que SEGUEM O RECORTE: a Leitura da área, os dois Paretos e
     as principais oportunidades.
 
@@ -1458,7 +1450,7 @@ def area_achados(area_id: Annotated[str, PathParam(description="id da área (slu
     é a mesma função que monta as duas, e é por isso que clicar no recorte que
     já estava ativo não muda nada na tela.
     """
-    return {k: v for k, v in area(area_id, p, recorte, perfil).items()
+    return {k: v for k, v in area(area_id, p, recorte).items()
             if k in ("recorte", "leitura", "pareto_cooperados",
                      "pareto_procedimentos", "oportunidades")}
 
@@ -1466,7 +1458,7 @@ def area_achados(area_id: Annotated[str, PathParam(description="id da área (slu
 @app.get("/api/area/{area_id}/procedimentos", tags=["tela área"])
 def area_procedimentos(area_id: Annotated[str, PathParam(description="id da área (slug), de /api/meta")],
                        p: ParametrosDep,
-                       recorte: RecorteQ = None, perfil: PerfilQ = None) -> dict[str, Any]:
+                       recorte: RecorteQ = None) -> dict[str, Any]:
     """Aba Procedimentos: prevalência, solicitantes elegíveis, referência,
     qualidade da referência, solicitações, quantos estão acima do critério,
     variação excedente e % acumulado.
@@ -1502,10 +1494,7 @@ def area_procedimentos(area_id: Annotated[str, PathParam(description="id da áre
     # ── o recorte, que só alcança o achado ───────────────────────────────────
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
                          p.criterio, p.referencia, p.incluir_ps)
-    perfis_area = blocos.perfis_da_area(posicao, dados.carregar_classificacao())
-    ids, rotulo_rec, _ = _em_cena(
-        recorte, perfil, _linhas_para_recorte(posicao, casc, perfis_area),
-        perfis_area)
+    ids, rotulo_rec = _em_cena(recorte, _linhas_para_recorte(posicao, casc))
     # o R$ por procedimento é achado, e é cortado pelo MESMO conjunto que corta
     # as demais colunas de achado — dois cortes diferentes na mesma linha
     # dariam R$ de uma população e excedente de outra
@@ -1543,7 +1532,7 @@ def area_painel_procedimento(
         area_id: Annotated[str, PathParam(description="id da área (slug), de /api/meta")],
         cd: Annotated[str, PathParam(description="código do procedimento")],
         p: ParametrosDep,
-        recorte: RecorteQ = None, perfil: PerfilQ = None) -> dict[str, Any]:
+        recorte: RecorteQ = None) -> dict[str, Any]:
     """Painel lateral de UM procedimento na tela de área.
 
     O irmão de `painel_procedimento` (dossiê) com a unidade trocada: lá "de onde
@@ -1577,10 +1566,7 @@ def area_painel_procedimento(
     # ── o recorte, o MESMO da tabela ─────────────────────────────────────────
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
                          p.criterio, p.referencia, p.incluir_ps)
-    perfis_area = blocos.perfis_da_area(posicao, dados.carregar_classificacao())
-    ids, rotulo_rec, _ = _em_cena(
-        recorte, perfil, _linhas_para_recorte(posicao, casc, perfis_area),
-        perfis_area)
+    ids, rotulo_rec = _em_cena(recorte, _linhas_para_recorte(posicao, casc))
     em_cena = do_proc[do_proc["ID_COOPERADO"].isin(ids)]
 
     # ── DISTRIBUIÇÃO: régua, e por isso sobre os FORMADORES, não sobre o
@@ -1846,7 +1832,6 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
             "tipos_de_atendimento": blocos.tipos_de_atendimento(
                 _flags_do_cooperado(cooperado_id)),
             "sub_perfis": linha["sub_perfis"],
-            "postos_perfil": linha["postos_perfil"],
             "em_revisao": linha["em_revisao"],
             "avaliavel": linha["avaliavel"],
             "forma_referencia": linha["forma_referencia"],

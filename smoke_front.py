@@ -52,9 +52,9 @@ def checar(nome: str, obtido, esperado):
           + ("" if ok else f"   (esperado {esperado})"))
 
 
-# A faixa de recorte e o bloco de perfis usam a MESMA linguagem (chips), e os
-# dois têm um chip "todos" — escopar é obrigatório, senão o teste clica no
-# primeiro do DOM (o de perfis, que vem acima) e mede outra coisa.
+# Escopar o clique no controle de Recorte continua obrigatório: o mesmo
+# componente de popover (`.pf-*`) serve a Recorte aqui, ao filtro de áreas do
+# Panorama e serviu ao filtro de perfil, que saiu da tela em 2026-09-11.
 
 
 def chip(pg, chave: str):
@@ -63,7 +63,7 @@ def chip(pg, chave: str):
     O controle era um segmentado de chips e virou um menu suspenso quando os
     degraus passaram a viajar com a queda e a contagem de cada um: sete opções
     lado a lado não cabiam na faixa. Abrir e escolher são dois gestos, e o
-    `for`/checkbox que o abre é o mesmo padrão do filtro de perfil.
+    `for`/checkbox que o abre é o mesmo padrão dos demais popovers do app.
 
     Pela CHAVE e não pelo rótulo: o texto da opção vem do motor e acompanha o
     vocabulário do produto, então uma prova presa a ele reprova toda vez que
@@ -76,7 +76,7 @@ def chip(pg, chave: str):
 
 def vista_grafico(pg, rotulo: str):
     """Troca a vista do container de gráficos (Concentração · Distribuição ·
-    Quantidade × custo).
+    Solicitações × custo).
 
     Os três eram blocos empilhados e passaram a dividir um container com abas em
     set/2026: são três leituras do MESMO conjunto, e empilhadas custavam três
@@ -125,13 +125,56 @@ def main() -> int:
         # com o excedente em destaque. A prova segue o bloco que existe.
         checar("Leitura da área com os grupos de números",
                pg.locator(".res-grupo").count() >= 3, True)
+        # ── CADA GRANDEZA NUM GRUPO, TOTAL EM CIMA E EXCEDENTE EMBAIXO ───────
+        # Era um grupo "Solicitado no recorte" com o custo TOTAL em cima e as
+        # SOLICITAÇÕES excedentes embaixo — duas grandezas, dois degraus, lado a
+        # lado como se fossem comparáveis —, e o custo excedente numa faixa de
+        # destaque abaixo da grade, longe do total de que ele é a parte.
+        checar("os grupos da Leitura, na ordem",
+               pg.locator(".res-grupo-t").all_inner_texts(),
+               ["COOPERADOS", "MÉDIAS POR CONSULTA", "SOLICITAÇÕES", "CUSTO"])
+        checar("e o par total/excedente dentro de cada um",
+               [[k.inner_text() for k in
+                 pg.locator(".res-grupo").nth(i).locator(".res-k").all()]
+                for i in (2, 3)],
+               [["total", "excedentes"], ["total", "excedente"]])
+        checar("a faixa de destaque não existe mais",
+               pg.locator(".res-destaque").count(), 0)
+
+        # ── O RECORTE EXPLICA CADA DEGRAU, ESCRITO ──────────────────────────
+        # A definição vinha do motor e já viajava com a opção, mas só no
+        # `title`: o leitor via "Sem explicação de contexto · 20" e tinha de
+        # descobrir no hover que aquilo retira quem tem urgência ou
+        # pronto-socorro que explique o volume. Rótulo de recorte não se
+        # adivinha, e filtro que só se entende passando o cursor ninguém usa.
+        pg.locator(".pf-trig", has_text="Recorte").first.click()
+        pg.wait_for_selector(".pf-pop .pf-opt", state="visible", timeout=15_000)
+        # `data-chave` é a chave de URL do recorte (com hífen), não a do degrau
+        # da cascata (com underscore): o seletor mistura as duas famílias, e
+        # "todos"/"comparáveis" nem são degraus.
+        checar("todo degrau da cascata traz a definição escrita",
+               pg.evaluate("""() => [...document.querySelectorAll('.pf-pop .pf-opt')]
+                 .filter(o => !['todos','comparaveis'].includes(o.dataset.chave))
+                 .every(o => (o.querySelector('.pf-desc')?.textContent || '').trim())"""),
+               True)
+        # e o rótulo não é truncado para caber: cortar o nome e imprimir a
+        # explicação embaixo seria a hierarquia ao contrário
+        checar("e o rótulo do degrau cabe inteiro",
+               pg.locator('.pf-pop .pf-opt[data-chave="material"] .nm')
+                 .inner_text().strip(), "Entre os que somam 80% do excedente")
+        # fecha pelo SCRIM, que é como o popover fecha de verdade: ele é
+        # checkbox + label em CSS puro, então Escape não o alcança — e deixá-lo
+        # aberto faz o scrim interceptar o próximo clique da suíte.
+        pg.locator(".scrim-rc").first.click()
+        pg.wait_for_selector(".pf-pop .pf-opt", state="hidden", timeout=15_000)
         # O bloco que responde "o que eu faço agora", entre a Leitura e as abas
         checar("principais oportunidades com o corte do config",
                pg.locator(".tbl-oportunidades tbody tr:not([hidden])").count(),
                config.N_OPORTUNIDADES_VISIVEIS)
-        # DOIS gatilhos na faixa desde que o Recorte virou menu suspenso: ele e
-        # o Perfil usam o mesmo componente, e é isso que os torna irmãos na tela
-        checar("Recorte e Perfil na faixa", pg.locator(".pf-trig").count(), 2)
+        # UM gatilho na faixa desde 2026-09-11. Eram dois, Recorte e Perfil, no
+        # mesmo componente — e era essa vizinhança que fazia o filtro de perfil
+        # ler como uma segunda régua. Sobrou o Recorte, que é a régua de verdade.
+        checar("só o Recorte na faixa", pg.locator(".pf-trig").count(), 1)
         checar("gráfico de distribuição tem um ponto por comparável",
                pg.locator(".plot .pt").count(), 45)
         vista_grafico(pg, "Concentração")
@@ -139,9 +182,60 @@ def main() -> int:
         # Distribuição e Quantidade × custo dividem um container e se alternam,
         # com a Concentração por padrão. A prova pergunta pela vista ativa.
         checar("Concentração é a vista de gráfico padrão",
-               pg.locator(".graficos-vistas .vista-painel.on .tbl-hd .t")
+               pg.locator(".graficos-vistas > .vista-painel.on .tbl-hd .t")
                  .inner_text().startswith("Concentração"), True)
         checar("tabela de cooperados", pg.locator(".vista-painel tbody tr").count(), 45)
+
+        # ── O CARTÃO PREENCHE A FAIXA RESERVADA, NAS TRÊS VISTAS ─────────────
+        # A faixa reserva a altura da vista mais alta para a troca de aba não
+        # sacudir a tabela logo abaixo. O Pareto ficava 30px aquém dela e a
+        # legenda flutuava com branco embaixo: moldura grande, conteúdo pequeno.
+        # A prova mede as três, porque a que não preenche é sempre a que ninguém
+        # olhou depois de mexer no cabeçalho.
+        altura = """() => {
+          const p = document.querySelector('.graficos-vistas > .vista-painel.on');
+          const c = p && p.querySelector(':scope > .tbl');
+          return c ? [Math.round(p.getBoundingClientRect().height),
+                      Math.round(c.getBoundingClientRect().height)] : null;
+        }"""
+        alturas_rodape = {}
+        for vista in ("Concentração", "Distribuição", "Solicitações × custo"):
+            vista_grafico(pg, vista)
+            pg.wait_for_timeout(200)
+            painel, cartao = pg.evaluate(altura)
+            checar(f"{vista} · o cartão preenche a faixa (sem vão embaixo)",
+                   painel - cartao <= 1, True)
+            # ── E O RODAPÉ É O MESMO NOS TRÊS (2026-09-11) ──────────────────
+            # A legenda da distribuição e a da dispersão ficavam soltas sobre o
+            # branco, encostadas na plotagem, enquanto a do Pareto morava na
+            # faixa cinza com a ressalva. Três gráficos que se alternam no MESMO
+            # cartão e desenhavam o rodapé de três jeitos: trocar de vista
+            # mudava a moldura junto com o conteúdo.
+            rodape = pg.evaluate("""() => {
+              const c = document.querySelector(
+                '.graficos-vistas > .vista-painel.on > .tbl');
+              const f = c && c.querySelector(':scope > .tbl-ft');
+              const lg = c && c.querySelector('.legend');
+              return {faixa: !!(f && f.classList.contains('tbl-ft-nota')),
+                      dentro: !!(f && lg && f.contains(lg)),
+                      solta: !!(c && c.querySelector('.tbl-band .legend')),
+                      altura: f ? Math.round(f.getBoundingClientRect().height) : 0};
+            }""")
+            checar(f"{vista} · legenda na faixa cinza do rodapé",
+                   (rodape["faixa"], rodape["dentro"], rodape["solta"]),
+                   (True, True, False))
+            alturas_rodape[vista] = rodape["altura"]
+        # ── E A FAIXA TEM A MESMA ESPESSURA NOS TRÊS (2026-09-11) ────────────
+        # A da distribuição media 49px contra 39px do Pareto, por duas causas
+        # somadas: uma segunda linha no rodapé (a nota repetia o rótulo da marca
+        # da caixa) e a marca `band` herdando `padding:12px 14px` do componente
+        # homônimo `.band`. Rodapé mais alto num dos três faz o conteúdo saltar
+        # ao trocar de vista — o defeito que a altura reservada existe para não
+        # ter, e que a prova de altura acima não pega, porque o cartão preenche
+        # a faixa de qualquer jeito.
+        checar("os três rodapés têm a mesma espessura",
+               len(set(alturas_rodape.values())), 1)
+        vista_grafico(pg, "Concentração")
 
         # A LATERAL RECOLHE, e recolhida sobra o essencial: a marca, o ícone de
         # cada tela e o avatar. Nenhum destino some — o que sai é a etiqueta, e
@@ -181,32 +275,46 @@ def main() -> int:
         # `replaceChildren`: sem devolvê-la, ordenar apagava o caminho para
         # Distribuição e Quantidade × custo, e o cartão encolhia a altura dela.
         vista_grafico(pg, "Concentração")
-        pg.locator(".graficos-vistas .vista-painel.on .segfilt-o",
+        pg.locator(".graficos-vistas > .vista-painel.on .segfilt-o",
                    has_text="Custo total").click()
         pg.wait_for_timeout(400)
         # a faixa é o `.tbl-hd` de topo do cartão; o "Ordenar por" é outro
         # `.segfilt`, no cabeçalho de baixo, então a prova pergunta pelo nome de
         # uma das vistas em vez de contar controles
         checar("trocar a ordem do Pareto mantém as abas dos gráficos",
-               pg.locator(".graficos-vistas .vista-painel.on .tbl .segfilt-o",
-                          has_text="Quantidade × custo").count(), 1)
+               pg.locator(".graficos-vistas > .vista-painel.on .tbl .segfilt-o",
+                          has_text="Solicitações × custo").count(), 1)
         # e o caminho continua servindo: a aba trocada depois da reordenação
         vista_grafico(pg, "Distribuição")
+        # Pelo CONTROLE DE MEDIDA, e não pelo texto do título: o segmentado
+        # Solicitações/Custo/Excesso só existe no cartão da Distribuição, então
+        # ele identifica a vista por estrutura. A versão anterior perguntava se
+        # o título começava com "Distribuição" e reprovou quando a palavra saiu
+        # dele (set/2026) — prova presa a redação reprova toda vez que uma
+        # palavra melhora.
         checar("e as abas continuam trocando de gráfico depois de reordenar",
-               pg.locator(".graficos-vistas .vista-painel.on .tbl-hd .t")
-                 .inner_text().startswith("Distribuição"), True)
+               pg.locator(".graficos-vistas > .vista-painel.on "
+                          '.seg[aria-label="Medida do eixo"]').count(), 1)
 
-        print("\n3. PERFIL RECORTA E TRAZ O POSTO")
+        # ── O FILTRO DE PERFIL SAIU (2026-09-11) ────────────────────────────
+        # Aqui havia a prova de que ele recortava a tabela e trazia a coluna
+        # "Posto no perfil". O filtro foi removido a pedido do médico que
+        # auditou a tela; o que ficou, e o que esta prova cobra agora, são as
+        # ETIQUETAS de identidade nas linhas — elas são exibição, não recorte, e
+        # são a parte que responde "quem opera?".
+        print("\n3. A IDENTIDADE FICA NA LINHA, SEM FILTRO")
         abrir(pg, AREA)
-        pg.locator(".pf-trig", has_text="Perfil").first.click()
-        pg.wait_for_timeout(250)
-        # v2: os badges são identidade da mistura (carteira, área secundária,
-        # cirurgia, executa); "carteira jovem" tem 7 portadores na área de referência
-        pg.locator(".pf-opt", has_text="carteira jovem").first.click()
-        pg.wait_for_selector("th:has-text('Posto no perfil')", timeout=15_000)
-        checar("coluna do posto entra em cena",
-               pg.locator("th", has_text="Posto no perfil").count(), 1)
-        checar("só os portadores na tabela", pg.locator(".vista-painel tbody tr").count(), 7)
+        checar("nenhum controle de Perfil na faixa",
+               pg.locator(".pf-trig", has_text="Perfil").count(), 0)
+        checar("nenhuma coluna de posto no perfil",
+               pg.locator("th", has_text="Posto no perfil").count(), 0)
+        checar("as etiquetas de sub-perfil continuam nas linhas",
+               pg.locator("tbody .cell-sub .tag-attr").count() > 0, True)
+        # e continuam explicando o que são: rótulo de duas palavras sem o hover
+        # não diz se o cooperado entra ou não na referência
+        checar("com a explicação no hover",
+               bool(pg.locator("tbody .cell-sub .tag-attr").first
+                      .get_attribute("title")), True)
 
         print("\n4. ESCOLHA NO GRÁFICO CONVERSA COM A TABELA")
         abrir(pg, AREA)
@@ -247,6 +355,9 @@ def main() -> int:
         # Cooperados, o de procedimentos na aba Procedimentos. Os dois se chamam
         # "Concentração do custo excedente" porque a pergunta é a mesma; o que
         # muda é a unidade das linhas, e é ela que a prova pergunta.
+        # Sem `.graficos-vistas` no seletor, de propósito: o Pareto de
+        # PROCEDIMENTOS mora na aba Procedimentos, fora da faixa de gráficos —
+        # ela é só da aba Cooperados.
         checar("e leva o Pareto do próprio eixo",
                pg.locator(".vista-painel.on .pareto-l").count() > 0, True)
         # A RÉGUA CONTINUA ACIMA DAS ABAS, e é a mesma nas duas: trocar de
@@ -448,10 +559,53 @@ def main() -> int:
                caminho_de(pg.url), "/cooperado/cooperado_85")
 
         print("\n9. ESTADOS DECLARADOS, NUNCA TELA MUDA")
+        # ── ÁREA SEM CRITÉRIO: desenha, e declara o que não desenhou ────────
+        # A prova era "não desenha distribuição" (`.plot` == 0), e passava sobre
+        # um painel de 516px em BRANCO: a aba Distribuição continuava na faixa,
+        # clicável, e não entregava nem gráfico nem palavra. Desde 2026-09-11 a
+        # distribuição sai DESCRITIVA aqui — pontos e amplitude, sem caixa, sem
+        # régua —, e o que precisa de guarda mudou de lado: que o desenho exista
+        # e que ele não afirme critério nenhum.
         abrir(pg, "/area/mastologia")
-        checar("área sem referência plena não desenha distribuição",
-               pg.locator(".plot").count(), 0)
+        vista_grafico(pg, "Distribuição")
+        pg.wait_for_selector(".graficos-vistas > .vista-painel.on .plot .pt", timeout=30_000)
+        checar("área sem critério desenha a distribuição descritiva",
+               pg.locator(".graficos-vistas > .vista-painel.on .plot .pt").count(), 6)
+        checar("sem régua de critério no desenho",
+               pg.locator(".graficos-vistas > .vista-painel.on .plot .refline").count(), 0)
+        checar("sem caixa interquartil no desenho",
+               pg.locator(".graficos-vistas > .vista-painel.on .plot .iqrband").count(), 0)
+        checar("e ninguém marcado como acima",
+               pg.locator(".graficos-vistas > .vista-painel.on .plot .pt-acima").count(), 0)
         checar("mas a lista continua", pg.locator(".vista-painel tbody tr").count(), 6)
+
+        # ── ÁREA SEM O QUE DESENHAR: o lugar do gráfico NÃO fica em branco ───
+        # O seletor é `.graficos-vistas > .vista-painel.on`, com o filho DIRETO:
+        # `.vista-painel.on` sozinho casa também com o painel externo de
+        # Cooperados, que contém os três de gráfico — e em Ultrassonografia, onde
+        # Distribuição e Quantidade × custo estão as duas vazias, o primeiro
+        # casado seria o cartão escondido.
+        abrir(pg, "/area/indefinido")
+        vista_grafico(pg, "Distribuição")
+        pg.wait_for_selector(".graficos-vistas > .vista-painel.on .tbl-vazio", timeout=30_000)
+        checar("sem distribuição, o painel diz por quê",
+               pg.locator(".graficos-vistas > .vista-painel.on .tbl-vazio .caveat-box").count(), 1)
+        checar("painel em branco nunca",
+               pg.locator(".graficos-vistas > .vista-painel.on .tbl-vazio .caveat-box .d")
+                 .inner_text().strip() != "", True)
+
+        # A regra vale para as TRÊS vistas, não só para a Distribuição: a
+        # dispersão tinha o mesmo buraco em Ultrassonografia, onde nenhum
+        # cooperado alcança o volume mínimo.
+        # `espera_tabela=False`: a tela abre em Comparáveis e Ultrassonografia
+        # não tem nenhum — a lista nasce vazia de propósito, e esperar por uma
+        # linha dela seria esperar por um defeito.
+        abrir(pg, "/area/ultrassonografia", espera_tabela=False)
+        vista_grafico(pg, "Solicitações × custo")
+        pg.wait_for_selector(".graficos-vistas > .vista-painel.on .tbl-vazio", timeout=30_000)
+        checar("sem dispersão, o painel também diz por quê",
+               pg.locator(".graficos-vistas > .vista-painel.on .tbl-vazio .caveat-box .d")
+                 .inner_text().strip() != "", True)
         pg.goto(f"{BASE}/cooperado/cooperado_inexistente")
         pg.wait_for_selector(".banner-err", timeout=30_000)
         checar("cooperado desconhecido vira estado declarado",

@@ -29,6 +29,8 @@
  */
 'use strict';
 
+import { el } from './dom.js';
+
 const MARGEM = 8;      // vão entre o elemento e a caixa
 let caixa = null;
 let alvoAtual = null;
@@ -57,9 +59,33 @@ function posicionar(alvo) {
   c.style.left = `${Math.max(4, Math.min(meio, window.innerWidth - b.width - 4))}px`;
 }
 
+/* ── FRASE ou FICHA ────────────────────────────────────────────────────────
+   Uma dica com uma linha é FRASE e continua sendo só texto. Com mais de uma,
+   é FICHA: a primeira linha é o título e cada linha seguinte é um dado, com
+   marcador. `\n` é o separador, e quem escreve o bloco continua escrevendo
+   `title` — não há API nova.
+
+   A ficha existe porque o hover de um gráfico carrega três ou quatro medidas
+   do mesmo ponto, e emendá-las numa frase única produzia um parágrafo que
+   quebrava em quatro linhas dentro da caixa escura, sem nada separando uma
+   medida da seguinte. Rótulo e valor por linha se lê de relance, que é o que
+   um hover precisa ser.
+
+   A DECISÃO DE FORMATO É DO CSS: aqui só se distingue título de item e se
+   monta a estrutura que o contrato já desenha. */
 function mostrar(alvo, texto) {
   const c = caixaDoApp();
-  c.textContent = texto;
+  const linhas = texto.split('\n').map((l) => l.trim()).filter(Boolean);
+  c.replaceChildren();
+  c.classList.toggle('dica-ficha', linhas.length > 1);
+  if (linhas.length > 1) {
+    c.appendChild(el('b', 'dica-t', linhas[0]));
+    const lista = el('ul', 'dica-l');
+    for (const linha of linhas.slice(1)) lista.appendChild(el('li', null, linha));
+    c.appendChild(lista);
+  } else {
+    c.textContent = texto;
+  }
   c.classList.add('on');
   alvoAtual = alvo;
   posicionar(alvo);
@@ -83,13 +109,18 @@ export function ativarDicas() {
     alvo.removeAttribute('title');
     if (!texto.trim()) return;                 // title vazio é ausência de dica
     alvo.dataset.dica = texto;
+    /* O leitor de tela recebe a ficha como uma sequência de frases: a quebra de
+       linha é separador visual, e sem ela virar pontuação o título e o primeiro
+       dado saem colados numa palavra só. */
+    const lido = texto.split('\n').map((l) => l.trim()).filter(Boolean)
+      .map((l) => (/[.?!]$/.test(l) ? l : `${l}.`)).join(' ');
     /* Sem texto próprio o elemento não tem nome acessível nenhum, e aí a dica é
        o nome; com texto próprio ela é descrição, e substituir o nome faria o
        leitor de tela anunciar a explicação no lugar do conteúdo. */
     if (!alvo.hasAttribute('aria-label') && !alvo.textContent.trim()) {
-      alvo.setAttribute('aria-label', texto);
+      alvo.setAttribute('aria-label', lido);
     } else if (!alvo.hasAttribute('aria-description')) {
-      alvo.setAttribute('aria-description', texto);
+      alvo.setAttribute('aria-description', lido);
     }
   };
 

@@ -407,8 +407,7 @@ function peso(destino, d) {
   if (!p) return;
   const { cartao, corpo } = secao('Peso na área',
     'Participação deste procedimento no que os cooperados em cena solicitaram no '
-    + 'período. Preços internos provisórios, ainda não homologados contra a '
-    + 'tabela contratual.');
+    + 'período.');
   corpo.appendChild(el('span', 'v',
     `${p.proporcao_fmt} das solicitações do recorte`
     + (p.proporcao_custo_fmt ? ` e ${p.proporcao_custo_fmt} do custo.` : '.')));

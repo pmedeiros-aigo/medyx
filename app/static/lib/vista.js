@@ -1,7 +1,7 @@
 /* lib/vista.js — o ESTADO DA VISTA e sua sincronia com a URL.
  *
  * "Vista" é o que está em cena sem que nenhum número mude: qual recorte, qual
- * perfil, qual aba, por qual coluna se ordena. Não é análise — a análise viaja
+ * qual aba, por qual coluna se ordena. Não é análise — a análise viaja
  * na mesma URL (janela, critério, referência) e pertence ao servidor.
  *
  * ── por que isto existe ─────────────────────────────────────────────────────
@@ -10,6 +10,8 @@
  * "Perfis na área" nasceu: para escolher um perfil, ele precisava pedir à
  * TABELA (`tabela.escolherPerfil`), e a tabela precisava avisar o GRÁFICO. Um
  * bloco comandando outro por dentro, com a página no meio sem saber de nada.
+ * (O bloco de perfis saiu da tela em 2026-09-11; a regra que ele forçou é o que
+ * ficou, e vale para todo bloco que entrar depois.)
  *
  * A regra que este módulo estabelece: **a página é dona do estado; os blocos
  * desenham o que recebem**. Um bloco novo passa a ser mais um assinante, não
@@ -25,7 +27,7 @@
 /* `q` é a busca da tabela de COOPERADOS e `qp` a de PROCEDIMENTOS. Duas chaves
    porque são duas tabelas em abas diferentes: uma chave só faria o termo de uma
    filtrar a outra ao trocar de aba. */
-const CHAVES = ['recorte', 'perfil', 'aba', 'ord', 'dir', 'q', 'qp', 'pexc'];
+const CHAVES = ['recorte', 'aba', 'ord', 'dir', 'q', 'qp', 'pexc'];
 
 /**
  * Cria o estado da vista, já lido da URL.

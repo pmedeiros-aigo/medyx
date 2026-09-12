@@ -1,8 +1,19 @@
 /* dispersao.js — quantidade × custo por consulta (bloco experimental).
  *
- *   X  exames solicitados por consulta
+ *   X  solicitações por consulta
  *   Y  custo médio por consulta
  *   r  valor total solicitado pelo cooperado na janela
+ *
+ * O rodapé é UMA linha: a legenda, e dentro dela a ressalva de quem ficou fora
+ * do desenho. Mesma espessura da faixa do Pareto e da distribuição, que se
+ * alternam neste mesmo cartão.
+ *
+ * TRÊS dimensões, e não quatro. Havia uma quarta — a tinta do ponto era o
+ * excedente em R$ —, e ela saiu em 2026-09-11: punha dois dinheiros diferentes
+ * no mesmo ponto (porte no tamanho, excesso na cor) sobre eixos que já falavam
+ * de um terceiro, e exigia uma legenda de três valores para ser decodificada.
+ * Mesma decisão que a distribuição tomou em set/2026. O excedente segue na
+ * DICA, por extenso.
  *
  * A distribuição ao lado responde "quem pede muito"; esta responde "quem custa
  * muito", e as duas perguntas não têm a mesma resposta — quem pede pouco e caro
@@ -24,9 +35,16 @@
 
 import { el } from '../lib/dom.js';
 import { colapsavel } from '../lib/colapsar.js';
+import { cartaoVazio } from '../lib/vazio.js';
 
 /**
  * Monta o gráfico dentro de `destino`.
+ *
+ * SEM PONTOS, monta o cartão de ausência no lugar (`lib/vazio.js`) e devolve
+ * `null`. Antes devolvia `null` e mais nada, e como a aba Quantidade × custo
+ * continua na faixa de gráficos, o que ela abria em Ultrassonografia — 3
+ * cooperados, nenhum acima do volume mínimo — era um painel de 516px em branco.
+ * A frase do porquê vem no próprio bloco (`vazio`, do motor), como no Pareto.
  *
  * @param {HTMLElement} destino
  * @param {object} dados  resposta de /api/area/{id}
@@ -35,7 +53,11 @@ import { colapsavel } from '../lib/colapsar.js';
  */
 export function montarDispersao(destino, dados, aoEscolher) {
   const d = dados.dispersao;
-  if (!d?.pontos?.length) return null;
+  if (!d?.pontos?.length) {
+    cartaoVazio(destino, 'Solicitações × custo', dados.estado?.titulo,
+                d?.vazio ?? dados.estado?.descricao);
+    return null;
+  }
 
   const cartao = el('div', 'tbl');
   const topo = el('div', 'tbl-hd');
@@ -67,15 +89,12 @@ export function montarDispersao(destino, dados, aoEscolher) {
     b.type = 'button';
     b.style.left = `${p.x_pct}%`;
     b.style.bottom = `${p.y_pct}%`;
-    // `--t` é DADO (tamanho relativo, do motor); o CSS o converte em diâmetro
+    // `--t` é DADO (tamanho relativo, do motor); o CSS o converte em diâmetro.
+    // É a única variável que o ponto carrega: a tinta é uma só, do CSS.
     b.style.setProperty('--t', String(p.tamanho));
-    /* `--i` é a mesma rampa da distribuição: tinta por ordem do excedente.
-       Tamanho e cor são dinheiros DIFERENTES — porte e excesso —, e é o
-       contraste entre os dois que este bloco existe para mostrar. */
-    b.style.setProperty('--i', String(p.intensidade ?? 0));
-    b.title = `${p.id} · ${p.valor_fmt} solicitados`
-      + (p.excedente_reais_fmt ? ` · ${p.excedente_reais_fmt} de excedente` : '')
-      + ` · ${p.leitura}`;
+    /* A ficha vem redigida do motor: cinco medidas do mesmo ponto são dado, e
+       texto que carrega número nasce onde o número nasce. */
+    if (p.tooltip) b.title = p.tooltip;
     if (aoEscolher) b.addEventListener('click', () => aoEscolher(p.id));
     plot.appendChild(b);
     porId.set(p.id, b);
@@ -92,28 +111,31 @@ export function montarDispersao(destino, dados, aoEscolher) {
   grade.appendChild(el('span', 'disp-eixo-x', d.eixo_x.rotulo));
 
   corpo.appendChild(grade);
-
-  /* A legenda da rampa, igual à da distribuição: os dois blocos usam a mesma
-     tinta para a mesma grandeza, e uma legenda diferente em cada faria parecer
-     que são escalas diferentes. */
-  if (d.rampa) {
-    const legenda = el('div', 'legend');
-    const faixa = el('span', 'rampa');
-    faixa.appendChild(el('i', 'rampa-barra'));
-    for (const m of d.rampa.marcas) faixa.appendChild(el('b', null, m.valor_fmt));
-    faixa.title = `${d.rampa.rotulo} · ${d.rampa.metodo}`;
-    legenda.append(faixa, el('span', null, 'tamanho = valor total solicitado'));
-    corpo.appendChild(legenda);
-  }
-
   cartao.appendChild(corpo);
 
-  /* A ressalva de método no rodapé, como no Pareto: o R$ é o mesmo preço
-     interno, e o total é parcial — só entra procedimento com preço nas contas. */
-  const pe = el('div', 'tbl-ft');
-  pe.appendChild(el('span', null,
-    d.n_sem_preco ? `${d.n_sem_preco} sem preço nas contas, fora do gráfico · ${d.metodo}`
-                  : d.metodo));
+  /* ── O RODAPÉ: LEGENDA E RESSALVA, NA FAIXA CINZA ────────────────────────
+     Mesmo arranjo do Pareto e da distribuição (`.tbl-ft.tbl-ft-nota`): legenda
+     em cima, ressalva de método embaixo, as duas dentro da faixa. Os três
+     gráficos se alternam no MESMO cartão, e cada um desenhar o próprio rodapé
+     de um jeito fazia a moldura mudar junto com o conteúdo (2026-09-11).
+
+     As marcas vêm do MOTOR (`d.legenda`), na mesma forma da distribuição, e
+     nomeiam só o que está desenhado: a posição e o tamanho. A legenda da rampa
+     saiu com a cor. */
+  const pe = el('div', 'tbl-ft tbl-ft-nota');
+  if (d.legenda?.length) {
+    const legenda = el('div', 'legend');
+    for (const item of d.legenda) {
+      const s = document.createElement('span');
+      /* Item SEM marca é texto puro — a ressalva de quem ficou fora do desenho.
+         Mesmo arranjo do Pareto, que põe "linha tracejada = corte de 80%" como
+         último item da própria legenda em vez de abrir uma segunda linha. */
+      if (item.classe) s.appendChild(el('i', item.classe));
+      s.appendChild(document.createTextNode(item.rotulo));
+      legenda.appendChild(s);
+    }
+    pe.appendChild(legenda);
+  }
   cartao.appendChild(pe);
 
   destino.appendChild(cartao);

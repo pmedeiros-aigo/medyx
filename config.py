@@ -621,13 +621,17 @@ AJUDA_SUBPERFIL = {
     ),
 }
 
-# MIN_PORTADORES_RECORTE_PERFIL  —  DECISÃO (2026-08-13)  —  recorte por perfil
-# Mínimo de portadores para o sub-perfil ser SELECIONÁVEL no recorte.
-# Era 3 (proteção contra "1º de 2" ler como posição); baixado para 1 por decisão
-# do usuário: o recorte serve para VER quem carrega o perfil, não para leitura
-# estatística interna — a régua não muda, e o posto sempre viaja com o
-# denominador ("1º de 2"), que é a própria ressalva.
-MIN_PORTADORES_RECORTE_PERFIL = 1
+# MIN_PORTADORES_RECORTE_PERFIL  —  REMOVIDO (2026-09-11)
+# Era o mínimo de portadores para um sub-perfil ser SELECIONÁVEL no recorte por
+# perfil. O recorte inteiro saiu da tela de Área, a pedido do médico que a
+# auditou, e o valor ficou sem quem o lesse.
+# Fica o registro porque ele é a explicação do defeito: nasceu 3, justamente
+# para proteger contra "1º de 2" ler como posição, e foi baixado para 1 com o
+# argumento de que o recorte servia só para VER quem carrega o perfil. Só que
+# ele não era só isso — alimentava a Leitura e os dois Paretos, que passaram a
+# reagregar sobre 2 pessoas e a publicar "1 de 2 cooperados concentram 98% do
+# valor". A proteção estava no lugar certo; o que faltava era ela alcançar os
+# blocos de achado.
 
 # LIMIAR_CONCENTRACAO_PARETO  —  DECISÃO (2026-08-13)  —  leitura do Pareto
 # O NÚCLEO do Pareto: menor conjunto de cooperados cuja soma atinge este
@@ -683,7 +687,12 @@ SELO_PRECO = "preço interno em quarentena"   # todo R$ derivado de contas
 # travessão. Travessão sozinho numa célula lê como zero, e a distinção que o
 # ajuste 4 do CLAUDE.md protege é justamente "ausência de par ≠ zero medido".
 # O motivo específico viaja sempre ao lado (traducao / motivo / title).
-SEM_MEDIDA = "sem medida"
+#
+# "não apurado", e não "sem medida" (set/2026, pedido do usuário): é o termo de
+# relatório — diz que o número não foi levantado, que é o fato —, enquanto "sem
+# medida" soa como um defeito do instrumento. A escolha acompanha "sem valor
+# apurado", que substituiu "sem preço nas contas" na mesma revisão.
+SEM_MEDIDA = "não apurado"
 
 # Ocupa o lugar do NÚMERO nas estatísticas que dependem de régua, quando a área
 # não tem referência plena. Diferente de SEM_MEDIDA: lá o par não pôde ser

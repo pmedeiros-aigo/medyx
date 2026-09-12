@@ -214,8 +214,7 @@ function linhaProcedimento(l, semMedida = '', aoAbrir = null) {
   if (!l.medido) exc.classList.add('val-ressalva');
   if (l.excedente_reais_fmt) {
     exc.title = [
-      'Valorado a preços internos provisórios, apurados nas contas do período '
-      + 'e ainda não homologados contra a tabela contratual.',
+      'Valorado pelo preço apurado nas contas do período.',
       l.excedente_itens && `${l.excedente_fmt} das solicitações estão acima da `
         + 'referência da área.',
       l.confianca?.detalhe,
@@ -302,7 +301,7 @@ function montarProcedimentos(destino, d) {
   titulo.appendChild(el('span', 't', 'Procedimentos solicitados'));
   titulo.appendChild(el('span', 'sub',
     'Todos os procedimentos solicitados no período. Onde a área não tem '
-    + 'referência apurável, as colunas de comparação ficam sem medida.'));
+    + 'referência apurável, as colunas de comparação ficam não apuradas.'));
   topo.appendChild(titulo);
 
   /* BUSCA: localiza dentro do recorte em cena, sem mudar número nenhum. */

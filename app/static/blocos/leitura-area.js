@@ -6,12 +6,15 @@
  * ao trocar de tela.
  *
  * ── o que ele acrescenta ao que já existe ──────────────────────────────────
- * A faixa de cards dá aos cinco números o mesmo peso: "cooperados no recorte" e
- * "custo excedente" lado a lado, do mesmo tamanho, sem nada dizendo qual deles
- * é o produto da tela. Aqui os mesmos números vêm agrupados pela pergunta que
- * respondem, o excedente ganha o destaque que é dele, e duas linhas fecham com
- * o que o número não diz sozinho: quanto do total da área este recorte mostra,
- * e qual é a régua ativa.
+ * A faixa de cards dava aos cinco números o mesmo peso: "cooperados no recorte"
+ * e "custo excedente" lado a lado, do mesmo tamanho, sem nada dizendo qual
+ * deles é o produto da tela. Aqui eles vêm agrupados pela GRANDEZA que medem, e
+ * cada grupo repete o mesmo par de linhas — total em cima, excedente embaixo,
+ * com a fração ao lado —, então "quanto disso está acima da referência" se lê na
+ * vertical, dentro do grupo. Sem apoio sob os números: o que eles diziam ou já
+ * está em outro bloco da página, ou virou hover da linha a que pertence. E sem
+ * rodapé: o que sobrava nele era afirmação de método, que mora na definição da
+ * coluna, no painel do procedimento e na Nota Metodológica.
  *
  * Nada é calculado aqui. Segue o recorte, como os cards e os Paretos.
  */
@@ -30,10 +33,14 @@ function grupo(g) {
     if (l.titulo_longo) k.title = l.titulo_longo;
     linha.appendChild(k);
     linha.appendChild(el('span', 'res-v', l.valor_fmt));
-    /* O APOIO ocupa a mesma posição da referência no bloco do dossiê: sob o
-       valor, à direita. Aqui ele declara a base do número quando ela é parcial
-       ("em 528 de 685 procedimentos"), que é a ressalva de preço. */
-    linha.appendChild(el('span', 'res-p', l.apoio ?? ''));
+    /* O APOIO só existe se houver o que dizer. Ele era criado SEMPRE, com texto
+       vazio quando não havia apoio — e um `.res-p` vazio continua ocupando a
+       própria linha da grade (`row-gap:2px` mais a altura do texto). Toda linha
+       do bloco carregava um vão sob o número, inclusive as que nunca tiveram
+       apoio nenhum. Hoje a Leitura da área não manda apoio em nenhuma linha; a
+       guarda fica porque o bloco é o mesmo do dossiê, onde a referência do
+       grupo ("referência: 3.497") mora aqui. */
+    if (l.apoio) linha.appendChild(el('span', 'res-p', l.apoio));
     bloco.appendChild(linha);
   }
   return bloco;
@@ -54,35 +61,44 @@ export function montarLeituraDaArea(destino, dados) {
   const topo = el('div', 'tbl-hd');
   const titulo = el('div', 'stack g6');
   titulo.appendChild(el('span', 't', dados.leitura.titulo));
-  const frase = el('span', 'sub');
-  titulo.appendChild(frase);
+  /* A FRASE COM A MARCA das afirmações, a mesma do "Leitura do caso" do dossiê
+     (`.res-itens`/`.res-item`). Ela saía como `.sub`, indistinguível de um
+     subtítulo que descreve o bloco — e ela não descreve o bloco, ela AFIRMA um
+     fato apurado (onde o dinheiro se concentra). A marca é o que diz isso, e é
+     a mesma dos fatores de contexto em toda a tela. */
+  const itens = el('div', 'res-itens');
+  const frase = el('span', 'res-item');
+  frase.appendChild(el('i', 'mk'));
+  const fraseTxt = document.createTextNode('');
+  frase.appendChild(fraseTxt);
+  itens.appendChild(frase);
+  titulo.appendChild(itens);
   topo.appendChild(titulo);
   cartao.appendChild(topo);
 
   const nums = el('div', 'res-grade');
   cartao.appendChild(nums);
 
-  /* O DESTAQUE numa faixa própria: ele é o produto da tela, e no meio da grade
-     teria o peso de mais um número entre seis. */
-  const faixa = el('div', 'tbl-band res-destaque');
-  const valor = el('span', 'la-destaque');
-  const apoio = el('span', 'sub');
-  faixa.append(valor, apoio);
-  cartao.appendChild(faixa);
+  /* A FAIXA DE DESTAQUE SAIU (2026-09-11). Ela levava o custo excedente
+     sozinho, em corpo grande, numa faixa abaixo da grade — e com isso o número
+     ficava longe do total de que ele é a parte, que morava num terceiro grupo
+     lá em cima. Agora o par vive junto, no grupo "Custo": total em cima,
+     excedente embaixo com a fração ao lado, e a comparação se faz na vertical
+     sem o olho atravessar o cartão.
 
-  const pe = el('div', 'tbl-ft res-notas-ft');
-  cartao.appendChild(pe);
+     O RODAPÉ SAIU DEPOIS (set/2026). Ele já tinha sido reduzido de dois
+     parágrafos a uma linha, e a linha que restou era afirmação de MÉTODO (a
+     unidade em que o excedente é medido), não número do recorte: um resumo de
+     números não fecha com uma frase sobre como eles nascem. O fato continua na
+     definição da coluna "Excesso em R$", no painel de cada procedimento e na
+     Nota Metodológica. O cartão é o título, a afirmação e a grade. */
   destino.appendChild(cartao);
 
   function atualizar(L) {
     if (!L) return;
-    frase.textContent = L.frase ?? '';
-    frase.hidden = !L.frase;
+    fraseTxt.nodeValue = L.frase ?? '';
+    itens.hidden = !L.frase;
     nums.replaceChildren(...L.grupos.map(grupo));
-    valor.textContent = L.destaque?.valor_fmt ?? '';
-    apoio.textContent = L.destaque?.apoio ?? '';
-    pe.replaceChildren(...(L.notas ?? []).map((n) => el('span', null, n)));
-    pe.hidden = !(L.notas ?? []).length;
   }
   atualizar(dados.leitura);
   return { atualizar };

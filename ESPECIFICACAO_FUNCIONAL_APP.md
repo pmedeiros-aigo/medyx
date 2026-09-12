@@ -20,9 +20,14 @@ Valores: `config.py`. Regras de construção: `CLAUDE.md`.
    Mastologia, Ginecologia Endócrina, PTGI, Ultrassonografia, Patologia. A área vem
    da mistura de famílias de atendimento das consultas do cooperado, não de rótulo
    dado por médico (METODOLOGIA §4.1).
-2. **Sub-perfil é recorte de leitura, nunca base de comparação.** Filtrar por um
-  sub-perfil destaca os membros e acrescenta o **posto interno** ("3º de 12"); a
+2. **Sub-perfil é exibição de identidade, nunca recorte nem base de comparação.**
+  Ele aparece como etiqueta na linha do cooperado, com a explicação no hover; a
    régua continua sendo a da especialidade e nenhuma coluna vira travessão.
+   O **filtro por sub-perfil** existiu até set/2026 e recortava a lista, com um
+   **posto interno** ("3º de 12") numa coluna à parte. Saiu a pedido do médico que
+   auditou a tela: os cinco perfis se declaram informativos, a identidade já está
+   na linha, e o que só o filtro fazia era reagregar Leitura, Paretos e
+   Oportunidades sobre 2 a 7 cooperados (METODOLOGIA §5.8).
 3. **Norma construída só com** `elegivel_norma=True`**; todos são MEDIDOS contra ela.**
   Quem não forma aparece com o **motivo**, e o motivo distingue exclusão definitiva
    (perfil de execução) de provisória (cadastro agregado — confirmação pendente;
@@ -30,9 +35,16 @@ Valores: `config.py`. Regras de construção: `CLAUDE.md`.
 4. **Base eletiva por padrão** (`incluir_ps=False`); carimbo BASE_ELETIVA visível.
 5. **Critério degradado pelo n**: pleno → percentil padrão; intermediário → percentil
   inferior com o rótulo "critério ajustado ao tamanho do grupo"; abaixo do mínimo →
-   **posto descritivo, sem percentil, sem sinalização, sem gráfico de distribuição**.
-   `gatilho_usado` sempre exibido. No nível do procedimento, degrada pelo n **daquele
-   procedimento**.
+   **posto descritivo, sem percentil, sem sinalização**. A distribuição CONTINUA
+   sendo desenhada, em modo **descritivo**: pontos e amplitude (menor ao maior
+   observado), sem caixa interquartil, sem régua e sem ninguém marcado, com a
+   leitura declarada no rodapé (set/2026). A regra dizia "sem gráfico de
+   distribuição" e juntava duas coisas que não são a mesma: um P90 sobre 6
+   observações é uma observação, mas os 6 valores existem — a tabela já os lista
+   por posto e a dispersão já desenha os mesmos pontos na mesma tela. Suprimir o
+   bloco não protegia ninguém; entregava um painel em branco.
+   `gatilho_usado` sempre exibido (nulo no modo descritivo). No nível do
+   procedimento, degrada pelo n **daquele procedimento**.
 6. **Três estados de disponibilidade de referência**, dois tratamentos visuais:
   - *referência plena* — tela completa;
   - *referência insuficiente* — inclui a variante **sem formadores** (a área existe,
@@ -120,7 +132,8 @@ própria tela, no rodapé, até entrarem.
 **Nada nasce no endpoint**: o catálogo de áreas é o MESMO de `/api/meta`
 (`_areas_resolvidas`) e o excedente de cada área é o da cascata daquela área, pela
 mesma `_cascata_area` que a tela de Área usa. O smoke cobra a igualdade: o excedente
-do cartão de Ginecologia é, caractere a caractere, o destaque da Leitura da área.
+do cartão de Ginecologia é, caractere a caractere, a linha "excedente" do grupo
+"Custo" da Leitura da área.
 
 **Custo.** Paga a cascata de cada área COM RÉGUA, e só delas. São duas nesta base, e
 as duas ficam memoizadas — a tela de Área que o analista abrir em seguida não paga de
@@ -256,10 +269,62 @@ qualificados. [v1]
       solicitam o procedimento (54), a lista só os que passaram o critério (17).
       Apontar um ponto sem linha correspondente apagava a linha apontada sem acender
       nenhuma outra, e explorar o gráfico desfazia o estado do painel.
+- **Evolução mensal** (entre "Principais oportunidades" e as abas): a área no tempo,
+em DUAS unidades. Motor: `blocos.evolucao_mensal_da_area`, sobre `pipeline.custo_mensal`
+e sobre a mesma série trimestral do dossiê. [set/2026, vindo do artboard "Medyx Dossie
+Cooperado"]
+  - **Uma barra por MÊS**, altura = custo das solicitações do mês, valorado ao preço
+    mediano da JANELA. Abaixo, a **faixa de fechamento por TRIMESTRE**, uma célula por
+    trimestre com o excedente apurado ali, a fatia do custo que ele representa e a
+    variação sobre o trimestre anterior.
+  - **Por que duas unidades**: custo é soma e desce ao mês; excedente é apurado por
+    trimestre (METODOLOGIA §5.4.2). Um excedente mensal seria uma medida que a
+    metodologia não fez. É a única razão de o bloco ter duas camadas em vez de uma.
+  - **O alinhamento é estrutural, não calculado**: o grupo de meses e a célula do
+    fechamento recebem o MESMO peso (o número de meses, que vem do motor), e por isso
+    a célula cai sob as barras que ela fecha em qualquer janela. Duas grades
+    independentes com a mesma largura teórica acabam desencontradas em um pixel.
+  - **As barras existem sem trimestre fechado.** Na janela de 3m não há fechamento, e o
+    bloco aparece só com as barras, com a ausência da faixa declarada no rodapé. Antes
+    de set/2026 o bloco inteiro sumia nessa janela.
+  - **Mês parcial não vira barra**: entram só os meses completos dentro da janela, e os
+    dias das pontas vão declarados. Barra de um dia lê-se como queda de custo.
+  - **A identidade é verificada, nunca afirmada de véspera**: o bloco confere a soma
+    par a par. Quando ela fecha, o rodapé NÃO diz nada (é o caso normal, e o rodapé é
+    onde mora a ressalva); quando a janela não começa no dia 1, ele declara que o
+    fechamento cobre um período deslocado. O aceite continua cobrado no smoke.
+  - **O rodapé é legenda em cima, ressalva embaixo** (`.tbl-ft.tbl-ft-nota`), o mesmo
+    arranjo do Pareto, da distribuição e da dispersão. A legenda saiu da direita do
+    cabeçalho: acima do gráfico ela obriga a decorar as duas tintas antes de ver o
+    desenho a que elas se referem.
+  - **NÃO segue o recorte** (Lei 0), como a distribuição: a série é da área inteira, e
+    trocar os chips não muda quem está sendo medido nela.
+  - **O bloco é da Área, não compartilhado.** O dossiê e os dois painéis de
+    procedimento continuam no `blocos/evolucao.js` trimestral: na coluna estreita de um
+    painel o mês não cabe, e o dossiê não pediu a troca.
 - **Distribuição** (dentro do container de gráficos, aba "Distribuição"): 1 ponto
 por cooperado avaliável, haste do menor ao maior, faixa IQR do grupo que forma a
 referência, régua de referência e de critério. Clicar num ponto destaca a linha na
 tabela. Não renderiza nos estados sem referência plena. [v0]
+  - **Título é a GRANDEZA, subtítulo é a LEITURA** (set/2026): `Solicitações por
+    consulta` · `Custo por consulta` · `Excesso por consulta`, e abaixo
+    "Distribuição dos cooperados pelo número de solicitações realizadas por
+    consulta." (adaptado às outras duas medidas). Os dois abriam com
+    "Distribuição", que gastava o começo de ambos sem distinguir um do outro. A
+    ressalva "Sem critério de revisão nesta área." entra como SEGUNDA FRASE nas
+    áreas que não sustentam percentil: é estado do dado, não descrição.
+  - **A legenda não diz o que é um ponto.** Com o subtítulo abrindo em
+    "Distribuição dos cooperados por…", a marca do ponto neutro repetia, duas
+    linhas abaixo, o que a frase acima do gráfico acabou de dizer. Ela ficou com
+    o que só ela explica: o ponto marcado, a caixa e as duas réguas. Vale nos
+    dois estados (com e sem critério).
+  - **A dica de cada ponto é FICHA** (set/2026): identidade no título e um
+    `Rótulo: valor` por linha, com marcador. São a medida em cena, a posição no
+    grupo (percentil COM a tradução ao lado, ajuste 2 do CLAUDE.md), o
+    denominador de consultas (rigor §1) e o excedente na janela. O rótulo da
+    segunda linha muda com a medida: *Posição na área* no índice, onde há
+    percentil, e *Referência do grupo* nas duas de dinheiro, onde não há. As
+    linhas vêm redigidas do motor. Forma e regra em `LEXICO_PRODUTO.md`.
   - **Escala de cor: variante E**, a mesma dos dois painéis de procedimento (ver
     abaixo), adotada em todo o app em set/2026. Dois estados: dentro do padrão da área
     em cinza, acima do critério da medida em cena em verde chapado, sem rampa e sem
@@ -285,13 +350,55 @@ tabela. Não renderiza nos estados sem referência plena. [v0]
     *Exames* (solicitações por consulta) · *Custo* (R$ solicitados por consulta,
     a mesma fonte da coluna "Custo por consulta" da tabela) · *Excesso* (variação
     excedente em R$ por consulta). Trocar de medida é LEITURA, não recorte: o
-    conjunto em cena, a escolha de um ponto e o filtro de perfil atravessam a
-    troca, e a medida não viaja na URL. Nas medidas de dinheiro, quem não tem
+    conjunto em cena e a escolha de um ponto atravessam a troca, e a medida não
+    viaja na URL. Nas medidas de dinheiro, quem não tem
     preço nas contas ou par acima do critério fica FORA do gráfico e é contado
     no rodapé (ausência não é zero); a caixa some quando menos de
     `N_MINIMO_P75` formadores da referência têm a medida. Cada medida traz as suas
     duas réguas, tiradas da MESMA norma que desenha a caixa: no índice é a norma
     publicada da área, nas duas de dinheiro é a construída sobre o mesmo grupo.
+  - **Modo descritivo em área sem critério** (set/2026): abaixo de `N_MINIMO_P75`
+    formadores, a distribuição sai com os PONTOS e a HASTE (menor ao maior
+    observado) e mais nada — sem caixa, sem as duas réguas, sem ninguém marcado.
+    A dica de cada ponto troca o percentil pelo POSTO ("2º de 8"), que é o mesmo
+    que a coluna de posição da tabela imprime, e o rodapé declara a leitura e o n.
+    A **legenda acompanha**: ela nomeia só as marcas que estão no desenho, porque
+    anunciar "referência da área" onde não há linha nenhuma faz o leitor procurar
+    o que não existe e concluir que o gráfico falhou.
+  - **Vista "Solicitações × custo"** (era "Quantidade × custo" até set/2026;
+    "quantidade" era vago e não é termo do léxico). Um ponto por cooperado:
+    solicitações por consulta no X, custo médio por consulta no Y, **valor total
+    solicitado no tamanho**. TRÊS dimensões, e não quatro — a tinta do ponto era
+    o excedente em R$, numa rampa, e **saiu em set/2026**: punha dois dinheiros
+    diferentes no mesmo ponto (porte no tamanho, excesso na cor) sobre eixos que
+    já falavam de um terceiro, e exigia uma legenda de três valores para ser
+    decodificada. Mesma decisão que a distribuição tomou ao trocar a rampa por
+    dois estados. O excedente segue na dica de cada ponto, por extenso, e é o
+    Pareto ao lado que responde "quanto" com o eixo inteiro.
+    Sem régua e sem cor de severidade, de propósito: o método não define critério
+    para custo, e este gráfico descreve, não julga.
+    O subtítulo diz o que é um PONTO; a legenda, de um item, diz o que é o
+    TAMANHO. Cada fato numa superfície só.
+  - **O rodapé é o mesmo nos três, e tem UMA LINHA** (set/2026): a faixa cinza
+    (`.tbl-ft.tbl-ft-nota`) leva a legenda, e a ressalva entra como último item
+    DELA, sem marca — o lugar onde o Pareto já punha "linha tracejada = corte de
+    80%". A legenda da distribuição e a da dispersão ficavam soltas sobre o
+    branco, e a nota abria uma segunda linha: a faixa da distribuição media 49px
+    contra 39px do Pareto, em três gráficos que se alternam no MESMO cartão.
+    Duas causas somadas, as duas corrigidas: a nota repetia o rótulo da marca da
+    caixa ("Caixa P25–P75 de 44 que formam a referência" logo abaixo de "metade
+    central do grupo"), e a marca `band` herdava `padding:12px 14px` do
+    componente homônimo `.band` — por isso ela virou `mk-iqr`, e `.legend i`
+    ganhou `padding:0` para nenhuma marca depender de não haver homônimo.
+    A NOTA sobrou para a exceção: grupo sem caixa, e quem ficou fora do desenho
+    (ausência não é zero). O **n da caixa** mudou de suporte e vive no hover da
+    marca dela, como o denominador da leitura de concentração do Pareto.
+  - **Onde não há mesmo o que desenhar** (sem área de atuação; sem nenhum
+    formador da referência), o lugar do gráfico recebe a ressalva do estado numa
+    `.caveat-box` centrada (`.tbl-vazio`), e não fica em branco. A aba continua
+    na faixa de propósito: escondê-la faria sumir o sintoma e a explicação junto,
+    e quem vem de uma área com três vistas para uma com duas não teria como saber
+    o que aconteceu.
   - **Altura igual nas três vistas** (set/2026): Concentração, Distribuição e
     Quantidade × custo mediam 516, 357 e 511px, e trocar de aba fazia a página saltar
     sob o cursor. Um `min-height` no painel iguala as três pela mais alta (o Pareto,
@@ -301,6 +408,10 @@ tabela. Não renderiza nos estados sem referência plena. [v0]
       distribuição fechava em 357px e os 159 restantes eram branco, o que trocava o
       salto por um gráfico pequeno numa moldura grande. Cartão, faixa e plotagem
       crescem juntos, e a altura que sobra vira espaço de desenho.
+    - A LISTA DO PARETO entrou nessa conta em set/2026: a regra esticava só a
+      plotagem, e o Pareto — que é justamente quem deu a medida da faixa — ficava
+      30px aquém dela, com a legenda flutuando e branco embaixo. Quem estica nele
+      é a lista, porque no Pareto a altura que sobra vira linha visível.
     - O boxplot é AMPLIADO, não esticado: cada medida guarda a fração que tinha no
       gráfico de 110px, contada sobre a faixa entre o topo e a linha do eixo. A caixa
       continua sem encostar no eixo, com a mesma folga relativa; a haste continua no
@@ -311,14 +422,90 @@ tabela. Não renderiza nos estados sem referência plena. [v0]
       recorte e foco sobrevivem.
   - Antes o eixo era só o índice, e quem pedia POUCO e CARO ficava no meio da
     nuvem: era a pergunta que o bloco não sabia responder.
+- **Seletor de recorte**: cada degrau da cascata traz a **definição escrita** sob o
+rótulo, e não só no `title` (set/2026). Ela sempre veio do motor e sempre viajou com a
+opção, mas ficava no hover: o leitor via `Sem explicação de contexto · 20` sem meio de
+saber que aquilo retira quem tem urgência ou pronto-socorro que explique o volume.
+Rótulo de recorte não se adivinha, e filtro que só se entende passando o cursor não é
+filtro que alguém usa. O rótulo passa a quebrar em vez de truncar onde há definição
+(`.pf-opt:has(.pf-desc) .nm`): cortar o nome e imprimir a explicação embaixo é a
+hierarquia ao contrário. O filtro de áreas do Panorama usa a mesma opção, não manda
+definição, e lá a linha única com reticências continua valendo.
 - **Linha de contexto** sob o título: escopo da área, fixo, acima dos chips —
-`64 na área · 63 comparáveis (ver os 6 fora da referência) · 63 com excedente em algum
-procedimento · 18 também atípicos no índice agregado`. As duas medidas do excedente
+`64 cooperados na área · 63 comparáveis (ver os 6 fora da referência) · 63 com
+excedente · 18 acima do critério`. Quatro partes CURTAS, e a qualificação de cada uma
+no `titulo_longo`: a linha é ENQUADRAMENTO, e o comprimento de uma parte custa a
+leitura das outras três. Ela chegou a imprimir as qualificações por extenso ("com
+excedente em algum procedimento", "acima do critério em procedimentos por consulta") e
+virou quatro orações; o que desceu para o hover foi só isso, nada se perdeu. A primeira
+parte diz `cooperados` porque é a única que declara a UNIDADE que as outras contam.
+Antes de set/2026 a última dizia "N também atípicos no índice agregado", que não
+comunicava: "atípico" não é termo do produto e "índice agregado" é o nome interno da
+razão. O valor do critério que ela invoca está desenhado como régua no gráfico de
+distribuição, com o valor no rótulo. As duas medidas do excedente
 (`132.526 solicitações · R$ 4,2 mi`) saíram dela em set/2026: a Leitura da área
-imprime as duas logo abaixo — a de solicitações como linha do grupo, o R$ como
-destaque, e as duas de novo na nota —, e a linha de contexto era a superfície em que
-elas diziam menos, sem denominador ao lado e sem declarar que não se movem com o
-recorte. O que a linha carrega é o ESCOPO, que nenhum outro bloco repete.
+imprime as duas logo abaixo, e a linha de contexto era a superfície em que elas
+diziam menos, sem denominador ao lado e sem declarar que não se movem com o
+recorte. O que a linha carrega é o ESCOPO, que nenhum outro bloco repete — e em
+set/2026 a Leitura deixou de repetir a última parte dela ("N também atípicos no
+índice agregado"), que ela imprimia numa segunda frase com um número que não
+seguia o recorte.
+- **Leitura da área**, abaixo dos chips: os números do recorte agrupados pela
+GRANDEZA que medem, e cada grupo com o mesmo par de linhas — **total em cima,
+excedente embaixo, com a fração ao lado**. São quatro: *Cooperados*, *Médias
+por consulta*, *Solicitações* e *Custo*. O primeiro chamou-se *Escopo em cena* até
+set/2026: o grupo nomeia a GRANDEZA que as suas linhas medem, como os outros três, e
+"escopo" não é uma grandeza. As linhas dele não repetem o nome do grupo (*no recorte*,
+*com volume para comparação*), pelo mesmo motivo que *Médias por consulta* tem
+*procedimentos* e *custo*. A organização anterior (set/2026) tinha um
+grupo "Solicitado no recorte" que juntava o custo TOTAL com as SOLICITAÇÕES
+excedentes — duas grandezas em dois degraus diferentes, lado a lado como se fossem
+comparáveis — e punha o custo excedente numa faixa de destaque ABAIXO da grade,
+longe do total de que ele é a parte. Com o par junto, "quanto disso está acima da
+referência" se lê na vertical, dentro do grupo, sem o olho atravessar o cartão.
+  - A **frase** sob o título é a leitura de concentração do Pareto, e nomeia a
+    grandeza: "21 de 49 cooperados concentram 81% **do custo excedente**". Ela dizia
+    "do valor", e o mesmo bloco imprime dois R$ diferentes (custo total e custo
+    excedente) a poucos centímetros. Sai com a **marca das afirmações**
+    (`.res-itens`/`.res-item`, a bolinha de `--exc`), a mesma do "Leitura do caso" do
+    dossiê: como `.sub` ela era indistinguível de um subtítulo que descreve o bloco, e
+    ela não descreve o bloco — afirma um fato apurado.
+  - **Sem apoio sob os números e sem notas no rodapé** (set/2026). Cada linha tinha
+    uma terceira linha de 11px sob o valor (a fração, a base do preço), e o `.res-p`
+    era criado mesmo vazio — então TODA linha carregava um vão sob o número,
+    inclusive as que nunca tiveram apoio. E o bloco fechava com dois parágrafos de
+    prosa cinza cujas afirmações já estavam na tela: `N dos N comparáveis têm
+    excedente em algum procedimento` é a terceira parte da linha de contexto,
+    `o excedente da área soma X e Y` é a própria grade sob o recorte default, e a
+    régua é o que a faixa de critérios declara no alto e o que a distribuição
+    desenha como linha, com o valor no rótulo.
+    O único fato que não estava em outro lugar — **quanto do excedente da ÁREA este
+    recorte cobre** — virou hover das duas linhas de excedente, e só aparece quando
+    o recorte é menor que a área. A fração que o apoio imprimia se lê sozinha: total
+    e excedente são as duas linhas do mesmo grupo, uma sob a outra, na mesma escala.
+  - **O bloco não tem rodapé** (set/2026). Ele já tinha sido reduzido de dois
+    parágrafos a uma linha (`Excedente medido procedimento a procedimento: cada um
+    contra a referência da área naquele procedimento`), e a linha que restou era
+    afirmação de **método**, não número do recorte: um resumo de números não fecha
+    com uma frase sobre como eles nascem. O fato continua onde ele pertence, em três
+    superfícies: a definição da coluna *Excesso em R$* da tabela, o painel de cada
+    procedimento e a Nota Metodológica. O cartão é título, afirmação e grade.
+    - **A RÉGUA AGREGADA DA ÁREA NUNCA ENTROU AQUI**, e as duas metades dela ficaram
+      de fora por motivos diferentes (set/2026) que continuam valendo.
+      A **referência** colidia com a grade: o grupo *Médias por consulta* imprime
+      `procedimentos 5,26` e o rodapé imprimia `Referência da área: 5,23 procedimentos
+      por consulta`. Mesma unidade, mesmo formato, dois centímetros de distância — e
+      **estatísticas diferentes**: 5,26 é razão de totais sobre quem está em cena;
+      5,23 é a **mediana das taxas individuais** dos que formam a referência. Próximas
+      por acaso do dado, e indistinguíveis na tela. Duas médias parecidas lado a lado
+      não informam: fazem procurar o erro.
+      O **critério agregado** era pior — ele **não governa número nenhum da página**.
+      `posicao_e_excedente` roda por PAR (cooperado × procedimento) contra
+      `norma_por_procedimento`; `acima_gatilho`, que é o agregado, tem exatamente dois
+      consumidores em todo o app (a contagem da linha de contexto e a canaleta de
+      realce da linha da tabela) e **nenhum deles é número**. Imprimi-lo como a régua
+      do bloco era apontar para a régua errada. Ele segue desenhado onde é POSIÇÃO e
+      não número solto: a régua do gráfico de distribuição.
 - **Os Paretos não trazem subtítulo de população** (set/2026). Ele dizia "excedente
 somado sobre: comparáveis (63)" e era a terceira aparição do mesmo fato na mesma dobra:
 o chip de Recorte, logo acima, imprime o recorte ativo com a contagem, e a Leitura da

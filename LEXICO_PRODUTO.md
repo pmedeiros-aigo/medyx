@@ -84,6 +84,17 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 > | medida do gráfico de distribuição | Exames | **Solicitações** |
 > | degrau da cascata | Com algum exame acima do critério | **Com algum procedimento acima do critério** |
 > | textos de apoio e hovers | "deste exame", "exame a exame" | **"deste procedimento", "procedimento a procedimento"** |
+> | sigla SADT em texto de tela | SADT · SADT por consulta · SADT/consulta | **procedimentos · Procedimentos por consulta · procedimentos/consulta** (set/2026) |
+
+> **ATENÇÃO — duas palavras para a mesma medida.** A retirada do SADT (set/2026,
+> pedido do usuário) deixou o app com dois nomes para o mesmo número: a Leitura
+> da área, o par do dossiê e a dica da evolução dizem **procedimentos por
+> consulta**; a coluna da tabela de cooperados e a medida do gráfico de
+> distribuição dizem **solicitações por consulta**. As duas são corretas — uma
+> nomeia o item, a outra o ato de pedi-lo —, mas são a MESMA razão
+> (`taxa_exames_por_consulta`), e duas palavras para um número na mesma página
+> é exatamente o que este documento existe para impedir. **Pendente de decisão
+> do usuário: alinhar tudo em uma das duas.**
 >
 > Duas coisas NÃO mudam. As **chaves internas** (`exames` como chave da medida,
 > `taxa_exames_por_consulta` como nome de coluna do motor) seguem: são
@@ -96,6 +107,7 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 | ÁREA DE TESTE — placeholder | **AMBIENTE DE HOMOLOGAÇÃO · classificação preliminar** |
 | trilha de estados | **estados do caso**: *em análise → em tratativa → pertinência justificada → adequação em curso → mitigado* |
 | concentração alta na margem intensiva | **case-mix a investigar** |
+| cooperado acima do critério no índice agregado | **acima do critério em procedimentos por consulta** — "atípico no índice agregado" saiu em set/2026: "atípico" não é termo do produto e "índice agregado" é nome interno da razão |
 | poucos beneficiários recebem | **pouco volume** (com "menos de N beneficiários") |
 | grupo pequeno demais para percentil | **cooperados insuficientes na área para análise comparativa** |
 | zero formadores da norma | **sem referência: nenhum cooperado desta área forma a norma** |
@@ -105,6 +117,7 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 | gatilho degradado pelo n | **critério ajustado ao tamanho do grupo** |
 | bootstrap abaixo do portão | **intervalo não calculável** |
 | norma do procedimento com poucos solicitantes | **referência não conclusiva** |
+| número que não pôde ser calculado | **não apurado** (`config.SEM_MEDIDA`) — era "sem medida" até set/2026, que soava como defeito do instrumento; o fato é que o número não foi levantado. Nunca travessão: travessão sozinho numa célula lê como zero |
 | percentil | sempre acompanhado da tradução: **"P92 · acima de 9 em cada 10 colegas da área"** |
 | valor padrão do parâmetro | **recomendado** ("P90 ✓ recomendado"; ao desviar, aviso discreto com ação de restaurar) |
 
@@ -187,12 +200,38 @@ questão de gosto, e por isso as regras abaixo são verificáveis, uma a uma.
 10. **Sem hedge sobre número exato**: "aproximadamente", "cerca de", "talvez",
     quando o valor é calculado.
 
+**As duas formas de uma dica (set/2026).** Um hover é FRASE ou é FICHA, e a
+escolha é do conteúdo, não do gosto.
+
+| | FRASE | FICHA |
+| --- | --- | --- |
+| Quando | explica um conceito, uma coluna, um critério | carrega DUAS OU MAIS medidas do mesmo ponto de dado |
+| Forma | uma linha, maiúscula inicial e ponto final (regra 5) | título na primeira linha, um `Rótulo: valor` por linha depois |
+| Exemplo | "Volume suficiente para a taxa ser estável." | `Dez/25` · `Custo total: R$ 327 mil` · `Variação: −12% sobre nov/25` |
+
+A ficha existe porque três ou quatro medidas emendadas com vírgulas ou com `·`
+viram um parágrafo dentro da caixa escura, e achar o número que se veio buscar
+exige ler a frase inteira. Um dado por linha se lê de relance, que é o que um
+hover precisa ser.
+
+Mecânica: as linhas viajam num `title` único, separadas por `\n`; `lib/dica.js`
+monta o título e a lista, e o contrato visual desenha (`.dica-ficha`). Quem
+escreve bloco novo continua escrevendo `title`.
+
+Linha de dado é RÓTULO DE DADO: **sem ponto final**, pela mesma regra 5 que
+isenta micro, cabeçalho de coluna e chip. O TÍTULO de uma ficha costuma ser um
+VALOR (o identificador do cooperado, um rótulo de período) e por isso também não
+leva ponto; quando ele é autorado, prefixe com o substantivo, como
+"Trimestre ago/25–out/25" faz, porque um rótulo de data começa em minúscula.
+
 **O teste.** Leia a frase em voz alta imaginando um diretor da operadora do
 outro lado da mesa. Se ela explicar como o software funciona, em vez de o que os
 dados dizem, ela falhou.
 
 **Onde isso é cobrado.** `smoke_api.py`, seção "TEXTO DE TELA", varre as strings
-de frase dos payloads e reprova as regras **1, 8 e 9**, que são mecânicas.
+de frase dos payloads e reprova as regras **1, 8 e 9**, que são mecânicas. Nas
+chaves de dica ele cobra também a forma: frase com maiúscula e ponto, ficha com
+rótulo de dado por linha e nenhum ponto no meio da lista.
 
 As demais são de revisão humana, e isso é decisão, não preguiça: a regra 5
 (maiúscula e ponto) foi automatizada e removida, porque o payload mistura, sob a

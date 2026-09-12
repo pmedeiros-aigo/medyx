@@ -58,6 +58,7 @@
 
 import { el, posicionado } from '../lib/dom.js';
 import { colapsavel } from '../lib/colapsar.js';
+import { cartaoVazio } from '../lib/vazio.js';
 /* O empacotador do enxame mora em lib/ desde 2026-09-07: o painel do
    procedimento na área desenha o mesmo enxame, e duas cópias da geometria
    é como os mesmos pontos passam a cair em lugares diferentes. */
@@ -76,21 +77,14 @@ function ponto(p, altura, aoClicar) {
   s.style.bottom = `${altura}px`;
   s.tabIndex = 0;
 
+  /* FICHA: identidade no título, um `Rótulo: valor` por linha. As linhas vêm
+     redigidas do motor (`p.dica`), e é lá que está a razão de cada uma:
+     o percentil nunca viaja sem tradução (ajuste 2 do CLAUDE.md), o
+     denominador acompanha toda taxa (rigor §1) e o excedente responde "quanto",
+     que a tinta deixou de codificar. Aqui só se monta. */
   const dica = el('span', 'tip');
-  dica.appendChild(el('b', null, `${p.id} · ${p.valor_fmt}`));
-  // ajuste 2 do CLAUDE.md: percentil nunca viaja sem tradução. Nas medidas de
-  // dinheiro, onde não há percentil, a leitura traz a referência do grupo
-  // (LEXICO, princípio 6: número de indivíduo nunca anda sozinho).
-  dica.appendChild(el('em', null, p.leitura));
-  /* O DENOMINADOR ao lado da taxa, sempre (rigor-estatistico §1). As três
-     medidas são "por consulta", e é este número que diz se a posição do ponto
-     é comportamento ou ruído de denominador pequeno. */
-  dica.appendChild(el('em', null, `${p.consultas_fmt} consultas na janela`));
-  /* O EXCEDENTE segue na dica, mas agora como informação e não como legenda de
-     cor: a tinta deixou de codificá-lo, e é aqui e no Pareto ao lado que a
-     pergunta "quanto" é respondida. */
-  dica.appendChild(el('em', null, p.excedente_reais_fmt
-    ? `Excedente na janela: ${p.excedente_reais_fmt}` : 'Sem excedente valorado'));
+  dica.appendChild(el('b', null, p.id));
+  for (const linha of p.dica ?? []) dica.appendChild(el('em', null, linha));
   s.appendChild(dica);
 
   const acionar = () => aoClicar?.(p.id);
@@ -131,11 +125,37 @@ function seletorDeMedida(medidas, ativa, aoTrocar) {
 
 
 /**
+ * O cartão que OCUPA O LUGAR do gráfico onde ele não pode existir.
+ *
+ * Áreas sem grupo de pares e áreas sem nenhum formador da referência não têm
+ * distribuição: sem referência não há eixo contra o que distribuir. Até
+ * 2026-09-11 o bloco simplesmente não era montado, e como a aba Distribuição
+ * continua na faixa — ela é a mesma para todas as áreas —, clicar nela abria um
+ * painel de 516px em branco. A pergunta "por que esta área não tem gráfico?"
+ * não tinha resposta em canto nenhum da página.
+ *
+ * A alternativa era esconder a aba. Foi descartada porque esconder não
+ * responde: some o sintoma e some a explicação junto.
+ *
+ * Nenhuma frase nasce aqui. `sem_distribuicao` é a frase do MÉTODO, redigida
+ * pelo motor (`blocos.estado_area`) para os dois estados que estruturalmente
+ * não têm gráfico; `descricao` é a rede, para qualquer outro caminho até aqui
+ * (uma janela sem ninguém, uma medida que não sobrou). Sem nenhuma das duas —
+ * só no estado pleno, onde o gráfico sempre existe — não há cartão a montar.
+ */
+function semDistribuicao(destino, estado) {
+  cartaoVazio(destino, 'Distribuição', estado?.titulo,
+              estado?.sem_distribuicao ?? estado?.descricao);
+}
+
+
+/**
  * Monta o gráfico dentro de `destino`.
  *
  * Não renderiza — e devolve `null` — quando o estado da área não tem referência
  * plena. Não é falha: uma área sem norma não tem contra o que distribuir, e
- * desenhar um eixo vazio sugeriria que o dado existe e está zerado.
+ * desenhar um eixo vazio sugeriria que o dado existe e está zerado. No lugar do
+ * gráfico entra o cartão de `semDistribuicao`, que diz isso com todas as letras.
  *
  * @param {HTMLElement} destino
  * @param {object} dados  resposta de /api/area/{id}
@@ -145,7 +165,16 @@ function seletorDeMedida(medidas, ativa, aoTrocar) {
  */
 export function montarDistribuicao(destino, dados, aoEscolher) {
   const d = dados.distribuicao;
-  if (!d?.medidas?.length || dados.estado?.tem_distribuicao === false) return null;
+  /* O PORTÃO É O DADO. `dados.estado.tem_distribuicao === false` também estava
+     aqui e era uma segunda autoridade sobre a mesma pergunta: quando o motor
+     passou a servir distribuição descritiva nas áreas abaixo do mínimo
+     (2026-09-11), a flag e o payload discordaram e a flag venceu — o bloco
+     chegava pronto e a tela não o desenhava. Quem sabe se há o que desenhar são
+     as medidas que vieram. */
+  if (!d?.medidas?.length) {
+    semDistribuicao(destino, dados.estado);
+    return null;
+  }
 
   /* Mesma moldura e mesmo cabeçalho da tabela: o gráfico e a lista são dois
      blocos da mesma família, e o título do guia (`font-size:14px;weight:600`,
@@ -199,26 +228,44 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
   };
   corpo.appendChild(plot);
 
-  /* A legenda é do BLOCO, não da medida: as marcas valem para as três, e o
-     redesenhá-la a cada troca sugeriria que a leitura muda com a medida. */
-  if (d.legenda?.length) {
-    const legenda = el('div', 'legend');
-    for (const item of d.legenda ?? []) {
-      const s = document.createElement('span');
-      s.append(el('i', item.classe), document.createTextNode(item.rotulo));
-      legenda.appendChild(s);
-    }
-    corpo.appendChild(legenda);
-  }
   cartao.appendChild(corpo);
 
-  /* O rodapé de método, como no Pareto e na dispersão: sobre quantos a caixa se
-     apoia, quem ficou de fora do gráfico e por quê, e a ressalva de preço quando
-     a medida é dinheiro. Vem pronto do motor; quem lê um gráfico com gente
-     ausente precisa saber que ela existe. */
-  const rodape = el('div', 'tbl-ft');
-  const notaMedida = el('span');
-  rodape.appendChild(notaMedida);
+  /* ── O RODAPÉ: LEGENDA E RESSALVA, NA FAIXA CINZA ────────────────────────
+     A legenda ficava solta sobre o branco, encostada na plotagem, e a faixa
+     cinza levava só a nota de método. Eram dois tratamentos para a mesma
+     pergunta — "o que estou vendo, e o que este número é" — em dois gráficos
+     irmãos que se alternam no MESMO cartão: trocar de vista mudava o desenho do
+     rodapé junto com o gráfico.
+     Agora é o arranjo do Pareto, que já era esse: `.tbl-ft.tbl-ft-nota`,
+     legenda em cima, ressalva embaixo, as duas dentro da faixa. Um cartão, um
+     rodapé (2026-09-11).
+
+     A LEGENDA é do BLOCO, não da medida: as marcas valem para as três, e
+     redesenhá-la a cada troca sugeriria que a leitura muda com a medida. A
+     NOTA é da medida, e por isso é ela que `desenhar()` reescreve. */
+  const rodape = el('div', 'tbl-ft tbl-ft-nota');
+  const legenda = el('div', 'legend');
+  /* A marca da CAIXA, guardada: o hover dela carrega o n sobre o qual a caixa
+     se apoia, e esse n muda com a medida (as de dinheiro se apoiam em quem TEM
+     a medida). A frase vem redigida do motor; aqui só se troca o `title`. */
+  let marcaDaCaixa = null;
+  for (const item of d.legenda ?? []) {
+    const s = document.createElement('span');
+    s.append(el('i', item.classe), document.createTextNode(item.rotulo));
+    if (item.classe === 'mk-iqr') marcaDaCaixa = s;
+    legenda.appendChild(s);
+  }
+  /* A NOTA DA MEDIDA ENTRA NA PRÓPRIA LEGENDA, como último item e sem marca —
+     o mesmo lugar em que o Pareto põe "linha tracejada = corte de 80%".
+     Era uma SEGUNDA LINHA do rodapé, e isso deixava a faixa da distribuição
+     mais alta que a do Pareto ao lado: dois gráficos que se alternam no mesmo
+     cartão, com rodapés de espessuras diferentes. Uma linha, sempre.
+     Fica VAZIA na maioria das medidas, de propósito: ela só fala quando há
+     exceção (grupo sem caixa, gente fora do desenho). `hidden` e não texto
+     vazio, senão o `gap:16px` da legenda abriria um vão sem conteúdo. */
+  const notaMedida = document.createElement('span');
+  legenda.appendChild(notaMedida);
+  rodape.appendChild(legenda);
   cartao.appendChild(rodape);
 
   destino.appendChild(cartao);
@@ -245,6 +292,8 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
     rotuloTitulo.textContent = medida.titulo;
     rotuloSub.textContent = medida.subtitulo ?? '';
     notaMedida.textContent = medida.nota ?? '';
+    notaMedida.hidden = !notaMedida.textContent;
+    if (marcaDaCaixa) marcaDaCaixa.title = medida.caixa_titulo ?? '';
 
     plot.replaceChildren();
 

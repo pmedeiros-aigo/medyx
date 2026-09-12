@@ -145,9 +145,15 @@ export function montarRecorte(destino, dados, aoEscolher) {
       o.appendChild(el('span', 'dp', `−${antes - n}`));
     }
     if (n != null) o.appendChild(el('span', 'n', String(n)));
-    // a definição do degrau vem do motor; a `ajuda` local cobre o que não é degrau
-    o.title = [porDegrau.get(r.degrau)?.descricao, r.ajuda]
-      .filter(Boolean).join(' · ');
+    /* A DEFINIÇÃO DO DEGRAU, ESCRITA, e não só no hover. Ela vem do motor e já
+       viajava aqui; ficava no `title`, e o leitor via "Sem explicação de
+       contexto · 20" sem meio de saber que aquilo retira quem tem urgência ou
+       pronto-socorro que explique o volume. Rótulo de recorte não se adivinha.
+       A `ajuda` local (o que não é degrau) segue no hover: ela qualifica o
+       rótulo, não define o corte. */
+    const definicao = porDegrau.get(r.degrau)?.descricao;
+    if (definicao) o.appendChild(el('span', 'pf-desc', definicao));
+    if (r.ajuda) o.title = r.ajuda;
     // escolha ÚNICA: fecha ao escolher, ao contrário do perfil
     o.addEventListener('click', () => { caixa.checked = false; aoEscolher(r.chave); });
     pop.appendChild(o);

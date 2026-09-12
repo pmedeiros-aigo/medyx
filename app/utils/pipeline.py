@@ -855,6 +855,63 @@ def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_
             "base": carimbo_base(incluir_ps)}
 
 
+def custo_mensal(fato, janela_ini, janela_fim, precos, area=None,
+                 incluir_ps=config.INCLUIR_PS_DEFAULT):
+    """O custo das solicitações MÊS A MÊS, ao mesmo preço da janela inteira.
+
+    É a série trimestral vista de perto, e por construção soma-se a ela: o custo
+    do trimestre é Σ solicitações × preço mediano da JANELA (constante entre as
+    fatias, ver `persistencia_temporal`), e solicitação é aditiva sobre os meses.
+    Os três meses de um trimestre somam o trimestre na casa do centavo, sem que
+    nada seja medido duas vezes — e é por isso que o preço tem de continuar sendo
+    o da janela: preço por mês faria uma barra maior poder ser reajuste de tabela
+    em vez de mais solicitação.
+
+    ── o que NÃO desce ao mês ──────────────────────────────────────────────────
+    O EXCEDENTE. Ele é a diferença entre o que foi solicitado e o que a
+    referência do período previa para as CONSULTAS do período, e a unidade de
+    apuração é o trimestre (config.JANELA_MINIMA, e a persistência inteira é
+    construída sobre ela). Excedente mensal seria uma medida que a metodologia
+    não fez, com um denominador de um mês por trás — exatamente o que o piso de
+    volume existe para impedir (rigor-estatistico §2).
+
+    Mês sem nenhuma solicitação com preço apurado sai com `custo` nulo, nunca
+    zero: zero é afirmação sobre o custo, ausência de preço não é.
+
+    Devolve uma linha por mês do calendário coberto pela janela, na ordem do
+    tempo: `mes` ('2025-05'), `custo`, `itens`, `itens_com_preco`, `consultas`.
+    """
+    f = fato[(fato["DATA_REQUISICAO"] >= janela_ini)
+             & (fato["DATA_REQUISICAO"] <= janela_fim)]
+    if area is not None:
+        f = f[f["AREA_ATUACAO"] == area]
+    f = filtrar_ps(f, incluir_ps)
+    vazio = pd.DataFrame(columns=["mes", "custo", "itens", "itens_com_preco",
+                                  "consultas"])
+    if not len(f):
+        return vazio
+
+    consultas = f.groupby("PERIODO_REQUISICAO")["ID_CONSULTA"].nunique().rename("consultas")
+    itens = f.groupby("PERIODO_REQUISICAO")["QT_EFETIVO"].sum().rename("itens")
+
+    custo = pd.Series(dtype=float, name="custo")
+    com_preco = pd.Series(dtype=float, name="itens_com_preco")
+    if precos is not None and len(precos):
+        pp = (f.groupby(["PERIODO_REQUISICAO", "CD_PROCEDIMENTO"])["QT_EFETIVO"]
+              .sum().reset_index()
+              .merge(precos[["CD_PROCEDIMENTO", "preco_mediano"]],
+                     on="CD_PROCEDIMENTO", how="left"))
+        pp = pp[pp["preco_mediano"].notna()]
+        if len(pp):
+            pp = pp.assign(valor=pp["QT_EFETIVO"] * pp["preco_mediano"])
+            custo = pp.groupby("PERIODO_REQUISICAO")["valor"].sum().rename("custo")
+            com_preco = (pp.groupby("PERIODO_REQUISICAO")["QT_EFETIVO"].sum()
+                         .rename("itens_com_preco"))
+
+    out = (pd.concat([consultas, itens, custo, com_preco], axis=1)
+           .rename_axis("mes").reset_index().sort_values("mes"))
+    return out.reset_index(drop=True)
+
 def composicao_da_carteira(fato, perfil, janela_ini, janela_fim, area,
                            cooperado=None, incluir_ps=config.INCLUIR_PS_DEFAULT,
                            faixas=config.FAIXAS_ETARIAS):

@@ -878,7 +878,12 @@ th{vertical-align:middle}
   background:var(--acc);opacity:1;z-index:3}
 [data-tema="dark"] .plot .pt:not(.pt-acima){opacity:.75}
 .plot .pt:hover{background:var(--g-900);opacity:1}
-/* a barra da legenda mostra a rampa inteira, com os valores nas pontas */
+/* A BARRA DE RAMPA da legenda: a escala inteira, com os valores nas pontas.
+   SEM CONSUMIDOR desde 2026-09-11 — a distribuição trocou a rampa por dois
+   estados em set/2026 e a dispersão perdeu a cor agora, e eram os dois únicos.
+   Fica no contrato, e não apagada: é um componente do sistema visual, não código
+   morto de tela, e o próximo gráfico que precise de escala contínua já o tem.
+   Se ninguém a chamar até o contrato ser revisto, aí sim ela sai. */
 .legend .rampa{display:inline-flex;align-items:center;gap:6px}
 .legend .rampa-barra{width:76px;height:8px;border-radius:999px;background:linear-gradient(90deg,var(--g-400),var(--read-above),var(--crit))}
 .legend .rampa b{font-size:var(--fs-xs);font-weight:400;color:var(--g-400)}
@@ -892,11 +897,20 @@ th{vertical-align:middle}
 .axislbl{position:absolute;bottom:0;transform:translateX(-50%);white-space:nowrap;font-size:var(--ch-axis-fs);color:var(--g-400)}
 .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:var(--fs-xs);color:var(--g-500)}
 .legend span{display:inline-flex;align-items:center;gap:6px}
-.legend i{width:7px;height:7px;border-radius:50%;display:inline-block}
+/* `padding:0` não é decoração, é BLINDAGEM. A marca é um `<i>` com uma classe
+   curta, e classe curta colide: `.legend i.band` levava o `padding:12px 14px`
+   do componente `.band` (a faixa de rótulo+valor, lá embaixo), que nada tem a
+   ver com legenda. A marca inchava para 26px e a faixa do rodapé da
+   distribuição ficava 10px mais alta que a do Pareto ao lado — dois gráficos
+   que se alternam no mesmo cartão, com rodapés de espessuras diferentes.
+   Zerado aqui, nenhuma marca depende de não haver homônimo no arquivo. */
+.legend i{width:7px;height:7px;border-radius:50%;display:inline-block;padding:0}
 .legend i.neutral{background:var(--g-400);opacity:.5}
 .legend i.read{background:var(--read-above)}
 .legend i.crit{background:var(--crit)}
-.legend i.band{width:14px;border-radius:2px;background:var(--ch-iqr-fill);border:1px solid var(--ch-iqr-line)}
+/* `mk-iqr` e não `band`: as outras marcas de régua já são `mk-ref` e `mk-crit`,
+   e era justamente o nome sem prefixo que colidia com o componente `.band`. */
+.legend i.mk-iqr{width:14px;border-radius:2px;background:var(--ch-iqr-fill);border:1px solid var(--ch-iqr-line)}
 /* as marcas das duas réguas: o mesmo traço que o gráfico desenha, em 11px */
 .legend i.mk-ref{width:0;height:11px;border-radius:0;border-left:1px var(--ch-ref-style-median) var(--g-900);opacity:var(--ch-ref-op)}
 .legend i.mk-crit{width:0;height:11px;border-radius:0;border-left:1px var(--ch-ref-style-criterion) var(--g-900);opacity:var(--ch-ref-op)}
@@ -1670,19 +1684,19 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .disp-marcas-x span{position:absolute;transform:translateX(-50%);font-size:var(--fs-xs);color:var(--g-400);white-space:nowrap}
 .disp-eixo-x{grid-column:3;grid-row:3;justify-self:center;font-size:var(--fs-xs);color:var(--g-400);letter-spacing:.04em}
 /* O PONTO. `--t` é o tamanho relativo (0–1) que o motor manda; o diâmetro sai
-   dele entre um mínimo e um máximo. Cor neutra e uma só: este gráfico não
-   julga, e uma paleta de severidade aqui reintroduziria a régua que ele não
-   tem. */
-/* O PONTO. `--t` é o tamanho relativo (0–1) e `--i` a intensidade da cor, os
-   dois do motor: tamanho = valor total solicitado, cor = excedente em R$. Duas
-   grandezas de dinheiro no mesmo ponto, e o contraste entre elas é a leitura do
-   bloco — bola grande e clara é operação grande e dentro do padrão; bola
-   pequena e escura é operação modesta com muito excedente.
-   A rampa é a MESMA da distribuição (ver o bloco `.plot .pt`): mesma tinta para
-   a mesma grandeza, senão os dois gráficos pareceriam escalas diferentes.
-   A opacidade sobe menos que lá — aqui o tamanho já carrega magnitude, e bola
-   pequena e translúcida somiria. */
-.disp-pt{--d:calc(var(--disp-dot-min,7px) + (var(--disp-dot-max,34px) - var(--disp-dot-min,7px)) * var(--t,0));--ramp-1:clamp(0%, calc(var(--i,0) * 200%), 100%);--ramp-2:clamp(0%, calc((var(--i,0) - .5) * 200%), 100%);position:absolute;width:var(--d);height:var(--d);margin-left:calc(var(--d) / -2);margin-bottom:calc(var(--d) / -2);padding:0;border:1px solid var(--canvas);border-radius:50%;background:color-mix(in oklab, var(--crit) var(--ramp-2), color-mix(in oklab, var(--read-above) var(--ramp-1), var(--g-400)));opacity:calc(.6 + var(--i,0) * .35);cursor:pointer}
+   dele entre um mínimo e um máximo, e é a ÚNICA variável que o ponto carrega.
+
+   COR NEUTRA E UMA SÓ (de volta em 2026-09-11). Houve uma rampa aqui — a tinta
+   era o excedente em R$, por ordem —, e ela punha dois dinheiros diferentes no
+   mesmo ponto: porte no tamanho, excesso na cor, sobre eixos que já falam de um
+   terceiro. Quatro grandezas num desenho que existe para comparar duas, e uma
+   legenda de três valores para decodificar a quarta.
+   É a mesma decisão que a distribuição tomou em 2026-09-07 ao trocar a rampa
+   por dois estados, e aqui nem dois são precisos: este gráfico não julga, e uma
+   paleta de severidade reintroduziria a régua que ele não tem.
+   O cinza é o `--g-500` a 60%, o MESMO da marca `pt-mk-fundo` na legenda — a
+   marca e o ponto que ela nomeia têm de ser a mesma tinta. */
+.disp-pt{--d:calc(var(--disp-dot-min,7px) + (var(--disp-dot-max,34px) - var(--disp-dot-min,7px)) * var(--t,0));position:absolute;width:var(--d);height:var(--d);margin-left:calc(var(--d) / -2);margin-bottom:calc(var(--d) / -2);padding:0;border:1px solid var(--canvas);border-radius:50%;background:var(--g-500);opacity:.6;cursor:pointer}
 .disp-pt:hover{opacity:1;background:var(--g-900);z-index:2}
 /* RECORTE: quem sai de cena recua, quem fica mantém a própria tinta — a mesma
    regra do gráfico de distribuição. Os eixos não se movem: a escala é da área,
@@ -1739,7 +1753,29 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
 .pf.tem-perfil .pf-tag{display:inline}
 
 .pf-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:8;width:260px;flex-direction:column;padding:4px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--sh-pop)}
-.pf-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:var(--fs-md);color:var(--g-800);cursor:pointer;text-align:left}
+.pf-opt{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border:0;border-radius:var(--r-sm);background:transparent;font-family:inherit;font-size:var(--fs-md);color:var(--g-800);cursor:pointer;text-align:left}
+/* A DEFINIÇÃO DO DEGRAU, na própria opção (2026-09-11). Ela já vinha do motor e
+   já viajava com a opção, mas só no `title`: o leitor via "Sem explicação de
+   contexto · 20" e tinha de descobrir, no hover, que aquilo retira quem tem
+   urgência ou pronto-socorro que explique o volume. Rótulo de recorte não se
+   adivinha, e um filtro que só se entende passando o cursor não é um filtro
+   que alguém usa.
+   Segunda linha via `flex-basis:100%` na caixa que já era flex, com o recuo da
+   marca (14px da caixa + 8px do gap) para o texto começar sob o rótulo. Quem
+   não manda descrição — o filtro de áreas do Panorama — não ganha linha
+   nenhuma, porque o elemento nem é criado. */
+.pf-opt .pf-desc{flex-basis:100%;margin-left:22px;font-size:var(--fs-xs);color:var(--g-500);white-space:normal;line-height:1.45}
+/* E O RÓTULO PASSA A QUEBRAR, só onde há definição. Ele é truncado com
+   reticências por padrão, o que serve a uma lista de uma linha por opção —
+   mas "Entre os que somam 80% do excedente da área" virava "…do excedent…"
+   logo acima da definição inteira, escrita em duas linhas. Cortar o nome e
+   imprimir a explicação é a hierarquia ao contrário.
+   Escopado por `:has(.pf-desc)`: o filtro de áreas do Panorama usa a mesma
+   opção, não manda definição, e lá a linha única com reticências continua
+   sendo o certo. */
+.pf-opt:has(.pf-desc) .nm{white-space:normal;overflow:visible;text-overflow:clip}
+.pf-opt.on .pf-desc{color:var(--g-600)}
+.pf-opt.na .pf-desc{color:var(--g-300)}
 .pf-opt:hover{background:var(--hover);color:var(--g-900)}
 /* caixa marcável (Clean v3): 14px, raio 4, vazia quando desmarcada e
    preenchida no acento com o ✓ branco quando marcada */
@@ -1787,7 +1823,7 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
    número que se cita numa reunião; o % qualifica o que ele representa. */
 .pareto-cab .cum-rs{width:112px;flex:none;text-align:right;white-space:nowrap}
 .pareto-cab .cum{width:56px;flex:none;text-align:right;white-space:nowrap}
-.pareto{display:flex;flex-direction:column;max-height:300px;overflow-y:auto;padding:0 16px}
+.pareto{display:flex;flex-direction:column;max-height:var(--ch-h-pareto);overflow-y:auto;padding:0 16px}
 .pareto-l{position:relative;display:flex;align-items:center;gap:12px;padding:3px 0;border-bottom:1px solid transparent}
 .pareto-l.clicavel{cursor:pointer}
 .pareto-l:hover{background:var(--hover)}
@@ -1897,11 +1933,32 @@ aside:has(#crit-p90:checked) .card-ft .pv-crit-p90{display:inline}
    `flex-basis` na altura própria de cada gráfico, e não em zero: quem já tem
    altura declarada continua com ela como piso, e só o excedente é distribuído.
    Se um dia a vista mais alta encolher, todos encolhem até o próprio piso e
-   param — nunca abaixo do que a leitura pede. */
+   param — nunca abaixo do que a leitura pede.
+   O Pareto entrou nessa conta em 2026-09-11 (ver a regra da `.pareto`, abaixo):
+   ele era o único dos três a NÃO preencher, apesar de ter sido quem deu a
+   medida dos 516px. */
 .graficos-vistas .vista-painel{min-height:var(--vista-h,516px)}
 .graficos-vistas .vista-painel > .tbl{flex:1;display:flex;flex-direction:column}
 .graficos-vistas .vista-painel > .tbl > .tbl-band{flex:1;display:flex;flex-direction:column}
 .graficos-vistas .vista-painel > .tbl > .tbl-band > .plot{flex:1 1 var(--ch-h);min-height:var(--ch-h)}
+/* E A LISTA DO PARETO CRESCE COM ELE (2026-09-11). A regra acima esticava só a
+   `.plot` — a distribuição e a dispersão —, e o Pareto, que é justamente quem
+   deu a medida dos 516px, era o único dos três a flutuar no topo do painel:
+   56+67+24+300+39 = 486px de cartão dentro de 516 reservados, com 30px de
+   branco entre o rodapé da legenda e a borda de baixo. A altura de referência
+   foi medida antes de a faixa de abas mudar de lugar, e o cartão nunca voltou a
+   alcançá-la.
+
+   Quem estica é a LISTA, e não o rodapé: a altura que sobra é espaço de
+   desenho, e no Pareto desenho é linha visível. O teto de `--ch-h-pareto`
+   continua valendo onde o cartão tem altura de conteúdo (o Pareto de
+   Procedimentos, o do dossiê); aqui ele vira PISO (`flex-basis`), porque quem
+   manda é o painel e um teto sairia na frente dele.
+
+   `min-height:0` porque o item é um contêiner de rolagem dentro de uma coluna
+   flex: sem ele o mínimo automático é a altura do conteúdo, e uma lista de 63
+   linhas empurraria o cartão para além do painel em vez de rolar. */
+.graficos-vistas .vista-painel > .tbl > .pareto{flex:1 1 var(--ch-h-pareto);min-height:0;max-height:none}
 /* ...MENOS COM O CARTÃO FECHADO (2026-09-07). A altura reservada e o `flex:1`
    que a preenche existem para a troca de vista não sacudir a tabela logo
    abaixo — mas fechado não há vista para segurar, e os dois juntos desfaziam o
@@ -2716,8 +2773,13 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
   text-decoration-color:var(--line);text-underline-offset:3px;cursor:help}
 /* ── LEITURA DA ÁREA: o destaque e o rodapé de notas ────────────────────────
    O bloco reusa a grade do "Leitura do caso" do dossiê (`.res-*`); o que ele
-   acrescenta é a faixa de destaque, onde vive o número que a tela existe para
-   produzir, e um rodapé que comporta duas frases empilhadas. */
+   acrescenta é um rodapé que comporta duas frases empilhadas.
+
+   `.res-destaque` e `.la-destaque` estão SEM CONSUMIDOR desde 2026-09-11: a
+   faixa levava o custo excedente sozinho, em corpo grande, abaixo da grade, e
+   com isso o número ficava longe do total de que ele é a parte. O par passou a
+   viver junto no grupo "Custo". Ficam no contrato, e não apagados: é a faixa de
+   número-herói do sistema visual, e o Panorama já a citou como referência. */
 .res-destaque{flex-direction:row;align-items:baseline;flex-wrap:wrap;gap:10px;
   border-top:1px solid var(--line-soft)}
 .la-destaque{font-size:var(--fs-2xl);font-weight:600;line-height:1.15;
@@ -2844,6 +2906,17 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    tinta: legenda que desenha outra coisa obriga a traduzir duas vezes */
 .legend i.pt-mk-fundo{background:var(--g-500);opacity:.6}
 .legend i.pt-mk-acima{width:8px;height:8px;background:var(--acc)}
+/* O PORTE na legenda da dispersão: o mesmo círculo, maior. Ela vem logo depois
+   de `pt-mk-fundo`, e é o PAR que se lê como escala — um ponto pequeno e um
+   grande, na mesma tinta, dizem "o tamanho quer dizer alguma coisa" sem gastar
+   uma barra de rampa. Sozinha, uma marca só não diria nada. */
+.legend i.pt-mk-porte{width:14px;height:14px;background:var(--g-500);opacity:.6}
+/* A HASTE na legenda: a marca da amplitude (menor ao maior observado). Só
+   aparece nas áreas sem critério, onde ela é a única marca de grupo que sobra —
+   a caixa e as duas réguas não são desenhadas. Mesma tinta da haste do gráfico,
+   pelo token, e as tampas das pontas ficam de fora: em 14px elas virariam três
+   traços grudados, e o que a marca precisa dizer é "isto é a amplitude". */
+.legend i.mk-haste{width:16px;height:1px;border-radius:0;background:var(--ch-haste)}
 .plot-sm .haste{top:28px}
 .plot-sm .tampa{top:21px;height:15px}
 .plot-sm .iqrband{top:14px;height:28px}
@@ -3247,3 +3320,197 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    para caber, que era a solução anterior, deixava o cabeçalho anunciando um
    total que a tela não mostrava. */
 .tbl-oportunidades .tbl-scroll{max-height:520px;overflow-y:auto}
+
+
+/* ---------- TBL-VAZIO · o cartão que não tem o que desenhar -----------------
+   Modificador da `.tbl-band`, o corpo de um cartão de gráfico. Nasceu na faixa
+   de gráficos da tela de Área, que reserva a altura da vista mais alta e mantém
+   as três abas sempre em cena: um bloco que não é montado deixava ali um painel
+   de 516px EM BRANCO. Aconteceu na Distribuição (áreas sem grupo de pares e sem
+   formadores da referência) e na Quantidade × custo (Ultrassonografia, onde
+   ninguém alcança o volume mínimo).
+   Painel vazio não se lê como "isto não existe aqui", se lê como tela quebrada,
+   e a aba continuava clicável prometendo um gráfico.
+
+   A ressalva fica CENTRADA na moldura, e não encostada no topo: é a única coisa
+   dentro dela, e alinhada acima com o resto em branco pareceria de novo um
+   bloco que não carregou. A largura é limitada porque a frase vem do motor e é
+   um parágrafo, não um rótulo — linha longa demais atravessando o cartão
+   inteiro não se lê.
+
+   A tinta e a moldura são as da `.caveat-box` (§07): ausência por método é
+   ressalva metodológica, e o app já tem uma cor para isso. */
+.tbl-band.tbl-vazio{align-items:center;justify-content:center}
+.tbl-band.tbl-vazio .caveat-box{width:100%;max-width:560px}
+
+/* ── EVOLUÇÃO MENSAL da área (2026-09-12) ───────────────────────────────────
+   Duas camadas empilhadas num invólucro só: BARRAS POR MÊS em cima, FAIXA DE
+   FECHAMENTO POR TRIMESTRE embaixo. Elas rolam juntas e dividem a MESMA
+   largura, e é a única forma de "estes três meses dão este excedente" não
+   depender de o leitor contar colunas.
+
+   O ALINHAMENTO É ESTRUTURAL, não calculado: cada trimestre é UM elemento que
+   contém as suas próprias barras e a sua própria célula, e os dois pesos saem
+   do mesmo `flex-grow` (o número de meses do grupo, que é DADO e vem do motor).
+   Duas grades independentes com a mesma largura teórica sempre acabam
+   desencontradas em um pixel; aqui não há duas grades.
+
+   As tintas são as MESMAS do `.evo` trimestral (--g-200 para o custo, --exc
+   para o excedente), porque é o mesmo dinheiro por outro eixo. */
+.evom{display:flex;flex-direction:column;gap:18px;padding:4px 16px 16px}
+/* a rolagem horizontal é do INVÓLUCRO das duas camadas, nunca de uma só: as
+   colunas têm largura mínima, e numa janela longa quem cede é a largura total */
+/* A FOLGA NO TOPO não é respiro: a marca mais alta da régua fica meio corpo
+   acima da pista, e o valor da barra mais alta flutua sobre o topo dela. Sem
+   ela, `overflow-y:hidden` decepava as duas. */
+.evom-rolo{overflow-x:auto;overflow-y:hidden;margin:0 -16px;padding:10px 16px 2px}
+/* a altura da pista mora num token porque TRÊS coisas concordam com ela: a
+   barra, a régua e a camada de linhas. Mesma razão do `.evo`. */
+/* A CALHA DA RÉGUA é do INVÓLUCRO, não do gráfico: gráfico e faixa começam no
+   mesmo x, que é a condição de a célula cair sob as suas barras.
+
+   ── a largura sai do NÚMERO DE MESES, e o mês tem medida própria ────────────
+   `--evom-n` é a contagem de meses em cena (dado, como o `--evo-cols` da grade
+   de volume); a MEDIDA de um mês é do CSS. As três larguras juntas resolvem as
+   duas pontas sem nenhuma conta no JavaScript:
+
+     · `width`     — largura natural, um mês por `--evom-mes-w`. É o que impede
+                     três meses de se esparramarem por um cartão de 1200px, com
+                     três barras soltas no meio de um campo vazio;
+     · `max-width` — nunca além do cartão: em doze meses a largura natural passa
+                     dele, e o gráfico se acomoda esticando as colunas;
+     · `min-width` — o chão do mês. Quando nem ele cabe (janela de dois anos), o
+                     `min-width` vence o `max-width` (regra do CSS) e o
+                     invólucro transborda: é aí, e só aí, que a rolagem começa. */
+.evom-in{--evom-h:180px;--evom-eixo-w:58px;--evom-mes-w:112px;--evom-mes-min:56px;
+  position:relative;display:flex;flex-direction:column;gap:12px;
+  width:calc(var(--evom-eixo-w) + var(--evom-n,12) * var(--evom-mes-w));
+  min-width:calc(var(--evom-eixo-w) + var(--evom-n,12) * var(--evom-mes-min));
+  max-width:100%;padding-left:var(--evom-eixo-w)}
+.evom-graf{position:relative;display:flex;align-items:stretch}
+/* régua horizontal: UMA camada atrás de tudo, ancorada no topo, como no `.evo` */
+.evom-eixo{position:absolute;left:0;top:0;width:var(--evom-eixo-w);
+  height:var(--evom-h);padding-right:8px}
+.evom-marca{position:absolute;right:8px;transform:translateY(50%);
+  font-size:var(--fs-xs);color:var(--g-400);white-space:nowrap}
+.evom-linhas{position:absolute;left:0;right:0;top:0;
+  height:var(--evom-h);pointer-events:none}
+.evom-linhas i{position:absolute;left:0;right:0;display:block;height:0;
+  border-top:1px dashed var(--line)}
+.evom-linhas i.evom-base{border-top-style:solid;border-top-color:var(--g-200)}
+
+/* O GRUPO é o trimestre: o `flex-grow` dele é o número de meses, então um
+   trimestre parcial fica proporcionalmente mais estreito e continua sobre as
+   suas próprias barras. O respiro nas bordas é o que faz o trio ler como um
+   trimestre e não como três meses soltos, e o filete à esquerda separa um
+   fechamento do seguinte. */
+.evom-grupo{display:flex;min-width:0;padding:0 10px}
+.evom-grupo+.evom-grupo{border-left:1px solid var(--line-soft)}
+.evom-mes{display:flex;flex:1 1 0;flex-direction:column;align-items:center;
+  gap:8px;min-width:46px}
+.evom-plot{position:relative;width:100%;max-width:64px;height:var(--evom-h)}
+.evom-barra{position:absolute;left:0;right:0;bottom:0;display:block;
+  font-style:normal;background:var(--g-200);border-radius:4px 4px 0 0}
+/* o valor flutua logo acima do topo da PRÓPRIA barra (o `bottom` é dado, vem do
+   motor), com fundo opaco colado ao texto para a linha tracejada não passar por
+   trás dele. Mesmas três medidas do `.evo-topo`, e pelo mesmo motivo: número
+   solto na altura de uma marca da régua lê-se como leitura de eixo. */
+.evom-topo{position:absolute;left:0;right:0;width:fit-content;
+  margin:0 auto 3px;padding:1px 3px;border-radius:3px;background:var(--surface);
+  text-align:center;line-height:1;white-space:nowrap;
+  font-size:var(--fs-xs);color:var(--g-500)}
+.evom-rot{font-size:var(--fs-sm);color:var(--g-500)}
+
+/* ── a faixa de fechamento ──────────────────────────────────────────────────
+   Uma moldura só, atravessando a largura inteira, dividida pelos mesmos grupos:
+   é moldura de FAIXA, não quatro cartões, porque os trimestres são um período
+   contínuo e não quatro coisas separadas. */
+.evom-faixa{display:flex;border:1px solid var(--line);border-radius:var(--r-md);
+  background:var(--surface-2);overflow:hidden}
+.evom-cel{display:flex;flex-direction:column;gap:5px;padding:10px 12px;
+  min-width:0;overflow:hidden}
+.evom-cel+.evom-cel{border-left:1px solid var(--line)}
+.evom-cel-cab{display:flex;flex-wrap:wrap;align-items:baseline;column-gap:5px;
+  min-width:0}
+.evom-cel-cab b{font-size:var(--fs-sm);font-weight:500;color:var(--g-900)}
+.evom-cel-cab span{font-size:var(--fs-xs);color:var(--g-500);white-space:nowrap}
+/* o par rótulo/valor empilha sozinho quando não cabe: é o `flex-wrap` que
+   resolve, em qualquer largura, sem ninguém medir a coluna */
+.evom-par{display:flex;flex-wrap:wrap;align-items:baseline;
+  justify-content:space-between;column-gap:8px;min-width:0}
+.evom-k{flex:1 1 auto;font-size:var(--fs-xs);color:var(--g-500);
+  white-space:nowrap}
+.evom-v{display:flex;flex:0 0 auto;align-items:baseline;gap:5px;
+  white-space:nowrap;font-size:var(--fs-sm);color:var(--g-900);
+  font-variant-numeric:tabular-nums}
+.evom-var{font-size:var(--fs-xs);color:var(--g-500);
+  font-variant-numeric:tabular-nums}
+/* o EXCEDENTE é o motivo de a faixa existir: separado das linhas de apoio por
+   um filete, e o único número dela em peso de destaque */
+.evom-exc{display:flex;flex-direction:column;gap:5px;margin-top:1px;
+  padding-top:8px;border-top:1px solid var(--line-soft)}
+.evom-exc-v{flex:0 0 auto;font-size:var(--fs-md);font-weight:500;
+  color:var(--g-900);font-variant-numeric:tabular-nums;white-space:nowrap}
+.evom-fatia{display:block;height:4px;border-radius:999px;
+  background:var(--line-soft);overflow:hidden}
+/* `min-width` porque fatia que EXISTE tem de aparecer: 0,4% do trimestre vale
+   meio pixel e sumiria. Mesma razão do `min-height` do `.evo-exc`. */
+.evom-fatia i{display:block;height:100%;min-width:2px;border-radius:999px;
+  background:var(--exc)}
+.evom-na{font-size:var(--fs-xs);color:var(--g-500);line-height:1.4}
+
+/* ── DICA EM FICHA (2026-09-12) ─────────────────────────────────────────────
+   O hover de um ponto de gráfico carrega três ou quatro medidas do mesmo dado.
+   Emendadas numa frase só, elas viravam um parágrafo de quatro linhas dentro da
+   caixa escura, sem nada separando uma medida da seguinte, e o leitor tinha de
+   varrer o texto para achar o número que veio buscar.
+
+   A ficha é a mesma caixa (`.dica`), com estrutura: título em cima, um dado por
+   linha embaixo. A distinção mora no motor, que escreve as linhas; `lib/dica.js`
+   só monta. Dica de UMA linha continua sendo frase e não vira ficha.
+
+   As tintas saem de `currentColor` com opacidade, e não de um token cinza: a
+   caixa INVERTE entre os temas (fundo `--g-900`, texto `--ink-inv`), e um cinza
+   fixo aqui acertaria um tema e falharia no outro. */
+.dica-ficha{max-width:340px}
+.dica-t{display:block;font-weight:500}
+.dica-l{display:flex;flex-direction:column;gap:3px;
+  margin:6px 0 0;padding:0;list-style:none}
+/* O MARCADOR alinha com a primeira linha do item, e não com o meio dele: rótulo
+   e valor podem quebrar, e um marcador centrado na altura total se descolaria
+   do texto que ele marca. Mesma decisão do `.res-item .mk`. */
+.dica-l li{display:flex;gap:7px;opacity:.78}
+.dica-l li::before{content:'';flex:none;width:3px;height:3px;margin-top:7px;
+  border-radius:50%;background:currentColor}
+
+/* ── MARCA DE ITEM nas dicas-ficha DE GRÁFICO (2026-09-12) ──────────────────
+   `.plot .pt .tip` (o ponto do enxame) e `.pareto-l .tip` (a linha do Pareto)
+   já tinham a estrutura da ficha — título em `b`, um dado por `em` — e não
+   tinham o marcador que a `.dica-l` usa. As mesmas quatro linhas liam como
+   ficha numa caixa e como parágrafo picado na outra, e o app tem UMA gramática
+   de dica, não três.
+
+   `.help .tip` fica de fora, e é de propósito: ali o conteúdo é uma FRASE de
+   explicação, não uma lista de medidas. */
+.plot .pt .tip b,
+.pareto-l .tip b{margin-bottom:5px}
+.plot .pt .tip em,
+.pareto-l .tip em{display:flex;gap:7px}
+.plot .pt .tip em::before,
+.pareto-l .tip em::before{content:'';flex:none;width:3px;height:3px;
+  margin-top:6px;border-radius:50%;background:currentColor;opacity:.7}
+
+/* ── A GRADE COMO ÚLTIMO FILHO DO CARTÃO (2026-09-12) ───────────────────────
+   `.tbl>:last-child` já arredonda os cantos de baixo, mas a `.res-grade` é uma
+   grade com `gap:1px` sobre fundo `--line-soft`: são as CÉLULAS (`.res-grupo`,
+   de canto reto e fundo `--surface`) que pintam a área, e sem recorte elas
+   passam por cima do canto arredondado do cartão. O efeito na tela é um retalho
+   claro sobrepondo as duas quinas de baixo.
+
+   Apareceu quando o rodapé saiu da Leitura da área e a grade virou o último
+   filho; no dossiê ela nunca foi (a carteira e os fatores vêm depois).
+
+   `overflow:hidden` aqui e não em `.tbl>:last-child`: a regra geral alcançaria
+   o Pareto, cujo tooltip (`.pareto-l .tip`) é absoluto e sai do cartão de
+   propósito. */
+.tbl > .res-grade:last-child{overflow:hidden}

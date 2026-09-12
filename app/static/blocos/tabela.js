@@ -132,17 +132,14 @@ export const COLUNAS = [
   { nome: '', classe: 'col-chev' },
 ];
 
-/* POSTO NO PERFIL — entra na tabela só quando um perfil está em cena, ao lado da
- * posição na referência. As duas convivem de propósito: o percentil diz onde ele
- * está na ÁREA (a comparação), o posto diz onde ele está na LISTA em cena (o
- * recorte). Trocar uma pela outra faria o recorte parecer uma segunda régua.
+/* A COLUNA "Posto no perfil" SAIU em 2026-09-11, com o filtro de perfil que a
+ * inseria (ver `paginas/area.js`). Ela só existia com UM perfil em cena, e sem
+ * filtro não há "portadores deste perfil" a ordenar. `postos_perfil` saiu do
+ * payload junto.
  *
- * Não é ordenável: o posto JÁ é a ordem por índice dentro do recorte, e uma seta
- * nele prometeria reordenar o que é a própria ordem. */
-const COLUNA_POSTO = {
-  nome: 'Posto no perfil', classe: 'col-num', direita: true,
-  def: 'posição pelo índice entre os portadores deste perfil, na área',
-};
+ * A posição que ficou é a da referência da ÁREA, que é a comparação que o
+ * método sustenta; o posto era a posição dentro de um grupo de 2 a 7.
+ */
 
 /** Identidade: o id e, se houver, os sub-perfis. Sem sub-perfil, nada (ajuste 1). */
 /* A régua da análise acompanha o link (`comRegua`): o dossiê tem de abrir sob
@@ -285,7 +282,7 @@ function celulaChevron(l) {
 }
 
 
-function linhaDaTabela(l, excluido, perfilFlag) {
+function linhaDaTabela(l, excluido) {
   const tr = document.createElement('tr');
   tr.tabIndex = 0;
   tr.dataset.id = l.id;
@@ -338,15 +335,7 @@ function linhaDaTabela(l, excluido, perfilFlag) {
     el('td', 'rt num', l.consultas_fmt),
     indice,
   );
-  /* Posto no perfil: só quando um perfil está em cena. O posto vem pronto do
-     motor ("3º de 9"), calculado entre os portadores comparáveis; quem está em
-     cena mas fora da comparação (recorte Todos) mostra o motivo, como as demais
-     colunas comparativas. */
-  if (perfilFlag) {
-    const p = l.postos_perfil?.[perfilFlag];
-    tr.append(motivo ? celulaMotivo(motivo) : el('td', 'rt num', p?.rotulo ?? ''));
-  }
-  /* Magnitude em R$ vem DEPOIS do posto e ANTES da consistência, na mesma
+  /* Magnitude em R$ vem ANTES da consistência, na mesma
      ordem do cabeçalho. Não é substituída por `celulaMotivo`: quem está abaixo
      do volume mínimo perde a COMPARAÇÃO, não o custo — ele solicitou e aquilo
      tem preço, medido sem régua nenhuma. */
@@ -413,24 +402,21 @@ export function montarTabela(destino, dados,
    *
    * @param {object} vista
    * @param {object[]} vista.linhas       quem está em cena, já na ordem
-   * @param {string|null} vista.perfilFlag  perfil em cena (insere a coluna do posto)
    * @param {string|null} vista.ordem     coluna ordenada, para a seta do cabeçalho
    * @param {string|null} vista.direcao
    * @param {string} vista.rodape         o estado da vista, em uma frase
    */
-  function atualizar({ linhas, perfilFlag, ordem, direcao, rodape }) {
-    /* O posto entra logo depois de "Solicitações por consulta" (índice 2), que é o
-       número de que ele é o posto. O corpo já o inseria aí; o cabeçalho usava
-       slice(0, 4) e o punha um lugar adiante, o que trocava Posto e Trimestres
-       de coluna sempre que um perfil estava em cena. Corrigido em 2026-08-26. */
-    const colunas = perfilFlag
-      ? [...COLUNAS.slice(0, 3), COLUNA_POSTO, ...COLUNAS.slice(3)]
-      : COLUNAS;
+  function atualizar({ linhas, ordem, direcao, rodape }) {
+    /* AS COLUNAS SÃO FIXAS desde 2026-09-11. Havia uma coluna condicional (o
+       posto no perfil), inserida no índice 3, e com ela a montagem do cabeçalho
+       e a do corpo tinham de concordar sobre a posição — concordância que já
+       falhou uma vez (o cabeçalho usava `slice(0, 4)` e trocava Posto por
+       Trimestres). Sem coluna condicional não há o que sincronizar. */
     const corpo = document.createElement('tbody');
     for (const l of linhas) {
-      corpo.appendChild(linhaDaTabela(l, excluidoPorId.get(l.id) ?? null, perfilFlag));
+      corpo.appendChild(linhaDaTabela(l, excluidoPorId.get(l.id) ?? null));
     }
-    tabela.replaceChildren(cabecalho(colunas, ordem, direcao, aoOrdenar), corpo);
+    tabela.replaceChildren(cabecalho(COLUNAS, ordem, direcao, aoOrdenar), corpo);
     peEstado.textContent = rodape;
   }
 

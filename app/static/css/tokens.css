@@ -210,8 +210,14 @@
   /* O Pareto tem altura PRÓPRIA: ele é um gráfico de barras com curva
      acumulada e precisa de amplitude vertical para a diferença entre a
      primeira barra e a cauda ser legível. Compartilhava --ch-h com a
-     distribuição e encolheu junto quando ela virou box plot. */
-  --ch-h-pareto:200px;
+     distribuição e encolheu junto quando ela virou box plot.
+     Desde 2026-09-11 mede a LISTA rolável do Pareto (`.pareto`), que é o que
+     restou do gráfico de barras depois de ele virar lista horizontal, e vale
+     300px — o valor que estava cravado ali e que este token existia para
+     nomear. Ele é lido em dois lugares: o teto da lista quando o cartão tem
+     altura de conteúdo, e o piso dela (`flex-basis`) quando o cartão preenche a
+     faixa de gráficos da tela de Área. Dois usos, um número. */
+  --ch-h-pareto:300px;
   --ch-h-sm:120px;
   --ch-pad-x:8px;
   --ch-dot:7px;                 /* diâmetro do ponto */

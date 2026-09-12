@@ -195,7 +195,7 @@ export function montarEvolucao(destino, d, opcoes = {}) {
     if (l.avaliavel) {
       par('consultas', l.consultas_fmt, 'consultas');
       par('pacientes', l.pacientes_fmt, 'pacientes');
-      par('SADT/consulta', l.indice_fmt, 'indice');
+      par('procedimentos/consulta', l.indice_fmt, 'indice');
       par('custo/consulta', l.custo_por_consulta_fmt, 'custo_por_consulta');
       /* o trimestre abaixo do zero DIZ o que é, no cartão: uma barra que desce
          sem rótulo faz o leitor procurar o erro em vez da leitura */

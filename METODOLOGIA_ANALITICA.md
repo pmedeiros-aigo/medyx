@@ -265,6 +265,44 @@ Aceite permanente: a soma dos trimestres tem de bater com o excedente do ano **n
 centavo**, para todo cooperado com excedente valorado. Verificado em 63/63 na área de
 Ginecologia, com diferença máxima de R$ 0,005.
 
+#### 5.4.2 A granularidade mensal do custo, e por que o excedente não desce a ela (set/2026)
+
+A tela de Área mostra a mesma série em **duas unidades**, e a fronteira entre elas é de método,
+não de desenho:
+
+| Grandeza | Unidade | Por quê |
+| --- | --- | --- |
+| custo das solicitações | **mês** | é uma soma, e soma desce a qualquer granularidade sem deixar de ser o mesmo número |
+| excedente | **trimestre** | é a diferença entre o solicitado e o que a referência previa para as CONSULTAS do período, e a unidade de apuração é `config.JANELA_MINIMA` |
+
+O custo do mês é `Σ solicitações do mês × preço mediano da JANELA`. O preço é o da janela
+inteira, o mesmo que §5.4.1 congela para o trimestre, e é isso que torna a decomposição exata:
+solicitação é aditiva sobre os meses e o preço não varia entre eles, então **os três meses de um
+trimestre somam o trimestre na casa do centavo**, sem nada ser medido duas vezes. Preço por mês
+faria uma barra maior poder ser reajuste de tabela em vez de mais solicitação.
+
+Um **excedente mensal** seria uma medida que a metodologia não fez: o denominador passaria a ser
+um mês de consultas, exatamente o que o piso de volume (§5.2) existe para impedir.
+
+**A série mensal não passa pelo portão da persistência.** Janela que não fecha nenhum trimestre
+(a de 3m) continua com as barras de custo, que são dado real, e sem a faixa de fechamento, cuja
+ausência é declarada. Esconder o custo conhecido deixava a tela muda justamente onde a
+exploração começa.
+
+**Mês parcial não vira barra.** A janela é ancorada no fim da amostra e pode começar no meio de
+um mês (a de 3m começa dia 31). Um mês coberto por um dia desenharia uma barra rasteira que se
+lê como queda de custo, e não como recorte de calendário. Entram só os meses completos dentro da
+janela; os dias das pontas são declarados, como em `fatiar_trimestres`.
+
+**A identidade é verificada, nunca assumida.** Quando a janela não começa no dia 1, os trimestres
+da persistência não caem sobre meses de calendário e a soma das barras de um grupo não é o custo
+da célula abaixo dele. O bloco confere par a par e só AFIRMA a identidade quando ela vale; quando
+não vale, diz que o fechamento cobre um período deslocado.
+
+Aceite permanente: com a identidade afirmada, a soma dos meses de cada grupo tem de devolver o
+custo do trimestre na casa do centavo, e nenhum mês pode carregar excedente. Ambos cobrados em
+`smoke_api.py` (seção 2b1).
+
 ### 5.5 Forma da distribuição e tendência central
 
 A forma é **verificada a cada análise** (faz parte do pipeline, passo 8) — nunca assumida, nunca
@@ -332,9 +370,16 @@ evidência de distorção não se aplica. **Na v2.0 a lista está vazia**: as á
 práticas que a v1 tratava por exclusão (cirurgia em Endoscopia Ginecológica, alto risco em
 Obstetrícia). O mecanismo permanece no motor.
 
-Na interface, o sub-perfil é **recorte de leitura**, nunca base de comparação: destacar os membros
-de um sub-perfil não troca a régua — apenas filtra quem aparece, e acrescenta o posto interno ao
-grupo.
+Na interface, o sub-perfil é **exibição de identidade**, nunca recorte nem base de comparação: ele
+aparece como etiqueta na linha do cooperado, com a explicação no hover, e não troca a régua.
+
+Houve um **filtro por sub-perfil** na tela de Área até set/2026, que recortava a lista e
+acrescentava o posto interno ao grupo. Foi removido a pedido do médico que auditou a tela, e o
+motivo é o mesmo do primeiro parágrafo desta seção: ele subdividia o grupo. Não na construção da
+referência — aí a regra sempre valeu —, mas nos **blocos de achado**, que reagregavam sobre os 2 a
+7 portadores e publicavam concentração e Pareto sobre eles. "1 de 2 cooperados concentram 98% do
+valor" é a frase que a tela chegou a imprimir. Grupo pequeno demais para sustentar referência é
+também pequeno demais para sustentar achado.
 
 ---
 
