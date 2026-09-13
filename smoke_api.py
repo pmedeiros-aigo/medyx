@@ -448,6 +448,13 @@ checar("funil · monotônico (nenhum degrau ganha cooperado)",
 excs = [c["excedente_itens"] for c in chips]
 checar("funil · excedente também monotônico",
        all(a <= b for a, b in zip(excs, excs[1:])), True)
+# 13/set/2026: o funil soma por COOPERADO, com o R$ da bancada. Para cada chip,
+# o R$ do degrau tem de ser a soma das linhas que pertencem a ele.
+checar("funil · R$ do degrau == soma das linhas do chip",
+       all(abs(c["excedente_reais"]
+               - sum(l["excedente_reais"] or 0 for l in gin["cooperados"]["linhas"]
+                     if c["chave"] in l["grupos"])) <= 0.01 * len(gin["cooperados"]["linhas"])
+           for c in chips), True)
 checar("chips · contagem bate com o pertencimento das linhas",
        {c["chave"]: c["n"] for c in chips},
        {c["chave"]: sum(1 for linha in gin["cooperados"]["linhas"]
@@ -579,7 +586,19 @@ checar("áreas comparáveis não trazem fila",
 print("\n5. REGRAS ESTRUTURAIS E ERROS")
 codigo, corpo = get(f"/api/area/{AREA_REF}", criterio="p75", referencia="p90")
 checar("referência > critério recusada com 422", codigo, 422)
-checar("422 explica o porquê", "condenaria o quartil superior" in corpo["detail"], True)
+checar("422 explica o porquê", "mede excedente zero" in corpo["detail"], True)
+# a referência OMITIDA segue o critério (o piso): só trocar o critério para P75
+# tem de funcionar, e a tela era derrubada por um 422 aqui (13/set/2026)
+codigo, _m75 = get("/api/meta", ini="2025-05", fim="2026-04", criterio="p75")
+checar("só o critério em P75 -> 200", codigo, 200)
+checar("e a referência resolve para o critério",
+       _m75["controles"]["referencia"]["ativo"], "p75")
+checar("e o recomendado da referência é o critério ativo",
+       _m75["controles"]["referencia"]["recomendado"], "p75")
+checar("e a referência igual ao critério não é desvio do recomendado",
+       "referencia" in [d["controle"] for d in _m75["desvios_do_recomendado"]], False)
+codigo, _a75 = get("/api/area/endoscopia-ginecologica", ini="2025-05", fim="2026-04", criterio="p75")
+checar("a tela de área monta com critério P75", codigo, 200)
 codigo, _ = get("/api/area/nao-existe")
 checar("área inexistente -> 404", codigo, 404)
 codigo, _ = get("/api/meta", janela="7m")
@@ -666,10 +685,11 @@ checar("dossiê · cabeçalho com o par da área em todo número",
        all("referência" in c["par_fmt"] for c in dossie["cabecalho"]), True)
 
 # ── ACEITE PERMANENTE (METODOLOGIA §5.4.1 e §5.4.2) ──────────────────────────
-# A série trimestral é a DISTRIBUIÇÃO NO TEMPO do excedente do ano, medida com a
-# régua do ano. Se algum dia ela voltar a ser medida com a régua de cada
-# trimestre, a soma deixa de fechar e é aqui que isso aparece. Tolerância de um
-# centavo, que é ruído de arredondamento e não de método.
+# Desde 13/set/2026 a célula do trimestre é a MEDIÇÃO: régua do ano, truncada em
+# zero por trimestre. A soma das células é o excedente do cooperado por
+# construção, e nenhuma célula é negativa. Se algum dia a régua voltar a ser a
+# de cada trimestre, a soma deixa de fechar e é aqui que isso aparece.
+# Tolerância de um centavo, que é ruído de arredondamento e não de método.
 #
 # O dossiê passou ao bloco MENSAL em set/2026, o mesmo da tela de Área: o custo
 # vive nas barras de mês, o excedente nas células de trimestre da faixa. O aceite
@@ -680,8 +700,10 @@ _par = (dossie.get("pareto_custo") or {}).get("dados", {}).get("excedente") or {
 _cels = [g["trimestre"] for g in (_ev or {}).get("grupos", []) if g["trimestre"]]
 if _ev and _par and _cels:
     _soma = sum(c["excedente_reais"] or 0 for c in _cels)
-    checar("dossiê · trimestres somam o excedente do ano (régua congelada)",
+    checar("dossiê · trimestres somam o excedente do período (régua do ano)",
            abs(_soma - _par["total"]) <= 0.01, True)
+    checar("dossiê · nenhum trimestre com excedente negativo",
+           all((c["excedente_reais"] or 0) >= 0 for c in _cels), True)
     checar("dossiê · trimestre sem custo só por falta de preço, nunca por piso",
            all(c["custo"] is not None or c["motivo"] for c in _cels), True)
     # o piso de volume vira RESSALVA, não portão: trimestre de volume baixo
@@ -700,6 +722,142 @@ checar("dossiê · em revisão só quem passa os três portões",
 checar("dossiê · proveniência presente", "proveniencia" in dossie, True)
 codigo, corpo_404 = get("/api/cooperado/cooperado_inexistente")
 checar("dossiê · cooperado desconhecido -> 404", codigo, 404)
+
+print("\n6b. REFERÊNCIA DA ESPECIALIDADE · a etiqueta em todo lugar, o total com a divisão")
+# 13/set/2026 (METODOLOGIA §6.2, LEXICO): par sem 10 solicitantes na área é
+# medido contra a especialidade inteira, com a etiqueta em TODO lugar onde o
+# número aparece e a divisão ao lado de todo total que a contém.
+ROT_ESP = config.ROTULO_REFERENCIA_ESPECIALIDADE
+_, endo = get("/api/area/endoscopia-ginecologica", recorte="comparaveis")
+_esp_l = [l for l in endo["procedimentos"]["linhas"]
+          if l["qualidade"].get("nivel_referencia") == "especialidade"] \
+    if "procedimentos" in endo else []
+_, endo_procs = get("/api/area/endoscopia-ginecologica/procedimentos")
+_esp_l = [l for l in endo_procs["linhas"] if l["qualidade"].get("nivel_referencia") == "especialidade"]
+checar("área · há procedimentos medidos com referência da especialidade", len(_esp_l) > 0, True)
+checar("área · a etiqueta é a do léxico, em toda linha assim",
+       all(l["qualidade"]["rotulo"] == ROT_ESP and l["qualidade"]["referencia_especialidade"]
+           for l in _esp_l), True)
+checar("área · o texto fixo é a frase única do léxico e traz a composição",
+       all(l["qualidade"]["referencia_especialidade"]["texto"]
+           == "Referência da especialidade aplicada devido ao volume insuficiente para uma referência própria."
+           and l["qualidade"]["referencia_especialidade"]["composicao"] for l in _esp_l), True)
+_lin85 = next(l for l in endo["cooperados"]["linhas"] if l["id"] == "cooperado_85")
+checar("área · a linha do cooperado carrega a parte da especialidade e a divisão",
+       bool(_lin85["excedente_reais_especialidade"]) and ROT_ESP in (_lin85["divisao_excedente"] or ""),
+       True)
+_exc_line = next(l for g in endo["leitura"]["grupos"] for l in g["linhas"] if l["chave"] == "_custo_exc")
+checar("área · a Leitura leva a divisão na ficha do excedente, sem apoio visível",
+       ROT_ESP in (_exc_line["titulo_longo"] or "") and not _exc_line["apoio"], True)
+checar("área · a ficha tem título e um dado por linha, com R$ e % dos dois níveis",
+       len(_exc_line["titulo_longo"].split("\n")) >= 3
+       and all("%" in l for l in _exc_line["titulo_longo"].split("\n")[1:3]), True)
+checar("área · a divisão da Leitura fecha com as linhas em cena",
+       abs(sum(l["excedente_reais_especialidade"] for l in endo["cooperados"]["linhas"] if l["avaliavel"])
+           - next(c["excedente_reais_especialidade"] for c in endo["cooperados"]["filtros"]
+                  if c["chave"] == "acima_do_criterio")) <= 0.01 * len(endo["cooperados"]["linhas"]), True)
+_pp = endo["pareto_procedimentos"]["dados"]["excedente"]
+checar("área · o Pareto declara que tem linhas da especialidade e a divisão",
+       _pp["tem_especialidade"] and ROT_ESP in (_pp["divisao"] or ""), True)
+checar("área · toda linha do Pareto com parte da especialidade carrega a etiqueta e o trecho",
+       all((l["etiqueta_referencia"] == ROT_ESP and l["largura_exc_esp_pct"] > 0)
+           == (l["excedente_rs_especialidade"] > 0) for l in _pp["linhas"]), True)
+_op = endo["oportunidades"]
+checar("área · oportunidades com referência da especialidade carregam a etiqueta",
+       all((l["etiqueta_referencia"] == ROT_ESP) == (l["nivel_referencia"] == "especialidade")
+           for l in _op["linhas"]), True)
+checar("área · o resumo das oportunidades traz a divisão quando há parte da especialidade",
+       (ROT_ESP in _op["resumo"]) == any(l["etiqueta_referencia"] for l in _op["linhas"][:5]), True)
+_, d85 = get("/api/cooperado/cooperado_85")
+_esp85 = [l for l in d85["procedimentos"]["linhas"] if l.get("nivel_referencia") == "especialidade"]
+checar("dossiê · linhas da especialidade com o bloco fixo e a etiqueta",
+       len(_esp85) > 0 and all(l["referencia_especialidade"]["etiqueta"] == ROT_ESP for l in _esp85), True)
+_cab = {c["chave"]: c for c in d85["cabecalho"]}
+checar("dossiê · o custo do excesso leva a divisão na ficha",
+       ROT_ESP in (_cab["custo_excesso"]["titulo_longo"] or ""), True)
+_pc = d85["pareto_custo"]["dados"]["excedente"]
+checar("dossiê · o Pareto do caso declara a divisão", ROT_ESP in (_pc.get("divisao") or ""), True)
+_cd_esp = max((l for l in _esp85 if l["sinalizado"]), key=lambda l: l["excedente_reais"] or 0)["codigo"]
+_, pan = get(f"/api/cooperado/cooperado_85/procedimento/{_cd_esp}")
+checar("painel do dossiê · o bloco fixo da referência da especialidade",
+       (pan.get("referencia_especialidade") or {}).get("etiqueta"), ROT_ESP)
+_, pan_a = get(f"/api/area/endoscopia-ginecologica/procedimento/{_cd_esp}")
+checar("painel da área · qualidade com o nível e o texto",
+       pan_a["qualidade"]["nivel_referencia"] == "especialidade"
+       and bool(pan_a["qualidade"]["referencia_especialidade"]), True)
+checar("carimbo · declara a referência da especialidade", ROT_ESP in d85["proveniencia"]["carimbo"], True)
+# a SÉRIE por trimestre carrega a divisão: as células somam a parte da
+# especialidade do total, e a ficha de cada uma diz os dois níveis
+_cel = [g["trimestre"] for g in (endo.get("evolucao") or {}).get("grupos", []) if g["trimestre"]]
+_esp_tot = next(c["excedente_reais_especialidade"] for c in endo["cooperados"]["filtros"]
+                if c["chave"] == "medidos")
+checar("série · as células somam a parte da especialidade da área",
+       abs(sum(c["excedente_reais_especialidade"] or 0 for c in _cel) - _esp_tot) <= 0.05, True)
+checar("série · a ficha do trimestre traz a divisão por nível",
+       all(ROT_ESP in (c["tooltip"] or "") for c in _cel
+           if (c["excedente_reais_especialidade"] or 0) > 0), True)
+_ev85 = d85.get("evolucao") or {}
+_cel85 = [g["trimestre"] for g in _ev85.get("grupos", []) if g["trimestre"]]
+checar("dossiê · as células somam a parte da especialidade do cooperado",
+       abs(sum(c["excedente_reais_especialidade"] or 0 for c in _cel85)
+           - _lin85["excedente_reais_especialidade"]) <= 0.05, True)
+checar("painel do dossiê · a série do exame da especialidade é hachurada inteira",
+       pan["evolucao"]["tem_especialidade"]
+       and all(l["altura_exc_esp_pct"] == l["altura_exc_pct"]
+               for l in pan["evolucao"]["linhas"] if l["excedente_reais"]), True)
+_, pano_esp = get("/api/panorama")
+checar("panorama · a linha de contexto traz a divisão",
+       any(ROT_ESP in c["texto"] for c in pano_esp["contexto"]), True)
+
+print("\n6c. AJUSTE DE CONFIANÇA · valor medido por padrão, conservador quando escolhido")
+# 13/set/2026 (METODOLOGIA §8): o excedente exibido é o medido, salvo quando o
+# analista escolhe um nível; aí o par sinalizado com pacientes suficientes
+# passa ao valor conservador e a ficha do número mostra os dois.
+_, _m0 = get("/api/meta")
+checar("meta · a faixa declara 'sem ajuste' por padrão",
+       next(c["valor_fmt"] for c in _m0["faixa_criterios"] if c["chave"] == "confianca"), "sem ajuste")
+checar("meta · o controle abre em 'Valor medido', recomendado",
+       (_m0["controles"]["confianca"]["ativo"], _m0["controles"]["confianca"]["recomendado"]),
+       ("medido", "medido"))
+checar("meta · e não marca a confiança como desvio por padrão",
+       "confianca" in [d["controle"] for d in _m0["desvios_do_recomendado"]], False)
+codigo, _ = get("/api/meta", confianca="0.7")
+checar("confiança fora das opções -> 422", codigo, 422)
+_, endo0 = get("/api/area/endoscopia-ginecologica")
+codigo, endo9 = get("/api/area/endoscopia-ginecologica", confianca="0.9")
+checar("área · com confiança 90% -> 200", codigo, 200)
+_l0 = next(l for g in endo0["leitura"]["grupos"] for l in g["linhas"] if l["chave"] == "_custo_exc")
+_l9 = next(l for g in endo9["leitura"]["grupos"] for l in g["linhas"] if l["chave"] == "_custo_exc")
+checar("área · a ficha traz o medido e o ajustado",
+       "Valor medido" in _l9["titulo_longo"] and "Com 90% de confiança" in _l9["titulo_longo"], True)
+checar("área · o medido da ficha é o excedente sem ajuste",
+       _l0["valor_fmt"] in _l9["titulo_longo"], True)
+checar("área · a faixa declara o nível",
+       any(c["rotulo"] == "confiança 90%" for c in endo9["proveniencia"]["chips_criterio"]), True)
+checar("área · a série declara que as células ficam no medido",
+       "valor medido" in ((endo9.get("evolucao") or {}).get("nota") or ""), True)
+_lin9 = {l["id"]: l for l in endo9["cooperados"]["linhas"]}
+_lin0 = {l["id"]: l for l in endo0["cooperados"]["linhas"]}
+checar("área · linha a linha, o ajustado nunca passa do medido",
+       all((_lin9[i]["excedente_reais"] or 0) <= (_lin0[i]["excedente_reais"] or 0) + 0.01
+           for i in _lin9 if _lin9[i]["excedente_reais"] is not None), True)
+checar("área · e a linha guarda o medido igual ao da tela sem ajuste",
+       all(abs(_lin9[i]["excedente_reais_medido"] - (_lin0[i]["excedente_reais"] or 0)) <= 0.01
+           for i in _lin9 if _lin9[i]["excedente_reais"] is not None), True)
+_, d85_9 = get("/api/cooperado/cooperado_85", confianca="0.9")
+checar("dossiê · toda linha sinalizada declara o ajuste",
+       all(l["ajuste_confianca"] in ("conservador", "medido")
+           for l in d85_9["procedimentos"]["linhas"] if l["sinalizado"]), True)
+checar("dossiê · a linha ajustada leva o medido em texto",
+       all(l["excedente_medido_fmt"] for l in d85_9["procedimentos"]["linhas"]
+           if l.get("ajuste_confianca") == "conservador"), True)
+checar("dossiê · a linha sem ajuste leva etiqueta e motivo, e só ela",
+       all(bool(l.get("etiqueta_confianca")) == (l.get("ajuste_confianca") == "medido")
+           for l in d85_9["procedimentos"]["linhas"]), True)
+checar("dossiê · o texto de confiança do par é frase completa",
+       all((l["confianca"]["detalhe"] or "").startswith("Pelo menos")
+           for l in d85_9["procedimentos"]["linhas"]
+           if (l.get("confianca") or {}).get("estado") == "calculavel"), True)
 
 print("\n7a. PAINEL DO PROCEDIMENTO NA ÁREA · RÉGUA IMÓVEL, ACHADO RECORTADO")
 # O painel é metade régua e metade achado, como a tabela de onde ele abre. As
@@ -841,11 +999,14 @@ if _cd_coop:
            bool(_fx_coop) and all(x["area_fmt"] for x in _fx_coop), True)
 
 
-# ÁREA SEM CRITÉRIO não produz o bloco: sem régua não há par acima do critério,
-# e uma lista vazia sugeriria área sem variação em vez de área sem medida.
+# ÁREA SEM CRITÉRIO próprio (13/set/2026): os pares dela são medidos contra a
+# especialidade, e o bloco existe só com casos assim, todos com a etiqueta.
+# Antes o bloco não existia; escondê-lo agora seria cegueira (Lei 5).
 _, _mast = get("/api/area/mastologia")
-checar("oportunidades · área sem critério não publica o bloco",
-       _mast.get("oportunidades"), None)
+checar("oportunidades · área sem critério próprio só publica casos com referência da especialidade",
+       _mast.get("oportunidades") is None
+       or all(l["etiqueta_referencia"] == config.ROTULO_REFERENCIA_ESPECIALIDADE
+              for l in _mast["oportunidades"]["linhas"]), True)
 
 
 print("\n7c. PANORAMA · JUNTA PESSOAS E VALORES, NUNCA RÉGUAS")
@@ -887,8 +1048,12 @@ checar("panorama · área sem comparáveis declara o motivo do custo ausente",
 # e onde a medida não existe, a ausência é DECLARADA com o motivo: nunca zero,
 # que afirmaria ausência de variação, nem célula vazia, que manda o leitor
 # procurar o número que não está lá (ajuste 4 do CLAUDE.md)
-checar("panorama · sem régua, o excesso é ausência declarada e não zero",
-       all(l["valor_fmt"] == config.SEM_MEDIDA and l["motivo"]
+# Desde 13/set/2026 a área sem régua própria pode ter excesso medido contra a
+# ESPECIALIDADE: aí o valor aparece com a divisão (etiqueta) no apoio. Sem
+# medida em nível nenhum, continua ausência declarada, nunca zero.
+checar("panorama · sem régua, o excesso é ausência declarada ou vem com a referência da especialidade",
+       all((l["valor_fmt"] == config.SEM_MEDIDA and l["motivo"])
+           or (config.ROTULO_REFERENCIA_ESPECIALIDADE in (l["titulo"] or ""))
            for c in _cartoes.values() if not c["comparavel"]
            for l in c["linhas"][1:]), True)
 # NINGUÉM DESAPARECE: os cartões e a classificação pendente somam a
@@ -919,8 +1084,10 @@ checar("panorama · o custo total bate com a Leitura da área",
 # aqui é que o cartão não perdeu a própria fração.
 _apoio_gin = next(l["apoio"] for l in _com_regua[AREA_REF]["linhas"]
                   if l["rotulo"] == "Custo excedente")
+# a fração abre o apoio; a divisão por nível de referência, quando existe,
+# vem depois dela, separada por ponto médio (13/set/2026)
 checar("panorama · o cartão traz a fração ao lado do excedente",
-       bool(_apoio_gin and _apoio_gin.endswith("%")), True)
+       bool(_apoio_gin and _apoio_gin.split(" · ")[0].endswith("%")), True)
 checar("Leitura · e não imprime mais apoio sob nenhum número",
        [l["apoio"] for g in gin["leitura"]["grupos"] for l in g["linhas"]
         if l["apoio"]], [])
@@ -968,9 +1135,12 @@ checar("contexto · o link dos fora da referência continua na parte comparávei
        bool(_ctx["comparaveis"]["acao"]), True)
 # o que era a terceira oração da nota vive no hover da linha que ele qualifica
 _, _gin_q = get(f"/api/area/{AREA_REF}", recorte="qualificados")
+# na FRASE ("Este recorte responde por X%") ou na FICHA ("Parte do custo
+# excedente da área: X%"), conforme haja ou não parte da especialidade
+_hover_q = linha_leitura(_gin_q, "_custo_exc")["titulo_longo"] or ""
 checar("Leitura · sob recorte, o hover ancora o número no total da área",
-       "Este recorte responde por" in
-       (linha_leitura(_gin_q, "_custo_exc")["titulo_longo"] or ""), True)
+       "Este recorte responde por" in _hover_q
+       or "Parte do custo excedente da área" in _hover_q, True)
 # as áreas COM RÉGUA vêm primeiro, e entre elas manda o excedente: sem ordem,
 # um cartão de uma pessoa se intercalaria com o que carrega R$ 2,9 mi
 _ordem = [c["comparavel"] for c in pano["areas"]["cartoes"]]

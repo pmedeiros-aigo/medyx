@@ -225,7 +225,6 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto',
   partes.push(cab);
 
   lista = el('div', 'pareto');
-  const limiar = d.limiar_concentracao ?? 0.8;
 
   d.linhas.forEach((l, i) => {
     const linha = el('div', 'pareto-l');
@@ -252,6 +251,17 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto',
       const dentro = document.createElement('b');
       dentro.style.width = `${l.largura_exc_pct}%`;
       barra.appendChild(dentro);
+      /* O TRECHO medido com referência da especialidade: no fim do excedente,
+         vazado e tracejado. Geometria do motor (`largura_exc_esp_pct`). */
+      if (l.largura_exc_esp_pct > 0) {
+        const esp = document.createElement('b');
+        esp.className = 'esp';
+        esp.style.left = `${l.largura_exc_pct - l.largura_exc_esp_pct}%`;
+        esp.style.width = `${l.largura_exc_esp_pct}%`;
+        barra.appendChild(esp);
+      }
+    } else if (l.nivel_referencia === 'especialidade') {
+      barra.classList.add('esp-toda');
     }
     const trilho = el('span', 'trilho');
     trilho.appendChild(barra);
@@ -280,6 +290,9 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto',
        "Variação excedente" da tabela tinha. */
     linha.append(rot, trilho);
     if (col.custo) linha.appendChild(el('span', 'custo', l.custo_fmt ?? ''));
+    /* No Pareto a referência da especialidade NÃO vira etiqueta na linha
+       (decisão do usuário, 13/set/2026): o trecho hachurado da barra diz, e a
+       legenda nomeia as duas caixas. O R$ desse trecho segue no tooltip. */
     linha.append(el('span', 'val', l.excedente_rs_fmt ?? l.reais_fmt),
                  el('span', 'cum-rs', l.reais_acumulado_fmt ?? ''),
                  el('span', 'cum', l.pct_acumulado_fmt), tip);
@@ -305,13 +318,14 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto',
      de Procedimentos custava 663px de topo. A cabeça do Pareto é a leitura
      inteira; nenhuma marca vale escondê-la. */
 
+  const limiar = d.limiar_concentracao ?? 0.8;
   const legenda = el('div', 'legend');
+  const pct = Math.round(limiar * 100);
   const marca = (classe, texto) => {
     const s = document.createElement('span');
     s.append(el('i', classe), document.createTextNode(texto));
     legenda.appendChild(s);
   };
-  const pct = Math.round(limiar * 100);
   /* A GRANDEZA vem do payload: este mesmo bloco serve o Pareto de excesso da
      tela de Área e o de custo do dossiê, e "80% do excesso" numa lista ordenada
      por custo total seria simplesmente falso. */
@@ -320,11 +334,19 @@ export function montarPareto(destino, d, aoEscolher, chave = 'pareto',
        ("barra inteira", "trecho escuro") gastava a legenda explicando o
        desenho em vez de nomear a grandeza, que é o que o leitor procura. */
     marca('bar-total', 'Custo total');
-    marca('bar-exc', 'Custo excedente');
+    /* com alguma linha medida contra a especialidade, o excedente vira DUAS
+       caixas: a cheia é o da área, a hachurada o da especialidade */
+    if (d.tem_especialidade) {
+      marca('bar-exc', 'Custo excedente · referência da área');
+      marca('bar-exc-esp', 'Custo excedente · referência da especialidade');
+    } else {
+      marca('bar-exc', 'Custo excedente');
+    }
     marca('bar-corte', `corte de ${pct}% do acumulado`);
   } else if (d.destacar_nucleo !== false) {
     marca('bar-nucleo', `concentram ${pct}% ${d.grandeza ?? 'do excesso'}`);
     marca('bar-cauda', 'demais');
+    if (d.tem_especialidade) marca('bar-exc-esp', 'referência da especialidade');
     legenda.appendChild(el('span', null, `linha tracejada = corte de ${pct}%`));
   } else {
     /* Sem realce, a leitura de concentração vira TEXTO — o dado não se perde,

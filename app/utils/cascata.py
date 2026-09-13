@@ -45,6 +45,8 @@ DEGRAUS = (
     ("persistente", "Repetem em todos os trimestres", "validade",
      "O excesso se repete em todos os trimestres do período, e não em um "
      "pico isolado."),
+    # A FRAÇÃO FICA NA TELA (decisão do usuário, 13/set/2026): o 80% do Pareto
+    # é a definição do que o leitor está vendo, não um mínimo interno
     ("material", f"Entre os que somam {config.FRACAO_PARETO_MATERIAL:.0%} "
      "do excedente", "triagem",
      f"Está entre os cooperados que concentram "
@@ -62,8 +64,8 @@ DEGRAUS = (
      "Não há urgência nem atendimento de pronto-socorro que explique o volume "
      "solicitado."),
     ("confianca_calculavel", "Com confiança estatística", "validade",
-     f"Há pacientes suficientes (≥ {config.MIN_PACIENTES_BOOTSTRAP}) para "
-     "calcular o intervalo de confiança do excesso."),
+     "Há pacientes suficientes para calcular o intervalo de confiança do "
+     "excesso."),
 )
 
 # O ÚLTIMO degrau: quem chegou aqui passou toda a cascata, e é o que a tela
@@ -116,8 +118,8 @@ def qualificar(sinal: pd.DataFrame, persistencia: pd.DataFrame | None,
     df["medidos"] = True
     df["acima_do_criterio"] = True          # `sinal` já é o resultado dos 3 portões
 
-    # persistência máxima: sinalizado em TODAS as janelas avaliáveis, e avaliável
-    # em todas as fatias da janela (o 1/1 nunca desfila como 4/4)
+    # persistência máxima: excedente positivo em TODAS as fatias completas da
+    # janela, sob a régua do ano (METODOLOGIA §5.4.1); o 1/1 nunca desfila como 4/4
     if persistencia is None or persistencia.empty:
         persistentes = set()
     else:
@@ -153,27 +155,44 @@ def qualificar(sinal: pd.DataFrame, persistencia: pd.DataFrame | None,
     return df
 
 
-def funil(qualificados: pd.DataFrame, n_medidos: int) -> list[dict]:
+def funil(qualificados: pd.DataFrame, n_medidos: int,
+          reais_por_cooperado: dict[str, float] | None = None,
+          reais_esp_por_cooperado: dict[str, float] | None = None) -> list[dict]:
     """Um registro por degrau: n de cooperados, n de pares e excedente somado.
 
+    O excedente de um degrau é a soma do excedente TOTAL (todos os pares
+    sinalizados) dos cooperados que alcançaram o degrau, e não só dos pares que
+    o alcançaram: o cooperado entra inteiro ou não entra, o mesmo corte da
+    bancada (`blocos.ids_em_cena`). É isso que faz o painel do funil e a linha
+    da bancada dizerem o MESMO número para o mesmo chip (13/set/2026; antes o
+    funil somava por par e "persistentes" mostrava dois excedentes diferentes).
+    `n_pares` continua por par: é a contagem do que passou o filtro.
+
     `n_medidos` é o total de cooperados da área (o degrau 0 conta gente que nem
-    aparece em `sinal`, por não ter nenhum par sinalizado).
+    aparece em `sinal`, por não ter nenhum par sinalizado). `reais_por_cooperado`
+    é o R$ por cooperado da mesma cascata; sem ele o degrau sai só em itens.
     """
+    itens_coop = qualificados.groupby("ID_COOPERADO")["excedente_itens"].sum()
+    reais = reais_por_cooperado or {}
+    reais_esp = reais_esp_por_cooperado or {}
     linhas = []
     for chave, rotulo, natureza, definicao in DEGRAUS:
         if chave == "medidos":
-            n_coop, n_pares, excedente = n_medidos, len(qualificados), \
-                float(qualificados["excedente_itens"].sum())
+            coops = list(itens_coop.index)
+            n_coop, n_pares = n_medidos, len(qualificados)
         else:
             sub = qualificados[qualificados[chave]]
-            n_coop = int(sub["ID_COOPERADO"].nunique())
-            n_pares = len(sub)
-            excedente = float(sub["excedente_itens"].sum())
+            coops = list(sub["ID_COOPERADO"].unique())
+            n_coop, n_pares = len(coops), len(sub)
         linhas.append({
             "chave": chave, "rotulo": rotulo, "natureza": natureza,
             "definicao": definicao,
             "n_cooperados": n_coop, "n_pares": n_pares,
-            "excedente_itens": round(excedente, 2),
+            "excedente_itens": round(float(itens_coop.reindex(coops).sum()), 2),
+            "excedente_reais": round(float(sum(reais.get(c, 0.0) for c in coops)), 2),
+            # a parte medida com referência da especialidade (LEXICO)
+            "excedente_reais_especialidade": round(
+                float(sum(reais_esp.get(c, 0.0) for c in coops)), 2),
         })
     return linhas
 

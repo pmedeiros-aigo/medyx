@@ -115,6 +115,21 @@ function boxplot(g) {
 }
 
 
+/** O bloco fixo da referência da especialidade, ANTES da régua: quem lê a
+ *  caixa precisa saber contra quem ela foi desenhada. Só existe quando o par
+ *  foi medido contra a especialidade; o texto vem do motor. */
+function montarReferenciaDaEspecialidade(destino, d) {
+  const r = d.referencia_especialidade;
+  if (!r) return;
+  const { cartao, corpo } = secao(r.etiqueta.charAt(0).toUpperCase() + r.etiqueta.slice(1),
+    'Referência aplicada onde a área não tem solicitantes suficientes para uma '
+    + 'referência própria.');
+  corpo.appendChild(el('span', 'tag tag-ref', r.etiqueta));
+  for (const par of r.paragrafos ?? [r.texto]) corpo.appendChild(el('span', 'sub', par));
+  destino.appendChild(cartao);
+}
+
+
 function montarRegua(destino, d) {
   const g = d.regua;
   const { cartao, corpo } = secao('Frequência de solicitação',
@@ -129,7 +144,9 @@ function montarRegua(destino, d) {
   }
 
   if (g.razao_fmt) {
-    corpo.appendChild(el('span', 'v', `${g.razao_fmt} a referência da área.`));
+    const de = d.referencia_especialidade ? 'a referência da especialidade.'
+      : 'a referência da área.';
+    corpo.appendChild(el('span', 'v', `${g.razao_fmt} ${de}`));
   }
   const fig = boxplot(g);
   fig.setAttribute('role', 'img');
@@ -561,6 +578,7 @@ export async function abrirPainel(destino, cooperadoId, linha, aoFechar, areaHre
      ele partia a sequência de leituras de carteira, que se explicam em
      cadeia (alcance dá o denominador, faixa etária diz para quem, concentração
      diz em quem, repetição diz quantas vezes nesses mesmos). */
+  montarReferenciaDaEspecialidade(corpo, d);
   montarRegua(corpo, d);
   montarPeso(corpo, d);
   montarAlcance(corpo, d);

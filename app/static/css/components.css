@@ -3514,3 +3514,39 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    o Pareto, cujo tooltip (`.pareto-l .tip`) é absoluto e sai do cartão de
    propósito. */
 .tbl > .res-grade:last-child{overflow:hidden}
+
+
+/* ---------- REFERÊNCIA DA ESPECIALIDADE (13/set/2026) ------------------------
+   A etiqueta que acompanha TODO número medido contra a especialidade inteira,
+   em vez da área (LEXICO). Compõe a `.tag` existente; o traço tracejado é a
+   mesma marca do trecho da barra, para a etiqueta e o desenho dizerem a mesma
+   coisa sem legenda. Nenhuma cor nova: cor no produto significa outra coisa. */
+.tag-ref{color:var(--g-700);background:var(--g-50);border:1px dashed var(--g-500)}
+/* O TRECHO da barra medido com referência da especialidade: a MESMA tinta do
+   excedente, hachurada. Fica no fim do trecho cheio; sem etiqueta na linha, a
+   legenda do gráfico nomeia as duas caixas (decisão do usuário, 13/set/2026).
+   A geometria da hachura é token (--ch-hatch-*), não valor solto. */
+.pareto-l .trilho i.duplo b.esp,
+.pareto-l .trilho i.esp-toda,
+.evo-exc-esp,
+.evom-fatia i.esp,
+.legend i.bar-exc-esp{
+  background-color:var(--g-200);
+  background-image:repeating-linear-gradient(135deg,var(--exc) 0 var(--ch-hatch-w),
+    transparent var(--ch-hatch-w) var(--ch-hatch-step))}
+.pareto-l .trilho i.duplo b.esp{border-radius:0}
+.legend i.bar-exc-esp{width:14px;height:8px;border-radius:2px}
+
+/* linha do diálogo de critérios que ocupa as duas colunas (a confiança, que
+   fica sozinha na fileira) */
+.dlg-row-cheia{grid-column:1/-1}
+
+/* o trecho hachurado da série por trimestre: mesma geometria do `.evo-exc`,
+   empilhado sobre o cheio, sem fundo próprio (o cinza do custo aparece entre
+   os traços) */
+.evo-exc-esp{position:absolute;left:0;right:0;display:block;font-style:normal;background-color:transparent}
+
+/* a barrinha da célula do trimestre é uma pista horizontal: o cheio e o
+   hachurado ficam lado a lado, e o hachurado não leva o raio da ponta */
+.evom-fatia{display:flex}
+.evom-fatia i.esp{min-width:0;border-radius:0 999px 999px 0}

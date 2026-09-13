@@ -245,8 +245,9 @@ def main() -> int:
         pg.locator("[data-lateral-btn]").click()
         pg.wait_for_timeout(250)
         checar("a lateral recolhe", pg.evaluate(largura) < aberta / 2, True)
+        # 4 destinos desde 13/set/2026: a Nota Metodológica saiu do app
         checar("e os destinos continuam todos lá",
-               pg.locator(".shell-side .navitem").count(), 5)
+               pg.locator(".shell-side .navitem").count(), 4)
         checar("com o rótulo no hover, já que o ícone fica sozinho",
                pg.locator(".shell-side .navitem").first.get_attribute("title"),
                "Panorama")
@@ -255,8 +256,11 @@ def main() -> int:
         checar("e volta ao expandir", pg.evaluate(largura), aberta)
 
         print("\n2. CHIPS DE RECORTE FILTRAM A TABELA E O GRÁFICO")
-        for chave, linhas in (("todos", 55), ("qualificados", 15),
-                              ("persistente", 26), ("comparaveis", 45)):
+        # Gabarito de 13/set/2026 (régua anual, apuração trimestral, METODOLOGIA
+        # §5.4.1): sem o portão de n mínimo por trimestre, mais pares repetem nos
+        # quatro trimestres; persistentes 26 -> 36 e qualificados 15 -> 22.
+        for chave, linhas in (("todos", 55), ("qualificados", 22),
+                              ("persistente", 36), ("comparaveis", 45)):
             chip(pg, chave).click()
             pg.wait_for_function(
                 "n => document.querySelectorAll('.vista-painel tbody tr').length === n", arg=linhas,
@@ -268,7 +272,7 @@ def main() -> int:
         checar("gráfico recuado no recorte",
                pg.locator(".plot.com-recorte").count(), 1)
         checar("pontos em cena no gráfico = linhas da tabela",
-               pg.locator(".pt-no-recorte").count(), 15)
+               pg.locator(".pt-no-recorte").count(), 22)
 
         # TROCAR A ORDEM DO PARETO não pode levar a faixa de abas junto. Ela mora
         # DENTRO do cartão do gráfico em cena, e o Pareto se redesenha com
@@ -482,10 +486,10 @@ def main() -> int:
                 pg.locator(".kpis-areas > .kpi").count()), (1, 8))
         checar("e o título não promete concentração",
                pg.locator("h3").first.inner_text(), "Áreas de atuação")
-        pg.locator(".navitem", has_text="Nota Metodológica").click()
-        pg.wait_for_selector("[data-slot='conteudo'] h2", timeout=60_000)
-        checar("a Nota Metodológica existe e se declara",
-               pg.locator("h2").first.inner_text(), "Nota metodológica")
+        # a Nota Metodológica saiu do app em 13/set/2026: o caminho para ela
+        # não existe mais, e a prova é a lateral com 4 destinos (seção 1)
+        checar("a Nota Metodológica não está mais na lateral",
+               pg.locator(".navitem", has_text="Nota Metodológica").count(), 0)
 
         print("\n8a. O ÍNDICE DE PROCEDIMENTOS TEM NÚMERO, E POR QUÊ")
         # A diferença para o índice de cooperados é o assunto desta seção. Lá a
@@ -495,9 +499,14 @@ def main() -> int:
         abrir(pg, "/procedimentos")
         checar("o índice abre com todos os procedimentos",
                pg.locator("tbody tr").count(), 883)
+        # Gabarito de 13/set/2026 (referência da especialidade): a RM de abdome
+        # superior, medida contra a especialidade nas áreas que não a sustentam,
+        # passou à frente do exame de peça anatômica. A célula traz a etiqueta.
         checar("e a ordem de entrada é a variação excedente",
-               pg.locator("tbody tr").first.locator("td").first.inner_text(),
-               "Procedimento Diagnóstico Em Peça Anatômica Ou Cirú")
+               pg.locator("tbody tr").first.locator("td").first.locator("a").inner_text(),
+               "Rm - Abdome Superior (Fígado, Pâncreas, Baço, Rins")
+        checar("e a linha do topo carrega a etiqueta da referência da especialidade",
+               pg.locator("tbody tr").first.locator(".tag-ref").count(), 1)
         # A COLUNA QUE SÓ ESTA TELA DÁ: excedente em mais de uma área é conversa
         # de protocolo, e não conversa individual.
         checar("com a coluna de áreas com excedente",
@@ -524,17 +533,19 @@ def main() -> int:
         pg.locator("tbody tr td a").first.click()
         pg.wait_for_selector(".res-grupo", timeout=60_000)
         checar("a lista abre o procedimento",
-               caminho_de(pg.url).split("?")[0], "/procedimento/40601200")
+               caminho_de(pg.url).split("?")[0], "/procedimento/41101170")
         checar("com a leitura do procedimento",
                pg.locator("h2").first.inner_text(),
-               "Procedimento Diagnóstico Em Peça Anatômica Ou Cirú")
+               "Rm - Abdome Superior (Fígado, Pâncreas, Baço, Rins")
         # A SEÇÃO QUE SÓ ESTA TELA DÁ: as réguas lado a lado. Ela é o que impede
         # que o excedente somado seja lido como se houvesse uma régua única.
         checar("as réguas das áreas aparecem lado a lado",
                pg.locator(".tbl-hd .t", has_text="por área de atuação").count(), 1)
         # ÁREA SEM RÉGUA CONTINUA NA TELA, com o motivo no lugar do número
-        checar("e a área sem referência não desaparece",
-               pg.locator(".tag-caveat").count() > 0, True)
+        # sem referência própria a área ganha etiqueta: a ressalva (não
+        # conclusiva) ou a da referência da especialidade
+        checar("e a área sem referência própria não desaparece",
+               pg.locator(".tag-caveat, .tag-ref").count() > 0, True)
         checar("quem pede acima da referência traz a área de cada um",
                pg.locator("th", has_text="Área de atuação").count(), 2)
         # NENHUMA DAS DUAS TABELAS ORDENA: cabeçalho clicável sobre peer groups
@@ -557,6 +568,50 @@ def main() -> int:
         pg.wait_for_selector("[data-slot=\'conteudo\'] h2", timeout=120_000)
         checar("/dossie/{id} redireciona para /cooperado/{id}",
                caminho_de(pg.url), "/cooperado/cooperado_85")
+        # REFERÊNCIA DA ESPECIALIDADE (13/set/2026): a etiqueta única do app
+        # aparece na tabela do cooperado_85, que tem pares medidos contra a
+        # especialidade, e a divisão do total aparece sob o custo do excesso.
+        pg.wait_for_selector("tbody tr", timeout=60_000)
+        checar("dossiê · a etiqueta 'referência da especialidade' na tabela",
+               pg.locator("tbody .tag-ref").count() > 0, True)
+        checar("dossiê · a divisão por nível na ficha do custo do excesso",
+               pg.locator('.res-k[title*="referência da especialidade"]').count() >= 1,
+               True)
+        checar("dossiê · e nada escrito sob o número, que cortava a grade",
+               pg.locator(".res-p", has_text="referência da especialidade").count(), 0)
+        # CRITÉRIO P75 pela URL, sem referência: a página montava um 422
+        # (13/set/2026) porque a referência padrão era P90 fixo. Agora ela
+        # segue o critério, e a faixa declara P75 nos dois.
+        pg.goto(f"{BASE}/area/endoscopia-ginecologica?ini=2025-05&fim=2026-04&criterio=p75")
+        pg.wait_for_selector("tbody tr", timeout=120_000)
+        checar("critério P75 pela URL monta a tela",
+               pg.locator("text=Não foi possível montar a tela").count(), 0)
+        checar("e a faixa de critérios declara P75",
+               "P75" in pg.locator(".critbar").inner_text(), True)
+        # PARETO: a referência da especialidade é o trecho HACHURADO da barra,
+        # nomeado na legenda; nenhuma etiqueta na linha (decisão 13/set/2026)
+        checar("pareto · sem etiqueta na linha",
+               pg.locator(".pareto-l .tag-ref").count(), 0)
+        checar("pareto · o trecho hachurado existe em alguma barra",
+               pg.locator(".pareto-l .trilho b.esp").count() > 0, True)
+        checar("pareto · a legenda nomeia a caixa hachurada",
+               pg.locator(".legend i.bar-exc-esp").count() >= 1, True)
+        checar("pareto · e a caixa cheia diz que é a da área",
+               pg.locator(".legend span", has_text="referência da área").count() >= 1, True)
+        # AJUSTE DE CONFIANÇA (13/set/2026): sem ajuste por padrão; com nível
+        # pela URL, a faixa declara e a tela monta
+        checar("faixa · sem ajuste de confiança por padrão",
+               "Confiança sem ajuste" in pg.locator(".critbar").inner_text(), True)
+        pg.goto(f"{BASE}/area/endoscopia-ginecologica?ini=2025-05&fim=2026-04&confianca=0.9")
+        pg.wait_for_selector("tbody tr", timeout=120_000)
+        checar("faixa · com 90% pela URL, a faixa declara o nível",
+               "Confiança 90%" in pg.locator(".critbar").inner_text(), True)
+        pg.locator("label.btn-crit").click()
+        pg.wait_for_timeout(300)
+        checar("diálogo · a opção 'Valor medido' existe no controle",
+               pg.locator(".seg-o", has_text="Valor medido").count(), 1)
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(300)
 
         print("\n9. ESTADOS DECLARADOS, NUNCA TELA MUDA")
         # ── ÁREA SEM CRITÉRIO: desenha, e declara o que não desenhou ────────

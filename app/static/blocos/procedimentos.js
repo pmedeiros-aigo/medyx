@@ -111,8 +111,13 @@ function celulaProcedimento(l) {
 /** Sólida ou não conclusiva. O motivo completo fica no hover. */
 function celulaQualidade(q) {
   const td = document.createElement('td');
-  const etiqueta = el('span', q.apresentavel ? 'tag' : 'tag tag-caveat', q.rotulo);
-  if (q.motivo) etiqueta.title = q.motivo;
+  /* três estados, três classes: sólida, referência da especialidade (a
+     etiqueta única do app, com o texto fixo no hover) e não conclusiva */
+  const classe = q.nivel_referencia === 'especialidade' ? 'tag tag-ref'
+    : q.apresentavel ? 'tag' : 'tag tag-caveat';
+  const etiqueta = el('span', classe, q.rotulo);
+  if (q.referencia_especialidade) etiqueta.title = q.referencia_especialidade.texto;
+  else if (q.motivo) etiqueta.title = q.motivo;
   td.appendChild(etiqueta);
   return td;
 }

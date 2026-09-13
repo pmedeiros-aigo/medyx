@@ -124,6 +124,14 @@ await abrirPagina({
       a.textContent = l.descricao;
       a.title = `${l.descricao} · código ${l.codigo}`;
       nome.appendChild(a);
+      /* a etiqueta única da referência da especialidade (LEXICO), com a
+         divisão do R$ no hover */
+      if (l.etiqueta_referencia) {
+        const t = el('span', 'tag tag-ref', l.etiqueta_referencia);
+        if (l.divisao) t.title = l.divisao;
+        nome.appendChild(document.createTextNode(' '));
+        nome.appendChild(t);
+      }
       tr.appendChild(nome);
 
       for (const [classe, texto] of [

@@ -113,6 +113,7 @@ Vivem no fim do `components.css`, sob o cabeçalho `COMPONENTES NOVOS`. Hoje:
 | `.legend i.mk-iqr` · `.legend i.mk-haste` · `.legend i.pt-mk-porte` | marcas de legenda (caixa interquartil, amplitude, porte da bolha). `mk-iqr` era `band` e colidia com o componente `.band`, herdando o padding dele — daí o prefixo, e daí `padding:0` na base `.legend i` | rodapé dos três gráficos da tela de Área |
 | `.evom` · `.evom-rolo` · `.evom-in` · `.evom-grupo` · `.evom-mes` · `.evom-faixa` · `.evom-cel` | evolução mensal: barras por mês sobre a faixa de fechamento por trimestre, alinhadas por estrutura (o grupo e a célula recebem o mesmo peso). A largura sai de `--evom-n`, a contagem de meses, como o `--evo-cols` da grade de volume | tela de Área e dossiê do cooperado, a partir do artboard "Medyx Dossie Cooperado" |
 | `.dica-ficha` · `.dica-t` · `.dica-l` | a dica em FICHA: título e um dado por linha, quando o hover carrega duas ou mais medidas do mesmo ponto. As tintas saem de `currentColor` com opacidade, porque a caixa inverte entre os temas. Forma e regra de redação em `LEXICO_PRODUTO.md` | hover das barras da evolução mensal e das bolhas da dispersão |
+| `.tag-ref` · `.pareto-l .trilho i.duplo b.esp` · `.pareto-l .trilho i.esp-toda` · `.legend i.bar-exc-esp` | a etiqueta "referência da especialidade" (compõe `.tag`, traço tracejado) nas tabelas e painéis; no Pareto NÃO há etiqueta na linha: o trecho medido com ela é a mesma tinta `--exc` HACHURADA (tokens `--ch-hatch-w` e `--ch-hatch-step`, declarados para isso) e a legenda nomeia as duas caixas, cheia e hachurada | segundo nível da referência (13/set/2026) |
 | `.tbl > .res-grade:last-child` | recorta a grade de números ao canto arredondado do cartão. `.tbl>:last-child` já dá o raio, mas as células da grade têm canto reto e fundo próprio, e sem `overflow` passavam por cima das quinas de baixo | Leitura da área, quando o rodapé saiu e a grade virou o último filho |
 
 
@@ -317,7 +318,7 @@ Python: `/Users/pedromedeiros/.venvs/global-env/bin/python`
 
 ## Leis analíticas (inegociáveis)
 
-Estas cinco governam todo código que toca cálculo. Não há zona cinzenta.
+Estas seis governam todo código que toca cálculo. Não há zona cinzenta.
 
 0. **Regra do recorte.** *O recorte muda quem está em cena, nunca contra quem se mede —
    régua parada, achado segue o filtro.* Espacialmente, na tela de Área: **acima dos chips,
@@ -340,6 +341,14 @@ Estas cinco governam todo código que toca cálculo. Não há zona cinzenta.
   **por argumento**. Nunca lê o default do `config.py` no meio do cálculo — `config` define o
    default, a UI passa a escolha, o pipeline recebe.
 4. **Documento referencia constante por nome**, nunca por valor.
+5. **Sem cegueiras.** O app nunca deixa de mostrar um dado observado (contagem, custo,
+   procedimento). O que pode faltar é a COMPARAÇÃO: quando o método não sustenta referência,
+   sinalização ou excedente, o dado aparece assim mesmo, com o motivo ao lado, em linguagem
+   impessoal e concisa. O usuário entende o que aconteceu; nunca deixa de ver. Esconder o
+   dado e apresentar número frágil como sólido são o MESMO defeito. Conferência mecânica:
+   toda decomposição mostrada fecha com o total de origem (ex.: custo total do cooperado =
+   custo com referência + custo sem referência); dinheiro fora das partes é cegueira.
+   Estende a `METODOLOGIA_ANALITICA.md` §6.2 da pessoa para qualquer grandeza. (set/2026)
 
 ---
 

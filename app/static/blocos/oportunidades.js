@@ -117,6 +117,11 @@ function linha(l, aoAbrir, hrefDoCooperado, comArea) {
      cabeçalho que fixa a largura, mas quem trunca é a célula. */
   const proc = el('td', 'col-txt-lg col-corta', l.descricao);
   proc.title = `${l.descricao} · código ${l.codigo}`;
+  /* a etiqueta única da referência da especialidade (LEXICO) */
+  if (l.etiqueta_referencia) {
+    proc.appendChild(document.createTextNode(' '));
+    proc.appendChild(el('span', 'tag tag-ref', l.etiqueta_referencia));
+  }
   tr.appendChild(proc);
 
   /* `rt num`, como toda célula numérica do app: alinhada à direita, sob um

@@ -43,6 +43,10 @@
      O valor e' o mesmo --acc; o artboard tem #186E52, um tom de diferenca que
      nao se distingue na tela e nao justifica um quarto verde no sistema. */
   --exc:var(--acc);
+  /* hachura sobre --exc: o trecho do excedente medido com referência da
+     especialidade (Pareto e legenda). Largura do traço e passo do padrão. */
+  --ch-hatch-w:2px;
+  --ch-hatch-step:5px;
 
   /* ── importados dos artboards de set/2026 ────────────────────────────────
      Sete valores que o app nao tinha com nenhum nome. Estao declarados aqui

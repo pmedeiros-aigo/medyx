@@ -80,13 +80,14 @@ def periodo_texto(rotulo_janela: str, janela_ini: str, janela_fim: str) -> str:
 
 
 def carimbo_proveniencia(janela_ini: str, janela_fim: str, base: str,
-                         gatilho: str, alvo: str, confianca: float) -> str:
+                         gatilho: str, alvo: str, confianca: str) -> str:
     """Carimbo do rodapé, governança visível como texto, em toda resposta."""
     return (
         f"pipeline {config.PIPELINE_VERSAO} · "
         f"dados {mes_ano(janela_ini)}–{mes_ano(janela_fim)} · {base} · "
         f"classificação {config.CLASSIFICACAO_VERSAO} · "
-        f"gatilho {gatilho} · alvo {alvo} · confiança {confianca:.0%}"
+        f"gatilho {gatilho} · alvo {alvo} · confiança {confianca} · "
+        f"{config.ROTULO_REFERENCIA_ESPECIALIDADE} onde a área não sustenta a própria"
     )
 
 

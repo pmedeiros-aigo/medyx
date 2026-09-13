@@ -195,6 +195,26 @@ N_MINIMO_P75 = 10                # = N_MINIMO_PEER_GROUP
 
 
 # ---------------------------------------------------------------------------
+# REFERÊNCIA DA ESPECIALIDADE  —  DECISÃO (13/set/2026)  —  doc §6.2, §7.2
+# Segundo nível da referência de um procedimento. Quando menos de
+# N_MINIMO_PEER_GROUP cooperados da ÁREA solicitam o exame, a referência
+# aplicada passa a ser a da ESPECIALIDADE inteira (todas as áreas, entre os
+# que formam norma e solicitam o exame), desde que ela tenha este mínimo de
+# solicitantes. O par recebe nivel_referencia = "especialidade" e a tela
+# carrega a etiqueta em todo lugar onde o número aparece (LEXICO). Abaixo
+# disso em ambos os níveis: "referência não conclusiva", custo sem excedente.
+# Mesmo mínimo da área, de propósito: o que sustenta um percentil é o n, não
+# o nível. Comparação cruza áreas com práticas diferentes: a composição da
+# referência viaja com o número (norma_especialidade.composicao_especialidade).
+# ---------------------------------------------------------------------------
+N_MINIMO_REFERENCIA_ESPECIALIDADE = N_MINIMO_PEER_GROUP
+NIVEL_REFERENCIA_AREA = "area"
+NIVEL_REFERENCIA_ESPECIALIDADE = "especialidade"
+# a ETIQUETA, uma só em todo o app (LEXICO): barra, linha, painel e carimbo
+ROTULO_REFERENCIA_ESPECIALIDADE = "referência da especialidade"
+
+
+# ---------------------------------------------------------------------------
 # PISO_EXECUCOES_ANO  —  MEDIÇÃO (PROVISÓRIO)  —  lado da execução (notebook §8.3)
 # Piso de execuções/ano para o perfil de execução (autorreferência, mix de regime)
 # ser confiável. Mesmo espírito do piso de consultas; escalado pela janela em runtime.
@@ -215,23 +235,43 @@ JANELA_MINIMA = "trimestral"
 # única coisa entre o analista e uma janela que não sustenta norma.
 JANELA_MINIMA_MESES = 3
 
+# ---------------------------------------------------------------------------
+# APURACAO_EXCEDENTE_MESES  —  DECISÃO (13/set/2026)  —  doc §5.4.1, §7.2
+# O excedente é apurado por FATIA desta duração, com critério, referência e
+# preço do ANO, truncado em zero por fatia, e somado: par = soma das fatias,
+# cooperado = soma dos pares, área = soma dos cooperados. Uma regra só, em toda
+# tela. É a mesma unidade da janela mínima, e por isso aponta para ela: as duas
+# são a mesma decisão (o trimestre é a menor unidade que sustenta leitura).
+# Custo declarado da escolha: número >= ao anual, com a diferença concentrada
+# em quem está perto da referência (medido: +9% na área, ver notebook
+# unimed_natal/verificacao_excedente_trimestral.ipynb).
+# ---------------------------------------------------------------------------
+APURACAO_EXCEDENTE_MESES = JANELA_MINIMA_MESES
+
 
 # ---------------------------------------------------------------------------
 # GATILHO_DEFAULT  —  DECISÃO  —  doc §6, §7.1  —  parâmetro do analista
-# Percentil que define outlier por padrão na UI (quem SINALIZAR). Separado do
-# alvo — nunca o mesmo corte, sob pena de condenar o quartil superior por
-# construção. Grafia minúscula: nome de coluna do pipeline ("p75"/"p90").
+# Percentil que define outlier por padrão na UI (quem SINALIZAR). Parâmetro
+# separado do alvo porque responde a outra pergunta (quem entra na lista, não
+# quanto se mede). Grafia minúscula: nome de coluna do pipeline ("p75"/"p90").
 # ---------------------------------------------------------------------------
 GATILHO_DEFAULT = "p90"
 
 
 # ---------------------------------------------------------------------------
-# ALVO_DEFAULT  —  DECISÃO  —  doc §7.1  —  parâmetro do analista
-# Nível-alvo para o qual a redução é calculada (o "trazer para cá").
-# Recomendação de método: a mediana da área — norma plausível que NÃO embute o
-# próprio desvio que se quer eliminar.
+# ALVO_DEFAULT  —  DECISÃO (11/set/2026, texto revisto em 13/set)  —  doc §7.1
+# Nível contra o qual o excedente é medido (o "trazer para cá"). Igual ao
+# gatilho por padrão: é o PISO, o número mínimo defensável ("quanto ele pediu
+# além do limite que a área aceita"), coerente com precisão acima de recall.
+# A mediana dá o TETO ("se praticasse como o colega típico") e continua
+# disponível no controle da tela; o app mostra a faixa entre os dois quando
+# diferem. Não há regra que proíba a coincidência: ver doc §7.1.
+# Escrito como IGUAL AO GATILHO, e não como "p90": a regra é "a referência
+# padrão é o critério", e a API resolve referência omitida como o critério
+# ATIVO (com critério P75, referência P75). Um valor fixo aqui quebrava a tela
+# ao trocar o critério para P75 (13/set/2026).
 # ---------------------------------------------------------------------------
-ALVO_DEFAULT = "p90"
+ALVO_DEFAULT = GATILHO_DEFAULT
 
 
 # ---------------------------------------------------------------------------
@@ -303,9 +343,30 @@ FRAC_TOP_CONCENTRACAO = 0.10     # PROVISÓRIO
 # MIN_PACIENTES_BOOTSTRAP: portão — abaixo disso, "intervalo não calculável".
 # SEED_BOOTSTRAP: semente obrigatória (mesmo dado + parâmetros => mesmo número).
 # ---------------------------------------------------------------------------
-NIVEL_CONFIANCA_DEFAULT = 0.90
+NIVEL_CONFIANCA_DEFAULT = 0.90   # nível do degrau da cascata (bootstrap interno)
 N_BOOTSTRAP = 1000               # DECISÃO
-MIN_PACIENTES_BOOTSTRAP = 20     # PROVISÓRIO
+MIN_PACIENTES_BOOTSTRAP = 20     # PROVISÓRIO, só o degrau da cascata (pendência: rever)
+
+# ---------------------------------------------------------------------------
+# AJUSTE DE CONFIANÇA DO EXCEDENTE EXIBIDO  —  DECISÃO (13/set/2026)  —  doc §8
+# O excedente da tela é o VALOR MEDIDO por padrão (AJUSTE_CONFIANCA_DEFAULT =
+# None). Quando o analista escolhe uma confiança no controle, o excedente de
+# cada par sinalizado passa a ser o valor conservador nessa confiança (o que se
+# mantém nessa proporção dos sorteios da carteira), e tudo o que soma pares
+# segue. Pares com menos de MIN_PACIENTES_AJUSTE_CONFIANCA pacientes recebendo
+# o exame ficam com o valor medido e a tela declara (Lei 5). A série por
+# trimestre não recebe o ajuste: o sorteio produz um valor por período inteiro.
+# MIN_PACIENTES_AJUSTE_CONFIANCA = 3, derivado: cada paciente fica fora de um
+# sorteio com reposição em ~37% das vezes (e^-1); com k pacientes, todos ficam
+# fora em 0,37^k dos sorteios. A 90% o valor conservador só deixa de ser zero
+# por construção quando 0,37^k < 10%, ou seja, k >= 3 (k=2 dá 13%). Medido em
+# 13/set/2026 sobre 2.179 pares: 100% de zeros com 1 e 2 pacientes, 27% com 3,
+# 13% com 4, e o valor cresce de forma contínua daí em diante, sem degrau que
+# justifique corte mais alto para EXIBIR. O 20 do degrau da cascata é outra
+# pergunta (qualificar) e ficou intocado.
+# ---------------------------------------------------------------------------
+AJUSTE_CONFIANCA_DEFAULT = None
+MIN_PACIENTES_AJUSTE_CONFIANCA = 3
 SEED_BOOTSTRAP = 42              # DECISÃO (reprodutibilidade)
 
 
@@ -357,8 +418,10 @@ FAIXA_ESTABILIDADE_SERIE = 0.10
 
 # ---------------------------------------------------------------------------
 # PERSISTÊNCIA TEMPORAL  —  DECISÃO (PROVISÓRIO)  —  notebook §9
-# MIN_JANELAS_AVALIAVEIS: mínimo de janelas em que o cooperado foi avaliável para
-#   a persistência ser reportável (o 1/1 nunca desfila como 4/4).
+# MIN_JANELAS_AVALIAVEIS: mínimo de fatias completas na janela para a
+#   persistência ser reportável (o 1/1 nunca desfila como 4/4). Desde
+#   13/set/2026 a persistência usa a régua ANUAL (doc §5.4.1): "sinalizado no
+#   trimestre" = excedente da fatia > 0, e toda fatia completa conta.
 # ---------------------------------------------------------------------------
 MIN_JANELAS_AVALIAVEIS = 2       # PROVISÓRIO
 
@@ -728,10 +791,24 @@ SMOKE_N_TOTAL_AREA = 55
 # cooperado_85/71 sinalizados em 22/51 procedimentos (eram 52/73 sob P75 com
 # referência mediana).
 SMOKE_AREA_SINALIZADOS = "Endoscopia Ginecológica"   # área dos positivos e do topo por razão da tela
-SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 22, "cooperado_71": 51}
+# Re-baseline 13/set/2026 (referência da especialidade): os pares sinalizados
+# passam a incluir os medidos contra a especialidade. Por nível, para a prova
+# separar os dois: 22 + 25 no cooperado_85, 51 + 23 no cooperado_71.
+SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 47, "cooperado_71": 74}
+SMOKE_SINALIZADOS_AREA_ESPERADOS = {"cooperado_85": 22, "cooperado_71": 51}
 SMOKE_TOPO_RAZAO_AREA = ("cooperado_71", "cooperado_85", "cooperado_19")   # topo por razão DENTRO da área acima
+# Mastologia não sustenta referência própria: zero pares com referência da
+# ÁREA. Com a especialidade eles passam a ser medidos (6 e 12 pares), e é isso
+# que a Lei 5 pede: o custo deles deixou de ser cegueira.
 SMOKE_NAO_SINALIZADOS_ESPERADOS = ("cooperado_61", "cooperado_116")
 # Referência agregada da MESMA janela: avaliáveis e o topo por razão — ancoram a
 # migração no lado agregado, não só na norma. Os dois atravessaram a v2 intactos.
 SMOKE_N_AVALIAVEIS = 132
 SMOKE_TOPO_RAZAO = ("cooperado_71", "cooperado_85", "cooperado_19")
+# GABARITO DO EXCEDENTE (13/set/2026): calculado do zero, sem o motor, em
+# unimed_natal/verificacao_excedente_trimestral.ipynb, para as áreas abaixo.
+# Uma linha por (cooperado, procedimento, fatia) com excedente em itens e em
+# R$. smoke_fase3 compara par a par e fatia a fatia, tolerância de um centavo.
+# Fora de DIR_MARTS de propósito: é prova, não dado do app, e não viaja no deploy.
+CAMINHO_GABARITO_EXCEDENTE = DIR_UNIMED / "gabaritos" / "excedente_trimestral.parquet"
+SMOKE_AREAS_GABARITO = ("Endoscopia Ginecológica", "Ginecologia Geral")

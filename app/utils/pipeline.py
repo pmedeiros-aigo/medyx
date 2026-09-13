@@ -10,6 +10,9 @@ Leis (CLAUDE.md / METODOLOGIA_ANALITICA.md):
 
 Motores: pipeline (solicitação), pipeline_execucao (execução/R$/confundidores),
 persistencia_temporal, concentracao_por_beneficiario, controlador_confiabilidade.
+Regra do excedente (13/set/2026, doc §5.4.1): critério, referência e preço do
+ANO; apuração POR FATIA (fatiar_janela), truncada em zero, somada. Uma conta só
+(excedente_por_fatia), lida por par, série, persistência e bootstrap.
 Classificação v1.0 (não homologada): a norma é formada só por elegivel_norma=True;
 todos são MEDIDOS contra ela. Exclusão por par (Mov 5): montar_exclusao_por_par.
 """
@@ -74,6 +77,106 @@ def _gatilho_efetivo(n, gatilho, n_min_p90, n_min_p75):
     n = pd.Series(n).fillna(0).to_numpy(dtype=float)
     minimo = n_min_p90 if gatilho == "p90" else n_min_p75
     return np.where(n >= minimo, gatilho, None)
+
+
+def fatiar_janela(janela_ini, janela_fim, meses=config.APURACAO_EXCEDENTE_MESES):
+    """As fatias de apuração do excedente (doc §5.4.1): blocos de `meses` meses
+    alinhados ao INÍCIO da janela. O resto do fim, quando não completa um bloco,
+    vira uma fatia PARCIAL: apurada com a mesma fórmula e declarada como parcial
+    (Lei 5: nenhum dia de dado fica sem excedente). Janela de 12 meses vira 4
+    fatias completas, idênticas aos trimestres do notebook.
+
+    Retorna lista de dicts {fatia, ini, fim, completa, dias}, na ordem do tempo.
+    """
+    ini, fim = pd.Timestamp(janela_ini), pd.Timestamp(janela_fim)
+    fatias, a, k = [], ini, 0
+    while a <= fim:
+        b_cheia = a + pd.DateOffset(months=meses) - pd.Timedelta(days=1)
+        b = min(b_cheia, fim)
+        k += 1
+        fatias.append({"fatia": k, "ini": str(a.date()), "fim": str(b.date()),
+                       "completa": bool(b == b_cheia), "dias": int((b - a).days + 1)})
+        a = b + pd.Timedelta(days=1)
+    return fatias
+
+
+def _marcar_fatias(f, fatias):
+    """A fatia de cada linha do fato, alinhada ao índice de `f`."""
+    dt = f["DATA_REQUISICAO"]
+    k = pd.Series(0, index=f.index, dtype=int, name="fatia")
+    for ft in fatias:
+        k[(dt >= ft["ini"]) & (dt <= ft["fim"])] = ft["fatia"]
+    return k
+
+
+def excedente_por_fatia(pares, f, fatias, col_proc="CD_PROCEDIMENTO", col_alvo="alvo_valor"):
+    """A MEDIÇÃO do excedente (doc §5.4.1, §7.2): por (cooperado, procedimento,
+    fatia), com a referência ANUAL do par e truncada em zero por fatia.
+
+        excedente_itens = max(0, itens da fatia − alvo × consultas da fatia)
+
+    O excedente do par é a soma das fatias; não existe outra fórmula no motor
+    (o anual é o caso de uma fatia só). Fatia em que o cooperado não pediu o
+    procedimento entra com zero item; sem consulta, entra com zero consulta.
+    Par sem referência (alvo NaN) sai NaN, nunca zero.
+
+    `pares` traz ID_COOPERADO, col_proc e col_alvo; `f` é o fato da MESMA
+    janela e base (PS) que gerou os pares; `fatias` vem de fatiar_janela.
+    """
+    k = _marcar_fatias(f, fatias)
+    cons = (f.groupby([f["ID_COOPERADO"], k])["ID_CONSULTA"].nunique()
+            .rename("consultas_fatia").reset_index())
+    itens = (f.groupby([f["ID_COOPERADO"], f[col_proc], k])["QT_EFETIVO"].sum()
+             .rename("itens_fatia").reset_index())
+    eixo = pd.DataFrame({"fatia": [ft["fatia"] for ft in fatias],
+                         "completa": [ft["completa"] for ft in fatias]})
+    grade = (pares[["ID_COOPERADO", col_proc, col_alvo]]
+             .merge(eixo, how="cross")
+             .merge(cons, on=["ID_COOPERADO", "fatia"], how="left")
+             .merge(itens, on=["ID_COOPERADO", col_proc, "fatia"], how="left"))
+    grade["consultas_fatia"] = grade["consultas_fatia"].fillna(0.0).astype(float)
+    grade["itens_fatia"] = grade["itens_fatia"].fillna(0.0).astype(float)
+    grade["excedente_itens"] = (grade["itens_fatia"]
+                                - grade[col_alvo].astype(float) * grade["consultas_fatia"]
+                                ).clip(lower=0)
+    return grade
+
+
+def valorar_por_fatia(grade, sinal, preco):
+    """Custo e excedente em R$ por fatia, ao preço ANUAL de cada procedimento.
+
+    Devolve (por_par, por_cooperado):
+      por_par: a grade restrita aos pares de `sinal` (três portões + preço),
+        com excedente_reais = excedente_itens × preco_mediano;
+      por_cooperado: uma linha por (cooperado, fatia) com `custo` (Σ itens ×
+        preço sobre TODOS os pares com preço, é o custo solicitado da fatia) e
+        `excedente_reais` (Σ só sobre os pares de `sinal`).
+    Uma única função para a série do dossiê, a da Área e o painel do
+    procedimento: dois lugares somando o mesmo dinheiro divergem no dia em que
+    alguém mexer num só.
+    """
+    g = grade.merge(preco[["CD_PROCEDIMENTO", "preco_mediano"]],
+                    on="CD_PROCEDIMENTO", how="inner")
+    g["custo"] = g["itens_fatia"] * g["preco_mediano"]
+    g["excedente_reais"] = g["excedente_itens"] * g["preco_mediano"]
+    chaves = set(zip(sinal["ID_COOPERADO"], sinal["CD_PROCEDIMENTO"]))
+    esp = (sinal[sinal["nivel_referencia"] == config.NIVEL_REFERENCIA_ESPECIALIDADE]
+           if "nivel_referencia" in sinal.columns else sinal.iloc[0:0])
+    chaves_esp = set(zip(esp["ID_COOPERADO"], esp["CD_PROCEDIMENTO"]))
+    pares_g = list(zip(g["ID_COOPERADO"], g["CD_PROCEDIMENTO"]))
+    na_cesta = np.array([k in chaves for k in pares_g], dtype=bool)
+    na_esp = np.array([k in chaves_esp for k in pares_g], dtype=bool)
+    por_par = g[na_cesta].copy()
+    # a parte medida com referência da ESPECIALIDADE viaja por fatia também: a
+    # série desenha o trecho hachurado e a ficha diz a divisão, como o Pareto
+    por_coop = (g.assign(_exc=g["excedente_reais"].where(na_cesta, 0.0),
+                         _esp=g["excedente_reais"].where(na_esp, 0.0))
+                .groupby(["ID_COOPERADO", "fatia", "completa"])
+                .agg(custo=("custo", "sum"), excedente_reais=("_exc", "sum"),
+                     excedente_reais_especialidade=("_esp", "sum"))
+                .reset_index())
+    return por_par, por_coop
+
 
 
 def norma_por_area(
@@ -260,6 +363,82 @@ def norma_por_procedimento(
     return norma
 
 
+def norma_da_especialidade(tx_proc, tx_agg, piso, n_minimo,
+                           col_proc="CD_PROCEDIMENTO", col_taxa="taxa",
+                           col_vol="consultas_totais", col_area="AREA_ATUACAO"):
+    """A referência de SEGUNDO NÍVEL de cada procedimento: a especialidade inteira
+    (config, REFERÊNCIA DA ESPECIALIDADE; doc §6.2).
+
+    Método:
+        A mesma máquina de norma_por_procedimento, sem a partição por área:
+        entre TODOS os que formam norma (volume >= piso e elegivel_norma) e
+        solicitam o exame, mediana, P75 e P90 da taxa. Apresentável com
+        n_minimo+ solicitantes. Só é APLICADA a um par quando a área dele não
+        sustenta referência própria (aplicar_referencia_da_especialidade).
+        A composição por área viaja junto: uma referência que cruza áreas com
+        práticas diferentes precisa dizer de onde veio, porque é isso que o
+        médico vai questionar.
+
+    Retorna: DataFrame por procedimento com n_solicitantes_especialidade,
+    mediana/p75/p90_especialidade, apresentavel_especialidade e
+    composicao_especialidade (lista de {area, n}, da maior para a menor).
+    """
+    elegiveis = tx_agg.loc[(tx_agg[col_vol] >= piso) & tx_agg["elegivel_norma"], "ID_COOPERADO"]
+    forma = tx_proc[tx_proc["ID_COOPERADO"].isin(elegiveis)]
+    g = forma.groupby(col_proc)[col_taxa]
+    norma = pd.concat([g.count().rename("n_solicitantes_especialidade"),
+                       g.median().rename("mediana_especialidade"),
+                       g.quantile(.75).rename("p75_especialidade"),
+                       g.quantile(.90).rename("p90_especialidade")], axis=1).reset_index()
+    norma["apresentavel_especialidade"] = norma["n_solicitantes_especialidade"] >= n_minimo
+    comp = (forma.groupby([col_proc, col_area])["ID_COOPERADO"].nunique()
+            .rename("n").reset_index().sort_values([col_proc, "n"], ascending=[True, False]))
+    composicao = {cd: [{"area": str(a), "n": int(n)} for a, n in zip(d[col_area], d["n"])]
+                  for cd, d in comp.groupby(col_proc, sort=False)}
+    norma["composicao_especialidade"] = norma[col_proc].map(composicao)
+    return norma
+
+
+def aplicar_referencia_da_especialidade(df, norma_esp, col_proc="CD_PROCEDIMENTO",
+                                        col_area="AREA_ATUACAO"):
+    """Decide o NÍVEL da referência de cada linha e deixa as colunas de
+    referência (mediana, p75, p90, n_solicitantes_elegiveis, apresentavel)
+    apontando para o nível aplicado; os valores da área ficam em *_area.
+
+        nivel_referencia = "area"          se a área é apresentável
+                         = "especialidade" senão, se a especialidade é (e a
+                                           área não é a classificação pendente)
+                         = None            senão (referência não conclusiva)
+
+    Aplicada nos DOIS lugares que carregam referência (norma_proc e
+    posicao_proc), para a aba da área e o dossiê nunca discordarem do nível.
+    Tudo que vem depois (gatilho, sinalização, excedente por fatia,
+    persistência, bootstrap) lê as colunas já resolvidas e não sabe de nível:
+    a única coisa que muda é contra que número o par é medido.
+    """
+    cols = [col_proc, "n_solicitantes_especialidade", "mediana_especialidade",
+            "p75_especialidade", "p90_especialidade", "apresentavel_especialidade",
+            "composicao_especialidade"]
+    df = df.merge(norma_esp[cols], on=col_proc, how="left")
+    for c in ("mediana", "p75", "p90"):
+        df[f"{c}_area"] = df[c]
+    df["n_solicitantes_area"] = df["n_solicitantes_elegiveis"]
+    df["apresentavel_area"] = df["apresentavel"].eq(True)
+    # a classificação PENDENTE não tem grupo de pares (doc §6.2, estado 3):
+    # nenhuma comparação, nem contra a especialidade
+    esp_ok = (df["apresentavel_especialidade"].eq(True)
+              & (df[col_area] != config.AREA_INDEFINIDA))
+    df["nivel_referencia"] = np.select(
+        [df["apresentavel_area"].to_numpy(), esp_ok.to_numpy()],
+        [config.NIVEL_REFERENCIA_AREA, config.NIVEL_REFERENCIA_ESPECIALIDADE], None)
+    usa = df["nivel_referencia"] == config.NIVEL_REFERENCIA_ESPECIALIDADE
+    for c in ("mediana", "p75", "p90"):
+        df.loc[usa, c] = df.loc[usa, f"{c}_especialidade"]
+    df.loc[usa, "n_solicitantes_elegiveis"] = df.loc[usa, "n_solicitantes_especialidade"]
+    df["apresentavel"] = df["nivel_referencia"].notna()
+    return df
+
+
 def posicao_vs_norma_procedimento(
     taxa_por_procedimento,
     norma_proc,
@@ -268,6 +447,10 @@ def posicao_vs_norma_procedimento(
     n_min_p90=config.N_MINIMO_P90,
     n_min_p75=config.N_MINIMO_P75,               # <- runtime: quem é SINALIZADO ("p75" ou "p90")
     alvo=config.ALVO_DEFAULT,              # <- runtime: até onde medir ("mediana", "p75" ou "p90")
+    *,
+    f,                                     # <- o fato da MESMA janela/base, para a grade por fatia
+    fatias,                                # <- saída de fatiar_janela
+    norma_esp,                             # <- norma_da_especialidade (segundo nível)
     col_area="AREA_ATUACAO",
     col_proc="CD_PROCEDIMENTO",
     col_taxa="taxa",
@@ -280,18 +463,23 @@ def posicao_vs_norma_procedimento(
         - SINALIZAR (gatilho): o cooperado é marcado num procedimento se a taxa
           dele supera o percentil-gatilho da área (ex.: P90 = só o decil extremo).
         - MEDIR (alvo): o excedente é calculado contra um nível plausível de
-          convergência: excedente_itens = (taxa − alvo) × consultas do cooperado,
-          ou seja, quantos itens ele pediu além do que o alvo preveria para o
-          volume de consultas dele na janela.
-        Gatilho e alvo NUNCA são o mesmo valor: trazer todos acima do P75 para o
-        P75 condenaria o quartil superior inteiro por construção, sempre existe
-        um quartil superior, mesmo numa área eficiente. Sinaliza-se no extremo;
-        mede-se contra a referência. razao_vs_mediana acompanha como medida de
-        intensidade (lente complementar ao excedente, que é magnitude).
+          convergência, POR FATIA da janela (doc §5.4.1): em cada fatia,
+          max(0, itens − alvo × consultas da fatia); o par recebe a soma. É
+          quantos itens ele pediu além do que o alvo preveria para o volume de
+          consultas dele, apurado trimestre a trimestre e sem que um trimestre
+          abaixo abata os que ficaram acima.
+        Gatilho e alvo são parâmetros separados porque respondem a perguntas
+        diferentes (quem entra na lista; quanto se mede), e podem coincidir:
+        alvo igual ao critério dá o PISO (o mínimo defensável, padrão do
+        produto), alvo na mediana dá o TETO (doc §7.1, revisto em 13/set/2026).
+        razao_vs_mediana acompanha como medida de intensidade (lente
+        complementar ao excedente, que é magnitude).
 
     Parâmetros:
         taxa_por_procedimento: tabela longa cooperado × procedimento × taxa.
-        norma_proc: saída de norma_por_procedimento.
+        norma_proc: saída de norma_por_procedimento (referência da ÁREA, crua).
+        norma_esp: saída de norma_da_especialidade (segundo nível), aplicada
+            onde a área não sustenta referência; nivel_referencia registra qual.
         piso: mínimo de consultas para a taxa ser confiável (flag 'avaliavel').
         gatilho: percentil que SINALIZA ('p75' ou 'p90'), define quem entra no Pareto.
         n_min_p90, n_min_p75: n de solicitantes elegíveis que sustenta cada
@@ -301,9 +489,10 @@ def posicao_vs_norma_procedimento(
               Regra: alvo <= gatilho.
         col_area, col_proc, col_taxa, col_vol: nomes das colunas.
 
-    Retorna: tabela longa com razao_vs_mediana (intensidade fixa),
-    razao_vs_alvo (contra a referência ativa, que é a que a tela mostra),
-    sinalizado, excedente_itens e o gatilho/alvo usados (rastreabilidade).
+    Retorna: (tabela, grade). A tabela longa traz razao_vs_mediana (intensidade
+    fixa), razao_vs_alvo (contra a referência ativa, que é a que a tela mostra),
+    sinalizado, excedente_itens e o gatilho/alvo usados (rastreabilidade); a
+    grade é a saída de excedente_por_fatia, de onde a soma saiu.
     """
     ordem = {"mediana": 0, "p75": 1, "p90": 2}
     assert gatilho in ("p75", "p90") and alvo in ordem
@@ -314,6 +503,10 @@ def posicao_vs_norma_procedimento(
                     "n_solicitantes_elegiveis", "prevalencia", "apresentavel"]],
         on=[col_area, col_proc], how="left"
     )
+    # segundo nível: onde a área não sustenta referência, a especialidade
+    # inteira, se sustentar. Daqui em diante as colunas de referência já
+    # apontam para o nível aplicado e nada abaixo sabe de nível.
+    df = aplicar_referencia_da_especialidade(df, norma_esp, col_proc=col_proc)
     df["avaliavel"] = df[col_vol] >= piso
     df["razao_vs_mediana"] = df[col_taxa] / df["mediana"]
     # gatilho degradado pelo n de solicitantes elegíveis que sustenta o percentil
@@ -325,7 +518,13 @@ def posicao_vs_norma_procedimento(
     # a referência pedida é a que vale, em toda linha (nunca substituída)
     df["alvo_usado"] = alvo
     df["alvo_valor"] = df[alvo].to_numpy(dtype=float)
-    df["excedente_itens"] = (df[col_taxa] - df["alvo_valor"]).clip(lower=0) * df[col_vol]
+    # A MEDIÇÃO: por fatia, com a referência do ano, truncada em zero por fatia
+    # (doc §5.4.1). O par recebe a soma; a grade sai junto para a série e a
+    # persistência lerem o MESMO número, nunca uma segunda conta.
+    grade = excedente_por_fatia(df, f, fatias, col_proc=col_proc, col_alvo="alvo_valor")
+    soma = grade.groupby(["ID_COOPERADO", col_proc])["excedente_itens"].sum(min_count=1)
+    df["excedente_itens"] = soma.reindex(
+        pd.MultiIndex.from_arrays([df["ID_COOPERADO"], df[col_proc]])).to_numpy()
     # A MESMA razão, medida contra a REFERÊNCIA ATIVA (o alvo escolhido), e não
     # contra a mediana. As duas coincidem no default (alvo = mediana), e é por
     # isso que a diferença ficou invisível até a tela rodar em `referencia=p75`:
@@ -335,12 +534,42 @@ def posicao_vs_norma_procedimento(
     # `razao_vs_mediana` fica para quem quer a intensidade fixa, que não se move
     # quando o analista troca o alvo.
     df["razao_vs_alvo"] = df[col_taxa] / df["alvo_valor"]
-    return df.sort_values("excedente_itens", ascending=False)
+    return df.sort_values("excedente_itens", ascending=False), grade
+
+
+def _taxas(f):
+    """As duas tabelas de taxa de uma base: cooperado (agregada) e
+    cooperado × procedimento. Uma função porque pipeline() precisa das duas
+    para a área E para a especialidade, e duas cópias da conta divergiriam."""
+    consultas = f.groupby("ID_COOPERADO")["ID_CONSULTA"].nunique().rename("consultas_totais")
+    itens = f.groupby("ID_COOPERADO")["QT_EFETIVO"].sum().rename("total_itens")
+    area_map = f.drop_duplicates("ID_COOPERADO")[["ID_COOPERADO", "AREA_ATUACAO", "elegivel_norma"]]
+    tx_agg = (
+        pd.concat([itens, consultas], axis=1)
+          .assign(taxa_exames_por_consulta=lambda d: d["total_itens"] / d["consultas_totais"])
+          .reset_index()
+          .merge(area_map, on="ID_COOPERADO", how="left")
+    )
+    n_proc = (
+        f.groupby(["ID_COOPERADO", "CD_PROCEDIMENTO"])["QT_EFETIVO"].sum()
+         .rename("n_solicitacoes").reset_index()
+    )
+    tx_proc = (
+        n_proc
+        .merge(consultas.reset_index(), on="ID_COOPERADO", how="left")
+        .merge(area_map, on="ID_COOPERADO", how="left")
+        .assign(taxa=lambda d: d["n_solicitacoes"] / d["consultas_totais"])
+        .merge(f.drop_duplicates("CD_PROCEDIMENTO")[["CD_PROCEDIMENTO", "DS_PROCEDIMENTO"]],
+               on="CD_PROCEDIMENTO", how="left")
+    )
+    return tx_agg, tx_proc
 
 
 def pipeline(fato, janela_ini, janela_fim, piso, n_minimo, area=None, gatilho=config.GATILHO_DEFAULT,
              alvo=config.ALVO_DEFAULT, incluir_ps=config.INCLUIR_PS_DEFAULT,
-             exclusoes_por_par=None):
+             exclusoes_por_par=None, confianca=config.AJUSTE_CONFIANCA_DEFAULT,
+             seed=config.SEED_BOOTSTRAP, n_bootstrap=config.N_BOOTSTRAP,
+             min_pacientes_ajuste=config.MIN_PACIENTES_AJUSTE_CONFIANCA):
     """Motor do lado da solicitação: FATO + parâmetros -> tabelas de análise.
 
     Método (sequência fixa, mesma janela para tudo):
@@ -354,8 +583,13 @@ def pipeline(fato, janela_ini, janela_fim, piso, n_minimo, area=None, gatilho=co
         5. Norma da área (mediana/percentis entre os que FORMAM a norma: acima do
            piso E elegivel_norma=True) e posição de TODOS contra ela (inelegíveis
            e INDEFINIDO são medidos, só não formam).
+        5b. Referência da ESPECIALIDADE por procedimento (norma_da_especialidade,
+           sobre a janela inteira): aplicada ao par cuja área não tem
+           N_MINIMO solicitantes, e só se ela mesma tiver. nivel_referencia
+           registra qual foi usada ("area" / "especialidade" / None).
         6. Mesmo cálculo descido a (área, procedimento), com prevalência e
-           excedente por item.
+           excedente por item, apurado POR FATIA da janela (fatiar_janela,
+           doc §5.4.1) com a referência do ano e truncado em zero por fatia.
         Norma e indivíduo saem SEMPRE da mesma janela, comparar janelas
         diferentes é viés garantido. Nada é lido de cache ou de default global:
         cada chamada recalcula tudo a partir dos argumentos.
@@ -374,52 +608,101 @@ def pipeline(fato, janela_ini, janela_fim, piso, n_minimo, area=None, gatilho=co
         exclusoes_por_par: conjunto de tuplas (ID_COOPERADO, área, procedimento)
             fora da formação da norma daquele par (Mov 5, montar_exclusao_por_par);
             None = sem exclusão.
+        confianca: None (padrão) deixa o excedente MEDIDO; um nível (0.8, 0.9,
+            0.95) troca o excedente_itens de cada par sinalizado pelo valor
+            conservador nesse nível (controlador_confiabilidade), onde o exame
+            tem min_pacientes_ajuste+ pacientes; os demais ficam medidos e
+            marcados (ajuste_confianca = "medido"). excedente_itens_medido
+            guarda sempre o medido. Doc §8 (13/set/2026).
+        seed, n_bootstrap, min_pacientes_ajuste: parâmetros do sorteio.
 
     Retorna: dict com taxa_agregada, norma, posicao, norma_proc, posicao_proc,
+    fatias, excedente_por_fatia (a grade da medição), por_fatia_cooperado,
     piso_aplicado, janela_dias, base (carimbo da regra de PS), classificacao
     (versão/status da classificação injetada) e exclusoes_por_par (contagem).
     """
-    f = fato[(fato["DATA_REQUISICAO"] >= janela_ini) & (fato["DATA_REQUISICAO"] <= janela_fim)]
-    if area is not None:
-        f = f[f["AREA_ATUACAO"] == area]
-    f = filtrar_ps(f, incluir_ps)
+    f_janela = filtrar_ps(
+        fato[(fato["DATA_REQUISICAO"] >= janela_ini) & (fato["DATA_REQUISICAO"] <= janela_fim)],
+        incluir_ps)
+    f = f_janela if area is None else f_janela[f_janela["AREA_ATUACAO"] == area]
 
     dias = (pd.Timestamp(janela_fim) - pd.Timestamp(janela_ini)).days + 1
     piso_janela = max(1, round(piso * dias / 365))
 
-    consultas = f.groupby("ID_COOPERADO")["ID_CONSULTA"].nunique().rename("consultas_totais")
-    itens = f.groupby("ID_COOPERADO")["QT_EFETIVO"].sum().rename("total_itens")
-    area_map = f.drop_duplicates("ID_COOPERADO")[["ID_COOPERADO", "AREA_ATUACAO", "elegivel_norma"]]
-
-    tx_agg = (
-        pd.concat([itens, consultas], axis=1)
-          .assign(taxa_exames_por_consulta=lambda d: d["total_itens"] / d["consultas_totais"])
-          .reset_index()
-          .merge(area_map, on="ID_COOPERADO", how="left")
-    )
-
-    n_proc = (
-        f.groupby(["ID_COOPERADO", "CD_PROCEDIMENTO"])["QT_EFETIVO"].sum()
-         .rename("n_solicitacoes").reset_index()
-    )
-    tx_proc = (
-        n_proc
-        .merge(consultas.reset_index(), on="ID_COOPERADO", how="left")
-        .merge(area_map, on="ID_COOPERADO", how="left")
-        .assign(taxa=lambda d: d["n_solicitacoes"] / d["consultas_totais"])
-        .merge(f.drop_duplicates("CD_PROCEDIMENTO")[["CD_PROCEDIMENTO", "DS_PROCEDIMENTO"]],
-               on="CD_PROCEDIMENTO", how="left")
-    )
+    tx_agg, tx_proc = _taxas(f)
+    # a referência da ESPECIALIDADE sai da janela inteira, mesmo quando a
+    # chamada pede uma área: o segundo nível existe para o par que a área não
+    # sustenta, e não pode sumir quando o filtro de área entra
+    tx_agg_esp, tx_proc_esp = (tx_agg, tx_proc) if area is None else _taxas(f_janela)
+    norma_esp = norma_da_especialidade(tx_proc_esp, tx_agg_esp, piso_janela,
+                                       config.N_MINIMO_REFERENCIA_ESPECIALIDADE)
 
     norma = norma_por_area(tx_agg, piso_janela)
     posicao = posicao_vs_norma(tx_agg, norma, piso_janela, gatilho=gatilho)
-    normap = norma_por_procedimento(tx_proc, tx_agg, piso_janela, n_minimo,
-                                    exclusoes=exclusoes_por_par)
-    posproc = posicao_vs_norma_procedimento(tx_proc, normap, piso_janela, gatilho=gatilho, alvo=alvo)
+    normap_area = norma_por_procedimento(tx_proc, tx_agg, piso_janela, n_minimo,
+                                         exclusoes=exclusoes_por_par)
+    fatias = fatiar_janela(janela_ini, janela_fim)
+    posproc, grade = posicao_vs_norma_procedimento(tx_proc, normap_area, piso_janela,
+                                                   gatilho=gatilho, alvo=alvo,
+                                                   f=f, fatias=fatias, norma_esp=norma_esp)
+    # a aba de procedimentos da área lê norma_proc: o nível tem de ser o MESMO
+    # que o dossiê aplicou, então a mesma função resolve os dois
+    normap = aplicar_referencia_da_especialidade(normap_area, norma_esp)
+
+    # ── AJUSTE DE CONFIANÇA (doc §8): o excedente exibido ───────────────────
+    # O medido fica guardado sempre; com um nível escolhido, o par sinalizado
+    # com pacientes suficientes passa a carregar o valor conservador, e tudo o
+    # que soma pares (R$, Paretos, totais) segue sem saber do ajuste.
+    posproc["excedente_itens_medido"] = posproc["excedente_itens"]
+    posproc["ajuste_confianca"] = None
+    posproc["n_pacientes_proc"] = np.nan
+    if confianca is not None:
+        sinal = filtrar_sinalizados(posproc)
+        if len(sinal):
+            conf = controlador_confiabilidade(
+                fato, sinal[["ID_COOPERADO", "CD_PROCEDIMENTO", "alvo_valor"]],
+                janela_ini, janela_fim, seed=seed, nivel_confianca=confianca,
+                n_bootstrap=n_bootstrap, min_pacientes_proc=min_pacientes_ajuste,
+                area=area, incluir_ps=incluir_ps)
+            chave = ["ID_COOPERADO", "CD_PROCEDIMENTO"]
+            posproc = posproc.merge(
+                conf[chave + ["excedente_piso", "calculavel", "n_pacientes_proc"]]
+                .rename(columns={"n_pacientes_proc": "_n_pac"}),
+                on=chave, how="left")
+            calc = posproc["calculavel"].eq(True)
+            posproc.loc[calc, "excedente_itens"] = posproc.loc[calc, "excedente_piso"]
+            posproc.loc[calc, "ajuste_confianca"] = "conservador"
+            posproc.loc[posproc["calculavel"].eq(False), "ajuste_confianca"] = "medido"
+            posproc["n_pacientes_proc"] = posproc["_n_pac"]
+            posproc = posproc.drop(columns=["excedente_piso", "calculavel", "_n_pac"])
+            posproc = posproc.sort_values("excedente_itens", ascending=False)
+
+    # o cooperado em cada fatia: volume, índice e pacientes. É o que a série
+    # trimestral desenha; o piso escalado à fatia vira RESSALVA de volume, não
+    # portão (doc §5.4.1). Pacientes só como CONTAGEM.
+    k = _marcar_fatias(f, fatias)
+    por_fatia_coop = (
+        f.groupby([f["ID_COOPERADO"], k])
+         .agg(consultas_totais=("ID_CONSULTA", "nunique"),
+              total_itens=("QT_EFETIVO", "sum"),
+              pacientes=("ID_BENEFICIARIO", "nunique"))
+         .reset_index()
+    )
+    por_fatia_coop["taxa"] = por_fatia_coop["total_itens"] / por_fatia_coop["consultas_totais"]
+    _dias = {ft["fatia"]: ft["dias"] for ft in fatias}
+    _completa = {ft["fatia"]: ft["completa"] for ft in fatias}
+    por_fatia_coop["piso"] = por_fatia_coop["fatia"].map(
+        lambda j: max(1, round(piso * _dias[j] / 365)))
+    por_fatia_coop["avaliavel"] = por_fatia_coop["consultas_totais"] >= por_fatia_coop["piso"]
+    por_fatia_coop["completa"] = por_fatia_coop["fatia"].map(_completa)
 
     return {
         "taxa_agregada": tx_agg, "norma": norma, "posicao": posicao,
         "norma_proc": normap, "posicao_proc": posproc,
+        "norma_especialidade": norma_esp,
+        "confianca": confianca,
+        "fatias": fatias, "excedente_por_fatia": grade,
+        "por_fatia_cooperado": por_fatia_coop,
         "piso_aplicado": piso_janela, "janela_dias": dias,
         "base": carimbo_base(incluir_ps),
         "classificacao": config.CLASSIFICACAO_VERSAO,
@@ -450,7 +733,8 @@ def precos_por_procedimento(contas_da_janela):
 def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
                       piso_execucoes, q_confundidor, mapa_executantes,
                       area=None, gatilho=config.GATILHO_DEFAULT, alvo=config.ALVO_DEFAULT, preco=None,
-                      incluir_ps=config.INCLUIR_PS_DEFAULT, exclusoes_por_par=None):
+                      incluir_ps=config.INCLUIR_PS_DEFAULT, exclusoes_por_par=None,
+                      confianca=config.AJUSTE_CONFIANCA_DEFAULT):
     """Motor do lado da execução, em cima do pipeline() da MESMA janela: converte o
     excedente em R$ e anexa o contexto (confundidores) que evita acusação injusta.
 
@@ -459,10 +743,12 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
         2. PREÇO: mediana de VALORTOTAL ÷ QUANTIDADEEXECUTADA por código, nas
            contas da janela (robusta a outliers de cobrança). Se 'preco' for
            injetado (tabela oficial), usa-o no lugar.
-        3. EXCEDENTE EM R$ = excedente_itens × preço mediano. Entram no total
-           apenas linhas que passam os três portões: avaliavel (cooperado acima
-           do piso) + apresentavel (norma com n mínimo) + sinalizado (acima do
+        3. EXCEDENTE EM R$ = excedente_itens × preço mediano (o excedente em
+           itens já é a soma das fatias, doc §5.4.1). Entram no total apenas
+           linhas que passam os três portões: avaliavel (cooperado acima do
+           piso) + apresentavel (norma com n mínimo) + sinalizado (acima do
            gatilho). Pareto = soma por procedimento, ordenado, com % acumulado.
+           A mesma valoração desce à fatia (valorar_por_fatia) para as séries.
         3b. CUSTO SOLICITADO por cooperado (magnitude, não desvio): todo item
            solicitado × preço mediano, ponderado por QT_EFETIVO e sobre a MESMA
            base eletiva de consultas_totais. Entrega valor_total_solicitado,
@@ -506,7 +792,8 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
     execução, confundidores e autorref são CONTEXTO calculado na base completa da janela.
     """
     res = pipeline(fato, janela_ini, janela_fim, piso, n_minimo, area, gatilho, alvo,
-                   incluir_ps=incluir_ps, exclusoes_por_par=exclusoes_por_par)
+                   incluir_ps=incluir_ps, exclusoes_por_par=exclusoes_por_par,
+                   confianca=confianca)
 
     # solicitações e contas da MESMA janela
     f = fato[(fato["DATA_REQUISICAO"] >= janela_ini) & (fato["DATA_REQUISICAO"] <= janela_fim)]
@@ -554,6 +841,10 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
     # excedente em R$ = excedente_itens × preço (sinaliza no gatilho, mede contra o alvo)
     posproc_rs = res["posicao_proc"].merge(preco, on="CD_PROCEDIMENTO", how="left")
     posproc_rs["excedente_reais"] = posproc_rs["excedente_itens"] * posproc_rs["preco_mediano"]
+    # o MEDIDO em R$ viaja junto: com ajuste de confiança, a ficha do número
+    # mostra os dois (doc §8)
+    posproc_rs["excedente_reais_medido"] = (posproc_rs["excedente_itens_medido"]
+                                            * posproc_rs["preco_mediano"])
     sinal = filtrar_sinalizados(posproc_rs, exigir_preco=True)
     pareto_rs = (
         sinal.groupby(["CD_PROCEDIMENTO", "DS_PROCEDIMENTO"])
@@ -566,6 +857,11 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
     )
     pareto_rs["pct_acumulado"] = (pareto_rs["excedente_reais"].cumsum()
                                   / pareto_rs["excedente_reais"].sum() * 100).round(1)
+
+    # o MESMO dinheiro, fatia a fatia: a série do dossiê, a da Área e o painel
+    # do procedimento leem daqui, e a soma das fatias é o par por construção
+    excedente_por_fatia_rs, custo_por_fatia = valorar_por_fatia(
+        res["excedente_por_fatia"], sinal, preco)
 
     # perfil de execução: autorreferência (das execuções dele, % que ele mesmo pediu)
     # e mix de regime — só cooperados-executantes (premissa do projeto: executante
@@ -638,190 +934,103 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
     return {**res,
             "preco": preco, "custo_coop": custo_coop,
             "posicao_proc_rs": posproc_rs, "sinal": sinal,
+            "excedente_por_fatia_rs": excedente_por_fatia_rs,
+            "custo_por_fatia": custo_por_fatia,
             "pareto_rs": pareto_rs, "perfil_execucao": perfil_execucao,
             "autorref": autorref, "resumo_coop": resumo_coop,
             "piso_execucoes_aplicado": piso_exec_jan}
 
 
-def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_DEFAULT, alvo=config.ALVO_DEFAULT,
+def persistencia_temporal(fato, janela_ini, janela_fim, piso, n_minimo,
+                          gatilho=config.GATILHO_DEFAULT, alvo=config.ALVO_DEFAULT,
                           area=None, min_janelas_avaliaveis=config.MIN_JANELAS_AVALIAVEIS,
                           incluir_ps=config.INCLUIR_PS_DEFAULT, exclusoes_por_par=None,
                           precos=None):
-    """Consistência do sinal através de janelas disjuntas, com norma recalculada.
+    """Consistência do sinal fatia a fatia, com a régua do ANO (doc §5.4.1).
 
-    Método:
-        Roda o pipeline() em cada janela, com os MESMOS parâmetros e norma
-        recalculada por janela: a persistência mede quantas vezes o cooperado foi
-        sinalizado sob a régua do próprio período. A alegação é CONSISTÊNCIA, não
-        independência estatística, os mesmos pacientes e protocolos atravessam
-        janelas; o argumento honesto é "o padrão se repete em N janelas distintas,
-        cada uma comparada com a norma do próprio período".
+    Método (revisto em 13/set/2026):
+        Uma régua só. O pipeline() roda uma vez, na janela inteira; a
+        referência, a cesta e o preço são os do ano. A persistência lê a MESMA
+        grade que mede o dinheiro (excedente_por_fatia): um par é "sinalizado
+        na fatia" quando o excedente daquela fatia é positivo, ou seja, quando
+        ele pediu mais do que a referência do ano previa para as consultas
+        daquele trimestre. Antes, a norma era recalculada em cada trimestre e
+        exigia n mínimo de solicitantes no trimestre, o que esvaziava a grade
+        (pares "sem trimestre válido") e fazia consistência e dinheiro
+        discordarem.
 
-        Para cada (cooperado, procedimento):
-          denominador = janelas em que o sinal era POSSÍVEL: cooperado avaliável
-            (volume >= piso escalado à janela) E norma do procedimento
-            apresentável na área. Janela em que ele não pediu o procedimento
-            CONTA no denominador (não pediu => não sinalizado), regra
-            conservadora, favorável ao médico.
-          numerador   = janelas em que foi sinalizado (taxa > gatilho da área).
+        Para cada (cooperado, procedimento) com referência apresentável e
+        cooperado acima do piso anual:
+          denominador = fatias COMPLETAS da janela (a parcial não entra: uma
+            "janela" de poucos dias sustentaria um 2/2 por um dia de dado);
+          numerador   = fatias com excedente > 0;
           persistencia = numerador / denominador.
+        Fatia em que ele não pediu o procedimento conta como não sinalizada.
 
-        Disciplina do 1/1: a razão NUNCA viaja sem n_janelas_avaliaveis ao lado
-        (1/1 = 1.0 é evidência fraca vestida de forte). Ordenação por
-        (persistencia, n_janelas_avaliaveis); reportavel marca quem tem o mínimo
-        de janelas, flag, nada é deletado.
-
-        Nota (comparações múltiplas): testar milhares de pares cooperado ×
-        procedimento contra um percentil garante falsos positivos por acaso em
-        janela única; sinal que se repete em 3–4 janelas recalculadas é o filtro
-        que o acaso não atravessa.
+        Disciplina do 1/1: a razão NUNCA viaja sem n_janelas_avaliaveis ao lado.
+        reportavel marca quem tem o mínimo de fatias completas; nada é deletado.
 
     Parâmetros:
-        fato: fato_solicitacoes (uma linha por item solicitado).
-        janelas: lista de (inicio, fim) DISJUNTAS, ex.: 4 trimestres.
-        piso, n_minimo, gatilho, alvo, area: como no pipeline(), idênticos em
-            todas as janelas.
-        min_janelas_avaliaveis: mínimo de janelas avaliáveis para a persistência
-            ser reportável (parâmetro do analista; default 2, provisório).
-        incluir_ps: repassado ao pipeline() de CADA janela (default do config =
-            análise eletiva), mesma base em todas as janelas, por construção.
+        fato, janela_ini, janela_fim, piso, n_minimo, gatilho, alvo, area,
+        incluir_ps, exclusoes_por_par: como no pipeline() (a MESMA chamada).
+        min_janelas_avaliaveis: mínimo de fatias completas para reportar.
+        precos: tabela código -> preco_mediano; com ela saem as séries em R$.
 
     Retorna: dict com
-        'por_janela_cooperado': (cooperado, janela) com o índice agregado e se
-            era avaliável — a MAGNITUDE que a grade binária não carrega, e de
-            onde sai a direção da série;
-        'por_janela': a grade CRUA (cooperado, procedimento, janela, sinalizado)
-            de onde as contagens saem. Devolvida porque a tela precisa da SÉRIE,
-            não só da soma: "3/4" não diz se os três foram os três primeiros
-            trimestres (padrão que persiste) ou o 1º, o 2º e o 4º (padrão
-            intermitente), e a diferença muda a conversa com o médico;
+        'por_janela': (cooperado, procedimento, janela, sinalizado), a grade
+            crua das fatias completas de onde as contagens saem;
+        'por_janela_cooperado': (cooperado, janela) com taxa, consultas_totais,
+            total_itens, avaliavel, piso e pacientes: a MAGNITUDE por trimestre;
+        'custo_por_janela': (cooperado, janela) com custo e excedente_reais da
+            fatia. Vazio sem `precos`. Nunca negativo;
+        'resto': a fatia PARCIAL, quando existe: {dias, custo, excedente_reais}
+            somados sobre os cooperados em cena, para a tela declarar o que
+            ficou fora das células de trimestre;
         'por_procedimento': (cooperado, procedimento) com n_janelas_avaliaveis,
             n_janelas_sinalizado, persistencia e reportavel;
-        'por_cooperado': agregado para a fila, nº de procedimentos reportáveis,
-            nº com persistencia == 1.0 e nº com persistencia >= 0.75.
+        'por_cooperado': agregado para a fila.
     """
-    # ── A CESTA E A RÉGUA DO ANO ────────────────────────────────────────────
-    # Regra do projeto (METODOLOGIA §5.4): régua RECALCULADA para sinalizar,
-    # régua CONGELADA para acompanhar. O laço abaixo recalcula a norma em cada
-    # trimestre, e é dele que sai a mini-série de consistência: ali a pergunta é
-    # "ele foi sinalizado sob a régua do próprio período".
-    #
-    # O DINHEIRO não sai de lá. Ele é a decomposição do excedente do ANO, e por
-    # isso precisa da régua do ano: a cesta de pares sinalizados, o alvo e o
-    # preço são todos anuais, e o trimestre só distribui itens e consultas.
-    # Medir dinheiro com régua móvel faria o excedente cair quando a área
-    # inteira aumentasse o consumo, mostrando melhora onde não houve.
-    cesta = k_por_cooperado = None
-    if precos is not None and len(precos) and janelas:
-        anual = pipeline(fato, janelas[0][0], janelas[-1][1], piso, n_minimo,
-                         area, gatilho, alvo, incluir_ps=incluir_ps,
-                         exclusoes_por_par=exclusoes_por_par)
-        c = anual["posicao_proc"].merge(
-            precos[["CD_PROCEDIMENTO", "preco_mediano"]],
-            on="CD_PROCEDIMENTO", how="left")
-        c = filtrar_sinalizados(c, exigir_preco=True)
-        if len(c):
-            cesta = c[["ID_COOPERADO", "CD_PROCEDIMENTO", "preco_mediano"]].copy()
-            # o ALVO é a taxa contra a qual o excedente do ano foi medido; em R$,
-            # ele vira "quanto de dinheiro por consulta a referência prevê"
-            cesta["alvo_x_preco"] = c["alvo_valor"].astype(float) * c["preco_mediano"]
-            k_por_cooperado = (cesta.groupby("ID_COOPERADO")["alvo_x_preco"].sum()
-                               .rename("k_referencia").reset_index())
+    r = pipeline(fato, janela_ini, janela_fim, piso, n_minimo, area, gatilho, alvo,
+                 incluir_ps=incluir_ps, exclusoes_por_par=exclusoes_por_par)
+    fatias = r["fatias"]
+    completas = [ft["fatia"] for ft in fatias if ft["completa"]]
+    grade = r["excedente_por_fatia"]
+    posproc = r["posicao_proc"]
 
-    registros, indices, evolucao = [], [], []
-    for k, (ini, fim) in enumerate(janelas, start=1):
-        r = pipeline(fato, ini, fim, piso, n_minimo, area, gatilho, alvo,
-                     incluir_ps=incluir_ps, exclusoes_por_par=exclusoes_por_par)
-        avaliaveis = r["posicao"].loc[r["posicao"]["avaliavel"],
-                                      ["ID_COOPERADO", "AREA_ATUACAO"]]
-        apresentaveis = r["norma_proc"].loc[r["norma_proc"]["apresentavel"],
-                                            ["AREA_ATUACAO", "CD_PROCEDIMENTO"]]
-        # grade do possível: cooperado avaliável × procedimento apresentável na área dele
-        grade = avaliaveis.merge(apresentaveis, on="AREA_ATUACAO")
-        sinalizados = r["posicao_proc"].loc[r["posicao_proc"]["sinalizado"],
-                                            ["ID_COOPERADO", "CD_PROCEDIMENTO"]]
-        g = grade.merge(sinalizados, on=["ID_COOPERADO", "CD_PROCEDIMENTO"],
-                        how="left", indicator=True)
-        g["sinalizado"] = g["_merge"] == "both"
-        g["janela"] = k
-        registros.append(g[["ID_COOPERADO", "CD_PROCEDIMENTO", "janela", "sinalizado"]])
+    # a grade do POSSÍVEL: pares com referência apresentável e cooperado acima
+    # do piso anual. Quem está fora não é "não sinalizado", é "sem régua".
+    possiveis = posproc.loc[posproc["avaliavel"] & posproc["apresentavel"].eq(True),
+                            ["ID_COOPERADO", "CD_PROCEDIMENTO"]]
+    g = grade.merge(possiveis, on=["ID_COOPERADO", "CD_PROCEDIMENTO"], how="inner")
+    g = g[g["fatia"].isin(completas)]
+    todas = pd.DataFrame({
+        "ID_COOPERADO": g["ID_COOPERADO"], "CD_PROCEDIMENTO": g["CD_PROCEDIMENTO"],
+        "janela": g["fatia"].astype(int),
+        "sinalizado": (g["excedente_itens"].fillna(0.0) > 0).to_numpy(),
+    })
 
-        # o ÍNDICE agregado do cooperado naquela janela, sob a norma daquela
-        # janela. A grade acima diz SE ele foi sinalizado; esta diz QUANTO —
-        # sem ela a série é binária e não tem direção.
-        pos = (r["posicao"][["ID_COOPERADO", "taxa_exames_por_consulta", "avaliavel",
-                             "consultas_totais", "total_itens"]]
-               .rename(columns={"taxa_exames_por_consulta": "taxa"}).copy())
-        pos["janela"] = k
-        # o PISO daquele trimestre viaja junto: quem cai abaixo dele não é
-        # medido ali, e a tela precisa dizer abaixo de QUÊ, não só que não mediu
-        pos["piso"] = r["piso_aplicado"]
-        # PACIENTES DISTINTOS do trimestre: é o outro denominador do período, o
-        # que separa "atendeu mais gente" de "pediu mais para a mesma gente".
-        # Contagem, nunca identidade (ver `pacientes_distintos`).
-        pac = pacientes_distintos(fato, ini, fim, incluir_ps=incluir_ps)
-        pos["pacientes"] = pos["ID_COOPERADO"].map(pac)
-        indices.append(pos)
+    pfc = r["por_fatia_cooperado"]
+    por_janela_cooperado = (pfc[pfc["fatia"].isin(completas)]
+                            .rename(columns={"fatia": "janela"})
+                            .drop(columns=["completa"]))
 
-        # ── EVOLUÇÃO: o R$ do trimestre, quando há preço ────────────────────
-        # Agregado AQUI, dentro do laço, e não devolvido cru: a grade
-        # (cooperado × procedimento × janela) valorada é grande, e o que a tela
-        # consome é uma linha por trimestre.
-        #
-        # O PREÇO É O DA JANELA INTEIRA, não o do trimestre. De propósito: com
-        # preço por trimestre, uma barra maior poderia ser reajuste de tabela em
-        # vez de mais solicitação, e a série existe para responder volume. Preço
-        # constante isola a variação que a tela afirma estar medindo.
-        if precos is not None and len(precos):
-            pp = r["posicao_proc"].merge(
-                precos[["CD_PROCEDIMENTO", "preco_mediano"]],
-                on="CD_PROCEDIMENTO", how="left")
-            pp = pp[pp["preco_mediano"].notna()]
-            if len(pp):
-                ev = (pp.assign(custo=pp["n_solicitacoes"] * pp["preco_mediano"])
-                      .groupby("ID_COOPERADO")
-                      .agg(custo=("custo", "sum")).reset_index())
-                # o VALOR SOLICITADO no trimestre, restrito à cesta do ano. É a
-                # primeira metade de `n_tri − alvo × consultas_tri`; a segunda
-                # entra depois do laço, porque depende das consultas do
-                # trimestre e da constante anual do cooperado.
-                if cesta is not None:
-                    vt = (pp.merge(cesta, on=["ID_COOPERADO", "CD_PROCEDIMENTO"],
-                                   how="inner", suffixes=("", "_c")))
-                    if len(vt):
-                        vt = (vt.assign(v=vt["n_solicitacoes"] * vt["preco_mediano"])
-                              .groupby("ID_COOPERADO")["v"].sum()
-                              .rename("valor_cesta").reset_index())
-                        ev = ev.merge(vt, on="ID_COOPERADO", how="left")
-                ev["janela"] = k
-                evolucao.append(ev)
+    custo_por_janela = pd.DataFrame(columns=["ID_COOPERADO", "custo",
+                                             "excedente_reais", "janela"])
+    resto = None
+    if precos is not None and len(precos):
+        sinal = filtrar_sinalizados(
+            posproc.merge(precos[["CD_PROCEDIMENTO", "preco_mediano"]],
+                          on="CD_PROCEDIMENTO", how="left"), exigir_preco=True)
+        _, por_coop = valorar_por_fatia(grade, sinal, precos)
+        custo_por_janela = (por_coop[por_coop["completa"]]
+                            .rename(columns={"fatia": "janela"})
+                            .drop(columns=["completa"]))
+        parcial = por_coop[~por_coop["completa"]]
+        if len(parcial):
+            resto = {"dias": int(sum(ft["dias"] for ft in fatias if not ft["completa"])),
+                     "custo": float(parcial["custo"].sum()),
+                     "excedente_reais": float(parcial["excedente_reais"].sum())}
 
-    todas = pd.concat(registros, ignore_index=True)
-    por_janela_cooperado = pd.concat(indices, ignore_index=True)
-    custo_por_janela = (pd.concat(evolucao, ignore_index=True) if evolucao
-                        else pd.DataFrame(columns=["ID_COOPERADO", "custo",
-                                                   "excedente_reais", "janela"]))
-    if len(custo_por_janela) and k_por_cooperado is not None:
-        # excedente_tri = Σ n_tri × preço  −  consultas_tri × Σ (alvo × preço)
-        #
-        # SEM CLIP. Trimestre em que ele ficou abaixo da referência do ano dá
-        # negativo, e é isso que faz a soma dos quatro fechar EXATAMENTE com o
-        # excedente do ano: os dois lados são lineares em itens e consultas, e
-        # clipar por trimestre quebraria a identidade. O negativo também é
-        # leitura: naquele trimestre ele pediu menos do que a referência previa.
-        cj = custo_por_janela.merge(k_por_cooperado, on="ID_COOPERADO", how="left")
-        cj = cj.merge(por_janela_cooperado[["ID_COOPERADO", "janela",
-                                            "consultas_totais"]],
-                      on=["ID_COOPERADO", "janela"], how="left")
-        cj["valor_cesta"] = cj.get("valor_cesta", 0.0)
-        cj["excedente_reais"] = (cj["valor_cesta"].fillna(0.0)
-                                 - cj["consultas_totais"].fillna(0.0)
-                                 * cj["k_referencia"].fillna(0.0))
-        # quem não tem cesta (nenhum par sinalizado no ano) não tem excedente a
-        # distribuir: zero é a resposta certa, e não um negativo vindo do K
-        # ausente na junção
-        cj.loc[cj["k_referencia"].isna(), "excedente_reais"] = 0.0
-        custo_por_janela = cj
     por_procedimento = (
         todas.groupby(["ID_COOPERADO", "CD_PROCEDIMENTO"])
         .agg(n_janelas_avaliaveis=("janela", "nunique"),
@@ -848,10 +1057,10 @@ def persistencia_temporal(fato, janelas, piso, n_minimo, gatilho=config.GATILHO_
     )
     return {"por_janela": todas,
             "por_janela_cooperado": por_janela_cooperado,
-            # uma linha por (cooperado, janela): custo valorado e excedente em
-            # R$ do trimestre. Vazio quando `precos` não foi passado.
             "custo_por_janela": custo_por_janela,
+            "resto": resto,
             "por_procedimento": por_procedimento, "por_cooperado": por_cooperado,
+            "n_fatias": len(completas),
             "base": carimbo_base(incluir_ps)}
 
 
@@ -1367,16 +1576,19 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
         Para cada par (cooperado, procedimento), reamostra-se COM REPOSIÇÃO os
         pacientes da carteira INTEIRA do cooperado na janela, incluindo os que
         têm zero itens do procedimento. Cada paciente sorteado traz todas as suas
-        consultas e itens; a taxa da reamostra é razão de totais (soma de itens ÷
-        soma de consultas dos sorteados). Assim as margens extensiva e intensiva
+        consultas e itens, fatia a fatia. Assim as margens extensiva e intensiva
         variam juntas, e a correlação de itens dentro de consulta e de consultas
-        dentro de paciente (painéis, monitoramento seriado) é preservada ,
+        dentro de paciente (painéis, monitoramento seriado) é preservada;
         reamostrar itens ou consultas soltas estreitaria o intervalo falsamente.
 
-        excedente da reamostra = max(0, taxa_b − alvo) × consultas reais do
-        cooperado (volume real fixo; a incerteza medida é a da taxa).
+        O excedente da reamostra segue a MESMA definição da tela (doc §5.4.1,
+        §8): por fatia, com a referência anual, truncado em zero, sobre o
+        volume REAL de consultas da fatia (a incerteza medida é a da taxa):
+            excedente_b = Σ_fatia max(0, taxa_b(fatia) − alvo) × consultas reais(fatia)
         O piso reportado é o quantil (1 − nivel_confianca) da distribuição
         bootstrap: "com nivel_confianca de confiança, o excedente é PELO MENOS Y".
+        excedente_central é a mesma conta sobre a amostra real, e coincide com
+        o excedente do par no pipeline por construção.
 
         PREMISSAS E APROXIMAÇÕES (declaradas):
         - A norma/alvo é tratada como régua FIXA da análise, a incerteza
@@ -1392,7 +1604,7 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
         - seed é OBRIGATÓRIA: mesmo dado + mesmos parâmetros => mesmo número
           (auditabilidade). Piso, estimativa central e n viajam SEMPRE juntos.
         - As mesmas reamostras são reutilizadas entre os procedimentos de um
-          mesmo cooperado: os pisos dele compartilham o ruído amostral ,
+          mesmo cooperado: os pisos dele compartilham o ruído amostral,
           comparáveis entre si por construção, não independentes.
 
     Parâmetros:
@@ -1400,7 +1612,7 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
         pares: DataFrame com ID_COOPERADO, CD_PROCEDIMENTO e alvo_valor (o nível
             numérico contra o qual o excedente é medido, ex.: mediana da área).
         janela_ini, janela_fim: janela pela DATA_REQUISICAO (a MESMA da análise
-            que gerou os pares e o alvo).
+            que gerou os pares e o alvo); as fatias saem de fatiar_janela.
         seed: semente do gerador (obrigatória, reprodutibilidade).
         nivel_confianca: confiança do piso (0.90 => piso = quantil 10%).
         n_bootstrap: número de reamostras.
@@ -1417,26 +1629,37 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
     if area is not None:
         f = f[f["AREA_ATUACAO"] == area]
     f = filtrar_ps(f, incluir_ps)
+    fatias = fatiar_janela(janela_ini, janela_fim)
+    colunas = list(range(1, len(fatias) + 1))
+    k = _marcar_fatias(f, fatias)
     rng = np.random.default_rng(seed)
     out = []
     for coop, pares_c in pares.groupby("ID_COOPERADO", sort=True):
-        fc = f[f["ID_COOPERADO"] == coop]
-        cons_pac = fc.groupby("ID_BENEFICIARIO")["ID_CONSULTA"].nunique()
-        pacientes = cons_pac.index
-        n_consultas_pac = cons_pac.to_numpy(dtype=float)
+        m = (f["ID_COOPERADO"] == coop).to_numpy()
+        fc, kc = f[m], k[m]
+        pacientes = pd.Index(fc["ID_BENEFICIARIO"].unique())
         n_pac = len(pacientes)
-        consultas_reais = float(fc["ID_CONSULTA"].nunique())
+        # consultas por (paciente, fatia): a matriz que a reamostra soma
+        cons_mat = (fc.groupby([fc["ID_BENEFICIARIO"], kc])["ID_CONSULTA"].nunique()
+                    .unstack(fill_value=0)
+                    .reindex(index=pacientes, columns=colunas, fill_value=0)
+                    .to_numpy(dtype=float))
+        cons_real = cons_mat.sum(axis=0)                       # por fatia
         # mesmas reamostras para todos os procedimentos do cooperado
         idx = rng.integers(0, n_pac, size=(n_bootstrap, n_pac))
-        denominadores = n_consultas_pac[idx].sum(axis=1)
+        cons_b = np.stack([cons_mat[:, t][idx].sum(axis=1) for t in range(len(colunas))],
+                          axis=1)                              # n_bootstrap × fatias
         for _, par in pares_c.sort_values("CD_PROCEDIMENTO").iterrows():
             alvo = float(par["alvo_valor"])
-            itens = (fc[fc["CD_PROCEDIMENTO"] == par["CD_PROCEDIMENTO"]]
-                     .groupby("ID_BENEFICIARIO")["QT_EFETIVO"].sum())
-            n_recebem = int((itens > 0).sum())
-            itens_pac = itens.reindex(pacientes).fillna(0).to_numpy(dtype=float)
-            taxa_real = itens_pac.sum() / consultas_reais
-            central = max(0.0, taxa_real - alvo) * consultas_reais
+            mp = (fc["CD_PROCEDIMENTO"] == par["CD_PROCEDIMENTO"]).to_numpy()
+            fp, kp = fc[mp], kc[mp]
+            itens_mat = (fp.groupby([fp["ID_BENEFICIARIO"], kp])["QT_EFETIVO"].sum()
+                         .unstack(fill_value=0)
+                         .reindex(index=pacientes, columns=colunas, fill_value=0)
+                         .to_numpy(dtype=float))
+            n_recebem = int((itens_mat.sum(axis=1) > 0).sum())
+            itens_real = itens_mat.sum(axis=0)
+            central = float(np.clip(itens_real - alvo * cons_real, 0, None).sum())
             registro = {"ID_COOPERADO": coop, "CD_PROCEDIMENTO": par["CD_PROCEDIMENTO"],
                         "excedente_central": central, "n_pacientes_carteira": n_pac,
                         "n_pacientes_proc": n_recebem,
@@ -1445,8 +1668,11 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
             if n_recebem < min_pacientes_proc:
                 registro.update(calculavel=False, excedente_piso=np.nan)
             else:
-                taxas_b = itens_pac[idx].sum(axis=1) / denominadores
-                exc_b = np.clip(taxas_b - alvo, 0, None) * consultas_reais
+                itens_b = np.stack([itens_mat[:, t][idx].sum(axis=1)
+                                    for t in range(len(colunas))], axis=1)
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    taxa_b = np.where(cons_b > 0, itens_b / cons_b, 0.0)
+                exc_b = (np.clip(taxa_b - alvo, 0, None) * cons_real).sum(axis=1)
                 registro.update(calculavel=True,
                                 excedente_piso=float(np.quantile(exc_b, 1 - nivel_confianca)))
             out.append(registro)

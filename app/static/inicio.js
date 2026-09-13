@@ -22,7 +22,6 @@ const PAGINAS = {
   cooperado: () => import('./paginas/cooperado.js'),
   procedimentos: () => import('./paginas/procedimentos.js'),
   procedimento: () => import('./paginas/procedimento.js'),
-  metodologia: () => import('./paginas/metodologia.js'),
   conta: () => import('./paginas/conta.js'),
 };
 

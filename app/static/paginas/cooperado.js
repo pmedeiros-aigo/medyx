@@ -196,6 +196,23 @@ function linhaProcedimento(l, semMedida = '', aoAbrir = null) {
 
   const nome = el('td', 'cell-name');
   nome.appendChild(document.createTextNode(l.codigo));
+  /* A ETIQUETA da referência da especialidade, ao lado do código, na mesma
+     posição das etiquetas de identidade da tabela de cooperados. Texto e
+     explicação vêm do motor (LEXICO: em todo lugar onde o número aparece). */
+  if (l.referencia_especialidade) {
+    const t = el('span', 'tag tag-ref', l.referencia_especialidade.etiqueta);
+    t.title = l.referencia_especialidade.texto;
+    nome.appendChild(document.createTextNode(' '));
+    nome.appendChild(t);
+  }
+  /* com ajuste de confiança ativo, o par que ficou no valor medido por
+     poucos pacientes é declarado (Lei 5); o motivo vem redigido do motor */
+  if (l.etiqueta_confianca) {
+    const t = el('span', 'tag tag-caveat', l.etiqueta_confianca);
+    t.title = l.motivo_sem_ajuste ?? '';
+    nome.appendChild(document.createTextNode(' '));
+    nome.appendChild(t);
+  }
   const sub = el('span', 'cell-sub', l.descricao);
   sub.title = l.descricao;
   nome.appendChild(sub);
@@ -217,6 +234,9 @@ function linhaProcedimento(l, semMedida = '', aoAbrir = null) {
       'Valorado pelo preço apurado nas contas do período.',
       l.excedente_itens && `${l.excedente_fmt} das solicitações estão acima da `
         + 'referência da área.',
+      l.ajuste_confianca === 'conservador' && l.excedente_medido_fmt
+        && `Valor medido: ${l.excedente_medido_fmt} solicitações.`,
+      l.motivo_sem_ajuste,
       l.confianca?.detalhe,
     ].filter(Boolean).join(' ');
   }

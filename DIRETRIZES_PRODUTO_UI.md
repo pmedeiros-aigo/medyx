@@ -424,6 +424,10 @@ cannot interpret is a defect, even when the number is right.** Context, unit, co
 base and uncertainty must be reachable at the moment of reading — not buried in a
 methodology page the user will never open.
 
+**No blind spots (Lei 5, `CLAUDE.md`).** An observed fact is never withheld from the screen.
+When the method cannot support a comparison, the fact is still shown and the reason travels
+with it; hiding the fact and dressing a fragile number as solid are the same defect.
+
 ---
 
 # 14. FILTERS

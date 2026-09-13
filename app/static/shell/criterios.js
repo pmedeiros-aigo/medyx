@@ -59,6 +59,8 @@ export function lembrarAbridor(el) {
    (METODOLOGIA §5.1); os critérios definem a régua aplicada sobre ele. São
    perguntas diferentes, e agora cada uma tem um controle. */
 const GRUPOS = [
+  /* o critério (quem entra) antes da referência (de onde se mede): a ordem
+     em que a pergunta acontece (decisão do usuário, 13/set/2026) */
   { titulo: 'Régua de comparação', campos: ['criterio', 'referencia', 'confianca'] },
   { titulo: 'Requisitos mínimos', campos: ['piso', 'n_minimo'] },
 ];
@@ -95,6 +97,7 @@ export function montarFaixaCriterios(meta) {
   const set = document.querySelector('[data-critset]');
   const criterios = meta.faixa_criterios ?? [];
   const CURTO = { criterio: 'Critério', referencia: 'Referência', confianca: 'Confiança' };
+  /* a confiança sem ajuste lê "Confiança sem ajuste"; com nível, "Confiança 90%" */
   const resumo = criterios.filter((c) => c.chave in CURTO);
   set.textContent = (resumo.length ? resumo : criterios)
     .map((c) => `${CURTO[c.chave] ?? c.rotulo} ${c.valor_fmt}`).join(' · ');
@@ -257,7 +260,9 @@ export function montarDialogoCriterios(meta) {
     corpo.appendChild(elem('div', 'dlg-grp', grupo.titulo));
     for (const campo of grupo.campos) {
       const ctl = controles[campo];
-      const linha = elem('div', 'dlg-row');
+      /* a confiança é a única linha sozinha na sua fileira: ocupa as duas
+         colunas, senão sobra um vazio ao lado dela */
+      const linha = elem('div', campo === 'confianca' ? 'dlg-row dlg-row-cheia' : 'dlg-row');
       linha.appendChild(rotuloDaLinha(ctl));
       const ct = elem('div', 'dlg-ct');
       if (NUMERICOS.has(campo)) {
@@ -296,10 +301,12 @@ export function montarDialogoCriterios(meta) {
       radio.disabled = proibido;
       if (proibido && radio.checked) { radio.checked = false; ativoCaiu = true; }
     }
-    // referência que deixou de ser possível volta ao recomendado, em vez de
-    // ficar sem escolha nenhuma
+    // referência que deixou de ser possível volta ao PRÓPRIO critério pendente
+    // (o piso), e não ao recomendado publicado pela API: ele foi calculado sob
+    // o critério ANTERIOR e podia ser justamente a opção que acabou de ficar
+    // proibida (P90 sob P75), o que mandava um 422 no Aplicar (13/set/2026)
     if (!ativoCaiu) return;
-    pendente.referencia = controles.referencia.recomendado;
+    pendente.referencia = pendente.criterio;
     const id = `crit-referencia-${String(pendente.referencia).replace(/[^\w-]/g, '')}`;
     const alvo = document.getElementById(id);
     if (alvo) alvo.checked = true;

@@ -78,7 +78,7 @@ class Parametros(BaseModel):
     janela_fim: str
     criterio: str          # gatilho, quem entra em revisão
     referencia: str        # alvo, contra o que a variação excedente é medida
-    confianca: float
+    confianca: float | None   # ajuste do excedente exibido; None = valor medido
     piso: int
     n_minimo: int
     incluir_ps: bool
@@ -91,24 +91,49 @@ class Parametros(BaseModel):
 
 _ORDEM_NIVEL = {"mediana": 0, "p75": 1, "p90": 2}
 
+# o valor de URL da opção padrão do controle de confiança (o excedente medido)
+CONFIANCA_MEDIDO = "medido"
+
+
+def _parse_confianca(valor: str | None) -> float | None:
+    """'medido'/vazio -> None (valor medido); '0.9' -> 0.9, se for um nível
+    oferecido pela tela. Qualquer outra coisa -> 422."""
+    if valor is None or str(valor).strip().lower() in ("", CONFIANCA_MEDIDO):
+        return None
+    try:
+        nivel = float(valor)
+    except ValueError:
+        nivel = None
+    for oferecido in config.NIVEIS_CONFIANCA_UI:
+        if nivel is not None and abs(nivel - oferecido) < 1e-9:
+            return float(oferecido)
+    raise HTTPException(422, f"confianca inválida: {valor!r}; use "
+                             f"{CONFIANCA_MEDIDO!r} ou {list(config.NIVEIS_CONFIANCA_UI)}")
+
+
+def _conf_fmt(nivel: float | None) -> str:
+    """Como a confiança se escreve na tela: 'sem ajuste' ou '90%'."""
+    return "sem ajuste" if nivel is None else f"{nivel:.0%}"
+
 
 def obter_parametros(
     janela: Annotated[str, Query(description="Janela de análise ancorada no fim da amostra (atalho); ignorada quando ini/fim vêm preenchidos")] = config.JANELA_DEFAULT,
     ini: Annotated[str | None, Query(description="Início da janela em AAAA-MM (mês cheio). Com fim, substitui o atalho `janela`")] = None,
     fim: Annotated[str | None, Query(description="Fim da janela em AAAA-MM (mês cheio, inclusive)")] = None,
     criterio: Annotated[str, Query(description="Critério de revisão (gatilho): percentil do grupo acima do qual o caso entra em revisão")] = config.GATILHO_DEFAULT,
-    referencia: Annotated[str, Query(description="Referência de adequação (alvo) contra a qual a variação excedente é medida; deve ser <= criterio")] = config.ALVO_DEFAULT,
-    confianca: Annotated[float, Query(ge=0.5, lt=1.0, description="Confiança do piso da variação excedente")] = config.NIVEL_CONFIANCA_DEFAULT,
+    referencia: Annotated[str | None, Query(description="Referência de adequação (alvo) contra a qual a variação excedente é medida; deve ser <= criterio. Omitida, é igual ao critério (o piso)")] = None,
+    confianca: Annotated[str | None, Query(description="Ajuste de confiança do excedente exibido: 'medido' (padrão) ou um nível (0.8, 0.9, 0.95). Com um nível, o excedente de cada par é o valor que se mantém nessa proporção dos sorteios da carteira")] = None,
     piso: Annotated[int, Query(ge=config.LIMITES_CONTROLES["piso"]["minimo"], description="Volume mínimo para avaliação, em consultas/ano; escalado à janela pelo motor")] = config.PISO_CONSULTAS_ANO["_default"],
     n_minimo: Annotated[int, Query(ge=config.LIMITES_CONTROLES["n_minimo"]["minimo"], description="Mínimo de solicitantes elegíveis para a referência de um procedimento ser apresentável")] = config.N_MINIMO_PEER_GROUP,
     incluir_ps: Annotated[bool, Query(description="Incluir episódios de pronto-socorro; o padrão analisa a base eletiva")] = config.INCLUIR_PS_DEFAULT,
 ) -> Parametros:
     """Valida a régua e resolve o rótulo de janela em datas.
 
-    A única regra estrutural imposta aqui é `referencia <= criterio`: medir todo
-    mundo acima do P75 até o P75 condenaria o quartil superior por construção
-    (METODOLOGIA §7.1). O motor também a exige, a validação aqui só devolve 422
-    em vez de estourar um assert.
+    A única regra estrutural imposta aqui é `referencia <= criterio`: uma
+    referência ACIMA do critério mediria excedente zero para quem acabou de ser
+    sinalizado, e a lista deixaria de ter número. Iguais é permitido, e é o
+    padrão: o piso (METODOLOGIA §7.1, revisto em 13/set/2026). O motor também
+    exige a ordem, a validação aqui só devolve 422 em vez de estourar um assert.
     """
     if (ini is None) != (fim is None):
         raise HTTPException(422, "janela por intervalo exige `ini` E `fim` (AAAA-MM)")
@@ -116,13 +141,19 @@ def obter_parametros(
         raise HTTPException(422, f"janela inválida: {janela!r}; use {list(config.JANELAS_UI)}")
     if criterio not in config.GATILHOS_UI:
         raise HTTPException(422, f"criterio inválido: {criterio!r}; use {list(config.GATILHOS_UI)}")
+    # O PADRÃO DA REFERÊNCIA É O CRITÉRIO (o piso, METODOLOGIA §7.1), e não um
+    # percentil fixo: com critério P75 e referência "P90 por padrão" toda
+    # chamada que só trocasse o critério caía em 422 (defeito de 13/set/2026).
+    if referencia is None:
+        referencia = criterio
     if referencia not in config.ALVOS_UI:
         raise HTTPException(422, f"referencia inválida: {referencia!r}; use {list(config.ALVOS_UI)}")
+    confianca_nivel = _parse_confianca(confianca)
     if _ORDEM_NIVEL[referencia] > _ORDEM_NIVEL[criterio]:
         raise HTTPException(
             422, f"referencia ({referencia}) deve ser <= criterio ({criterio}): "
-                 "sinaliza-se no extremo e mede-se contra a referência; usar o "
-                 "mesmo nível nos dois condenaria o quartil superior por construção")
+                 "referência acima do critério mede excedente zero para quem foi "
+                 "sinalizado")
     if ini is not None:
         rotulo, janela_ini, janela_fim = _janela_por_intervalo(ini, fim)
     else:
@@ -130,7 +161,7 @@ def obter_parametros(
         janela_ini, janela_fim = dados.resolver_janela(janela)
     return Parametros(
         rotulo_janela=rotulo, janela_ini=janela_ini, janela_fim=janela_fim, criterio=criterio,
-        referencia=referencia, confianca=confianca, piso=piso, n_minimo=n_minimo,
+        referencia=referencia, confianca=confianca_nivel, piso=piso, n_minimo=n_minimo,
         incluir_ps=incluir_ps,
     )
 
@@ -204,8 +235,9 @@ def _bloco_desvios(p: Parametros) -> dict:
     desvios = [d for d in (
         _desvio("janela", p.rotulo_janela, config.JANELA_DEFAULT, "janela"),
         _desvio("criterio", p.criterio, config.GATILHO_DEFAULT, "critério", _nivel_fmt),
-        _desvio("referencia", p.referencia, config.ALVO_DEFAULT, "referência", _nivel_fmt),
-        _desvio("confianca", p.confianca, config.NIVEL_CONFIANCA_DEFAULT, "confiança", pct),
+        # o padrão da referência é o critério ativo (o piso), não um percentil fixo
+        _desvio("referencia", p.referencia, p.criterio, "referência", _nivel_fmt),
+        _desvio("confianca", p.confianca, config.AJUSTE_CONFIANCA_DEFAULT, "confiança", _conf_fmt),
         _desvio("piso", p.piso, config.PISO_CONSULTAS_ANO["_default"], "volume mínimo"),
         _desvio("n_minimo", p.n_minimo, config.N_MINIMO_PEER_GROUP, "n mínimo"),
     ) if d]
@@ -281,9 +313,11 @@ def _faixa_criterios(p: Parametros, desvios: list[dict]) -> list[dict]:
     meses = config.JANELAS_UI.get(p.rotulo_janela)
     pares = [
         ("janela", "Janela", f"{meses} meses" if meses else p.rotulo_janela),
+        # o CRITÉRIO (quem entra) antes da referência (de onde se mede):
+        # a ordem em que a pergunta acontece (decisão do usuário, 13/set/2026)
         ("criterio", "Critério de revisão", _nivel_fmt(p.criterio)),
         ("referencia", "Referência do grupo", _nivel_fmt(p.referencia)),
-        ("confianca", "Confiança exigida", f"{p.confianca:.0%}"),
+        ("confianca", "Ajuste de confiança", _conf_fmt(p.confianca)),
         ("piso", "Volume mínimo", f"{p.piso} {UNIDADE_PISO}"),
         ("n_minimo", "Solicitantes mín.", f"{p.n_minimo} por procedimento"),
     ]
@@ -297,7 +331,7 @@ def _proveniencia(p: Parametros, resultado: dict) -> dict:
     return {
         "carimbo": apr.carimbo_proveniencia(p.janela_ini, p.janela_fim, resultado["base"],
                                             _nivel_fmt(p.criterio), _nivel_fmt(p.referencia),
-                                            p.confianca),
+                                            _conf_fmt(p.confianca)),
         # A RÉGUA ATIVA — o que o analista escolheu e pode mudar. É isto que sobe
         # para a barra superior. Pipeline, período, base e versão da classificação
         # NÃO entram aqui: são carimbo de proveniência, e o léxico os define como
@@ -305,13 +339,13 @@ def _proveniencia(p: Parametros, resultado: dict) -> dict:
         "chips_criterio": [
             {"rotulo": f"critério {_nivel_fmt(p.criterio)}", "alerta": False},
             {"rotulo": f"referência {_nivel_fmt(p.referencia)}", "alerta": False},
-            {"rotulo": f"confiança {p.confianca:.0%}", "alerta": False},
+            {"rotulo": f"confiança {_conf_fmt(p.confianca)}", "alerta": False},
             {"rotulo": f"janela {p.rotulo_janela}", "alerta": False},
         ],
         "tags": [
             {"rotulo": f"critério {_nivel_fmt(p.criterio)}", "alerta": False},
             {"rotulo": f"referência {_nivel_fmt(p.referencia)}", "alerta": False},
-            {"rotulo": f"confiança {p.confianca:.0%}", "alerta": False},
+            {"rotulo": f"confiança {_conf_fmt(p.confianca)}", "alerta": False},
             {"rotulo": f"pipeline {config.PIPELINE_VERSAO}", "alerta": False},
             {"rotulo": f"dados {p.janela_ini} → {p.janela_fim}", "alerta": False},
             {"rotulo": "base eletiva" if not p.incluir_ps else "PS incluído",
@@ -343,7 +377,7 @@ def _rodar(p: Parametros) -> dict:
     (cache quente entre áreas)."""
     return dados.rodar_pipeline(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo, None,
-        p.criterio, p.referencia, p.incluir_ps)
+        p.criterio, p.referencia, p.incluir_ps, confianca=p.confianca)
 
 
 def _norma_linha(resultado: dict, area: str):
@@ -463,7 +497,7 @@ def _agrupar_areas(areas: list[dict]) -> list[dict]:
 @lru_cache(maxsize=32)
 def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
                   n_minimo: int, criterio: str, referencia: str,
-                  incluir_ps: bool) -> dict:
+                  incluir_ps: bool, confianca: float | None = None) -> dict:
     """A cascata de qualificação da área, os degraus que viram chips.
 
     Roda os motores que os degraus exigem (persistência, execução para os
@@ -472,7 +506,7 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
     régua paga o bootstrap; as seguintes são instantâneas.
     """
     r = dados.rodar_pipeline(janela_ini, janela_fim, piso, n_minimo, None,
-                             criterio, referencia, incluir_ps)
+                             criterio, referencia, incluir_ps, confianca=confianca)
     posicao = r["posicao"][r["posicao"]["AREA_ATUACAO"] == area]
     posproc = r["posicao_proc"][r["posicao_proc"]["AREA_ATUACAO"] == area]
     sinal = filtrar_sinalizados(posproc)
@@ -481,7 +515,7 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
     fatias = dados.fatiar_trimestres(janela_ini, janela_fim)
     persist = None
     if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
-        pers = dados.rodar_persistencia(fatias, piso, n_minimo, criterio,
+        pers = dados.rodar_persistencia(janela_ini, janela_fim, piso, n_minimo, criterio,
                                         referencia, None,
                                         config.MIN_JANELAS_AVALIAVEIS, incluir_ps)
         pp = pers["por_procedimento"]
@@ -490,7 +524,7 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
     # fatores de contexto verificados (urgência na solicitação, regime na execução)
     re_ = dados.rodar_pipeline_execucao(
         janela_ini, janela_fim, piso, n_minimo, config.PISO_EXECUCOES_ANO,
-        config.Q_CONFUNDIDOR, None, criterio, referencia, incluir_ps)
+        config.Q_CONFUNDIDOR, None, criterio, referencia, incluir_ps, confianca=confianca)
     perfil, resumo = re_["perfil_execucao"], re_["resumo_coop"]
     confundidores = (set(perfil.loc[perfil["confundidor_regime"], "ID_COOPERADO"])
                      | set(resumo.loc[resumo["confundidor_urgencia"].fillna(False),
@@ -514,8 +548,6 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
             incluir_ps=incluir_ps)
 
     q = cascata.qualificar(sinal, persist, len(fatias), confundidores, conf)
-    linhas_funil = cascata.funil(q, n_medidos)
-    escolha = cascata.escolher_default(linhas_funil)
 
     # impacto em R$: excedente × preço mediano derivado das contas. ESTIMATIVA
     # (decisão 2026-08-13: volta à tela rotulada como estimativa com preço
@@ -556,6 +588,25 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
                   if len(rs) else {})
     reais_proc = (rs.groupby("CD_PROCEDIMENTO")["excedente_reais"].sum().to_dict()
                   if len(rs) else {})
+    # a parte medida com REFERÊNCIA DA ESPECIALIDADE (segundo nível): viaja
+    # separada em toda soma, porque o total nunca aparece sem a divisão (LEXICO)
+    _esp = rs[rs["nivel_referencia"] == config.NIVEL_REFERENCIA_ESPECIALIDADE] if len(rs) else rs
+    reais_coop_esp = (_esp.groupby("ID_COOPERADO")["excedente_reais"].sum().to_dict()
+                      if len(_esp) else {})
+    reais_proc_esp = (_esp.groupby("CD_PROCEDIMENTO")["excedente_reais"].sum().to_dict()
+                      if len(_esp) else {})
+    excedente_reais_esp = float(_esp["excedente_reais"].sum()) if len(_esp) else 0.0
+    # com AJUSTE DE CONFIANÇA (doc §8): o medido e a parte que ficou sem ajuste
+    # por poucos pacientes, para a ficha do número dizer os dois
+    reais_coop_medido = (rs.groupby("ID_COOPERADO")["excedente_reais_medido"].sum().to_dict()
+                         if len(rs) else {})
+    _sem = rs[rs["ajuste_confianca"] == "medido"] if len(rs) and confianca is not None else rs.iloc[0:0]
+    reais_coop_sem_ajuste = (_sem.groupby("ID_COOPERADO")["excedente_reais"].sum().to_dict()
+                             if len(_sem) else {})
+    # o funil soma por COOPERADO e com o MESMO R$ da bancada (cascata.funil):
+    # o painel "como esta lista foi filtrada" e a Leitura dizem um número só
+    linhas_funil = cascata.funil(q, n_medidos, reais_coop, reais_coop_esp)
+    escolha = cascata.escolher_default(linhas_funil)
 
     # ── o piso (segunda passada, contra o critério) ──────────────────────────
     # A passada acima mede o excedente contra a REFERÊNCIA de adequação (alvo
@@ -578,7 +629,7 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
     if referencia != criterio:
         re_piso = dados.rodar_pipeline_execucao(
             janela_ini, janela_fim, piso, n_minimo, config.PISO_EXECUCOES_ANO,
-            config.Q_CONFUNDIDOR, None, criterio, criterio, incluir_ps)
+            config.Q_CONFUNDIDOR, None, criterio, criterio, incluir_ps, confianca=confianca)
         rp = re_piso["posicao_proc_rs"]
         rs_piso = filtrar_sinalizados(rp[rp["AREA_ATUACAO"] == area],
                                       exigir_preco=True)
@@ -601,7 +652,13 @@ def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
             "por_cooperado": por_cooperado,
             "confundidores": sorted(confundidores),
             "excedente_reais": excedente_reais,
+            "excedente_reais_especialidade": excedente_reais_esp,
             "excedente_reais_coop": reais_coop,
+            "excedente_reais_coop_especialidade": reais_coop_esp,
+            "excedente_reais_coop_medido": reais_coop_medido,
+            "excedente_reais_coop_sem_ajuste": reais_coop_sem_ajuste,
+            "confianca": confianca,
+            "excedente_reais_proc_especialidade": reais_proc_esp,
             # a mesma soma medida até o critério (não usada pela tela hoje)
             "excedente_reais_coop_piso": reais_coop_piso,
             "excedente_reais_proc": reais_proc,
@@ -682,11 +739,16 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
                      for l in linhas_coop}
     cards = blocos.cards_do_recorte(casc["excedente_reais_coop"],
                                     itens_por_coop, ids, rotulo,
-                                    n_comparaveis, base_por_coop)
+                                    n_comparaveis, base_por_coop,
+                                    casc["excedente_reais_coop_especialidade"],
+                                    reais_medido_por_coop=casc["excedente_reais_coop_medido"],
+                                    reais_sem_ajuste_por_coop=casc["excedente_reais_coop_sem_ajuste"],
+                                    confianca=casc["confianca"])
     sem_regua = (contexto or {}).get("gatilho") is None
     par_coop = blocos.pareto_cooperados(
         casc["excedente_reais_coop"], linhas_coop, ids, None,
-        casc["valor_total_coop"], sem_regua=sem_regua)
+        casc["valor_total_coop"], sem_regua=sem_regua,
+        reais_coop_esp=casc["excedente_reais_coop_especialidade"])
     # a concentração e o custo total saem do PARETO já montado: um número, um
     # lugar. O de custo total é a soma das linhas na ordem "custo".
     _exc = (par_coop.get("dados") or {}).get("excedente") or {}
@@ -761,7 +823,10 @@ def _chips_cascata(casc: dict) -> list[dict]:
     return [
         {"chave": d["chave"], "rotulo": d["rotulo"], "descricao": d["definicao"],
          "natureza": d["natureza"], "n": d["n_cooperados"], "n_pares": d["n_pares"],
-         "excedente_itens": d["excedente_itens"], "default": d["chave"] == padrao}
+         "excedente_itens": d["excedente_itens"],
+         "excedente_reais": d["excedente_reais"],
+         "excedente_reais_especialidade": d["excedente_reais_especialidade"],
+         "default": d["chave"] == padrao}
         for d in ordem_estrito_primeiro
     ]
 
@@ -834,10 +899,10 @@ def panorama(p: ParametrosDep,
     # do % excedente continua sendo o custo dos comparáveis (mesma população
     # do numerador; rigor-estatistico §9).
     custos = dados.custo_por_area(p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
-                                  p.criterio, p.referencia, p.incluir_ps)
+                                  p.criterio, p.referencia, p.incluir_ps, confianca=p.confianca)
     custos_comp = dados.custo_por_area(p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
                                        p.criterio, p.referencia, p.incluir_ps,
-                                       so_comparaveis=True)
+                                       so_comparaveis=True, confianca=p.confianca)
 
     totais = {a["id"]: {"custo_total": custos.get(a["nome"]),
                         "custo_comparaveis": custos_comp.get(a["nome"])}
@@ -849,10 +914,15 @@ def panorama(p: ParametrosDep,
     pares, rs_pares, confs, custo_pares = [], [], [], []
     reais_coop, custos_coop, area_do_coop = {}, {}, {}
     for a in _todas:
-        if not a["comparavel"]:
+        # Desde 13/set/2026 TODA área com pares entra, e não só as comparáveis:
+        # a área sem referência própria tem os pares medidos contra a
+        # especialidade (com a etiqueta), e deixá-la de fora do Panorama seria
+        # cegueira (Lei 5). Só a classificação pendente fica fora, porque não
+        # tem grupo de pares em nível nenhum (METODOLOGIA §6.2).
+        if a["nome"] == config.AREA_INDEFINIDA:
             continue
         casc = _cascata_area(a["nome"], p.janela_ini, p.janela_fim, p.piso,
-                             p.n_minimo, p.criterio, p.referencia, p.incluir_ps)
+                             p.n_minimo, p.criterio, p.referencia, p.incluir_ps, p.confianca)
         por_degrau = {d["chave"]: d for d in casc["funil"]}
         medidos = por_degrau.get(cascata.DEGRAUS[0][0], {})
         # CASOS QUALIFICADOS, e não "acima do critério": este segundo degrau
@@ -867,6 +937,10 @@ def panorama(p: ParametrosDep,
             # alcance da medição, e o recorte é assunto da fila (etapa 2)
             "excedente_itens": float(medidos.get("excedente_itens") or 0.0),
             "excedente_reais": float(casc["excedente_reais"] or 0.0),
+            "excedente_reais_especialidade": float(casc["excedente_reais_especialidade"] or 0.0),
+            "excedente_reais_medido": float(sum(casc["excedente_reais_coop_medido"].values())),
+            "excedente_reais_sem_ajuste": float(sum(casc["excedente_reais_coop_sem_ajuste"].values())),
+            "confianca": casc["confianca"],
             "n_qualificados": int(qualificados.get("n_cooperados") or 0),
             "n_pares_qualificados": int(qualificados.get("n_pares") or 0),
             "n_com_excedente": sum(
@@ -901,9 +975,9 @@ def panorama(p: ParametrosDep,
         bloco["concentracao"] = blocos.concentracao_da_especialidade(
             reais_coop, custos_coop, area_do_coop,
             {a["titulo"]: totais[a["id"]]["excedente_reais"] for a in _todas
-             if a["comparavel"]},
+             if "excedente_reais" in totais[a["id"]]},
             {a["titulo"]: totais[a["id"]].get("custo_total") or 0.0
-             for a in _todas if a["comparavel"]})
+             for a in _todas if "excedente_reais" in totais[a["id"]]})
         bloco["transversais"] = blocos.procedimentos_transversais(
             pd.concat(rs_pares),
             pd.concat(custo_pares) if any(len(c) for c in custo_pares) else None)
@@ -973,30 +1047,39 @@ def meta(p: ParametrosDep) -> dict[str, Any]:
                                            _nivel_fmt),
                          "ativo": p.criterio, "recomendado": config.GATILHO_DEFAULT,
                          "rotulo": "Critério de revisão",
-                         "ajuda": ("Distância dos pares a partir da qual o "
-                                   "cooperado entra na lista.")},
+                         "ajuda": ("Nível do grupo a partir do qual o cooperado "
+                                   "entra na lista de revisão. Nunca abaixo da "
+                                   "referência.")},
+            # o recomendado SEGUE O CRITÉRIO ativo (o piso): um recomendado
+            # fixo em P90 ficava proibido no instante em que o critério descia
+            # a P75, e o diálogo voltava para ele
             "referencia": {"opcoes": _opcoes(
                 [a for a in config.ALVOS_UI
-                 if _ORDEM_NIVEL[a] <= _ORDEM_NIVEL[p.criterio]], config.ALVO_DEFAULT,
+                 if _ORDEM_NIVEL[a] <= _ORDEM_NIVEL[p.criterio]], p.criterio,
                 _nivel_fmt),
-                "ativo": p.referencia, "recomendado": config.ALVO_DEFAULT,
+                "ativo": p.referencia, "recomendado": p.criterio,
                 "rotulo": "Referência do grupo",
                 # A terceira frase ("Nunca acima do critério de revisão") saiu
                 # em 2026-09-07: o próprio controle já a cumpre — `opcoes` só
                 # oferece alvos <= o critério ativo, e com P75 escolhido o P90
                 # nem aparece no seletor. A frase avisava de uma escolha que a
                 # tela não deixa fazer.
-                "ajuda": ("Ponto tomado como uso adequado; é dele que se mede o "
-                          "excedente."),
+                "ajuda": ("Nível do grupo considerado uso adequado. O custo "
+                          "excedente é o que passa desse nível."),
                 "regra": "sempre ≤ critério de revisão"},
-            "confianca": {"opcoes": _opcoes(config.NIVEIS_CONFIANCA_UI,
-                                            config.NIVEL_CONFIANCA_DEFAULT,
-                                            lambda v: f"{v:.0%}"),
-                          "ativo": p.confianca,
-                          "recomendado": config.NIVEL_CONFIANCA_DEFAULT,
-                          "rotulo": "Confiança exigida",
-                          "ajuda": ("Margem para afirmar que a diferença não é "
-                                    "do acaso.")},
+            # os VALORES viajam como texto de URL ('medido', '0.9'): é o que o
+            # diálogo devolve na query, e o que _parse_confianca lê de volta
+            "confianca": {"opcoes": [{"valor": CONFIANCA_MEDIDO, "rotulo": "Valor medido",
+                                      "recomendado": True}]
+                          + [{"valor": str(v), "rotulo": f"{v:.0%}", "recomendado": False}
+                             for v in config.NIVEIS_CONFIANCA_UI],
+                          "ativo": CONFIANCA_MEDIDO if p.confianca is None else str(p.confianca),
+                          "recomendado": CONFIANCA_MEDIDO,
+                          "rotulo": "Ajuste de confiança",
+                          "ajuda": ("Sem ajuste, o excesso exibido corresponde ao valor "
+                                    "observado. Com o ajuste, apenas a parcela do excesso "
+                                    "compatível com o nível de confiança selecionado é "
+                                    "considerada.")},
             # Controles numéricos viajam com as RESTRIÇÕES (minimo/maximo/passo/
             # unidade) ao lado de ativo/recomendado. O front não conhece regra
             # nenhuma — desenha o que recebe e valida contra o que recebe. Os
@@ -1067,7 +1150,7 @@ def procedimentos_indice(p: ParametrosDep) -> dict[str, Any]:
                  if a["comparavel"]}
     re_ = dados.rodar_pipeline_execucao(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
-        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps)
+        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps, confianca=p.confianca)
     bloco = blocos.indice_de_procedimentos(re_["posicao_proc_rs"], com_regua)
     bloco["proveniencia"] = _proveniencia(p, r)
     return bloco
@@ -1092,7 +1175,7 @@ def procedimento_retrato(
                  if a["comparavel"]}
     re_ = dados.rodar_pipeline_execucao(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
-        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps)
+        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps, confianca=p.confianca)
     bloco = blocos.retrato_do_procedimento(
         re_["posicao_proc_rs"], re_["norma_proc"], cd, com_regua,
         p.criterio, p.referencia, p.n_minimo)
@@ -1131,7 +1214,7 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
     custo_coop = dados.rodar_pipeline_execucao(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
         config.Q_CONFUNDIDOR, None, p.criterio, p.referencia,
-        p.incluir_ps)["custo_coop"].set_index("ID_COOPERADO").to_dict("index")
+        p.incluir_ps, confianca=p.confianca)["custo_coop"].set_index("ID_COOPERADO").to_dict("index")
     cls = dados.carregar_classificacao()
 
     def ordem(id_coop: str) -> tuple:
@@ -1210,8 +1293,8 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
     rotulos_tri = [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias]
     if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
         pers = dados.rodar_persistencia(
-            fatias, p.piso, p.n_minimo, p.criterio, p.referencia, None,
-            config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
+            p.janela_ini, p.janela_fim, p.piso, p.n_minimo, p.criterio,
+            p.referencia, None, config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
         pp = pers["por_procedimento"]
         da_area = pp["ID_COOPERADO"].isin(posicao["ID_COOPERADO"])
         pj = pers["por_janela"]
@@ -1243,9 +1326,10 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
         dados.rodar_custo_mensal(p.janela_ini, p.janela_fim, nome, p.incluir_ps),
         p.janela_ini, p.janela_fim,
         blocos.evolucao_da_area(pj_area, cpj, rotulos_tri, resto_dias))
+    evolucao = blocos.nota_sem_ajuste_na_serie(evolucao, p.confianca)
 
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
-                         p.criterio, p.referencia, p.incluir_ps)
+                         p.criterio, p.referencia, p.incluir_ps, p.confianca)
 
     # ── evidência por cooperado ──────────────────────────────────────────────
     # As três são AGREGAÇÃO do que os motores já produziram: nenhuma mede nada
@@ -1263,14 +1347,18 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
     custo_coop = dados.rodar_pipeline_execucao(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
         config.Q_CONFUNDIDOR, None, p.criterio, p.referencia,
-        p.incluir_ps)["custo_coop"].set_index("ID_COOPERADO").to_dict("index")
+        p.incluir_ps, confianca=p.confianca)["custo_coop"].set_index("ID_COOPERADO").to_dict("index")
 
     linhas_coop = sorted(
         blocos.linhas_cooperados(posicao, norma_linha, gatilho, classificacao,
                                  sinal, persistencia, len(fatias), rotulos_posicao,
                                  casc["por_cooperado"], origem, concentracao,
                                  serie, dados.exclusao_por_par(),
-                                 casc["excedente_reais_coop"], custo_coop),
+                                 casc["excedente_reais_coop"], custo_coop,
+                                 reais_coop_esp=casc["excedente_reais_coop_especialidade"],
+                                 reais_coop_medido=casc["excedente_reais_coop_medido"],
+                                 reais_coop_sem_ajuste=casc["excedente_reais_coop_sem_ajuste"],
+                                 confianca=casc["confianca"]),
         key=lambda linha: (-(linha["excedente_itens"] or 0), -linha["indice"]))
 
     rotulo_titulo = apr.rotulo_exibicao(nome)
@@ -1427,8 +1515,7 @@ def area(area_id: Annotated[str, PathParam(description="id da área (slug), de /
             "resto_dias_fora": resto_dias,
             "motivo": (None if persistencia is not None else
                        f"a janela comporta {len(fatias)} trimestre(s) completo(s), "
-                       f"mínimo de {config.MIN_JANELAS_AVALIAVEIS} para a "
-                       "consistência ser reportável"),
+                       "poucos para a consistência ser reportável"),
         },
         "caption": ("Todos os números desta tela são calculados apenas entre os "
                     "cooperados desta área de atuação. Quem aparece acima do "
@@ -1488,13 +1575,13 @@ def area_procedimentos(area_id: Annotated[str, PathParam(description="id da áre
     # execução em cache — nada nasce aqui
     re_ = dados.rodar_pipeline_execucao(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
-        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps)
+        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps, confianca=p.confianca)
     rs = re_["posicao_proc_rs"]
     rs = filtrar_sinalizados(rs[rs["AREA_ATUACAO"] == nome], exigir_preco=True)
 
     # ── o recorte, que só alcança o achado ───────────────────────────────────
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
-                         p.criterio, p.referencia, p.incluir_ps)
+                         p.criterio, p.referencia, p.incluir_ps, p.confianca)
     ids, rotulo_rec = _em_cena(recorte, _linhas_para_recorte(posicao, casc))
     # o R$ por procedimento é achado, e é cortado pelo MESMO conjunto que corta
     # as demais colunas de achado — dois cortes diferentes na mesma linha
@@ -1566,15 +1653,21 @@ def area_painel_procedimento(
 
     # ── o recorte, o MESMO da tabela ─────────────────────────────────────────
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
-                         p.criterio, p.referencia, p.incluir_ps)
+                         p.criterio, p.referencia, p.incluir_ps, p.confianca)
     ids, rotulo_rec = _em_cena(recorte, _linhas_para_recorte(posicao, casc))
     em_cena = do_proc[do_proc["ID_COOPERADO"].isin(ids)]
 
     # ── DISTRIBUIÇÃO: régua, e por isso sobre os FORMADORES, não sobre o
     # recorte. Recalculá-la no recorte reconstruiria a norma sobre quem foi
     # filtrado, que é exatamente o que a lei 0 proíbe.
-    formadores = do_proc[do_proc["elegivel_norma"].astype(bool)
-                         & do_proc["avaliavel"].astype(bool)]
+    # Com REFERÊNCIA DA ESPECIALIDADE, os formadores são os da especialidade
+    # inteira: a caixa desenhada tem de ser a mesma régua que mediu o par.
+    nivel_esp = (linha_norma is not None
+                 and linha_norma.get("nivel_referencia") == config.NIVEL_REFERENCIA_ESPECIALIDADE)
+    _base_ref = (r["posicao_proc"][r["posicao_proc"]["CD_PROCEDIMENTO"] == cd]
+                 if nivel_esp else do_proc)
+    formadores = _base_ref[_base_ref["elegivel_norma"].astype(bool)
+                           & _base_ref["avaliavel"].astype(bool)]
     gat = (str(linha_norma["gatilho_usado"])
            if linha_norma is not None and "gatilho_usado" in linha_norma
            and pd.notna(linha_norma.get("gatilho_usado")) else None)
@@ -1582,7 +1675,7 @@ def area_painel_procedimento(
         g_par = do_proc.iloc[0].get("gatilho_usado")
         gat = None if pd.isna(g_par) else str(g_par)
     alvo = str(do_proc.iloc[0].get("alvo_usado") or p.referencia)
-    n_area = int(posicao["avaliavel"].astype(bool).sum())
+    n_area = int((r["posicao"] if nivel_esp else posicao)["avaliavel"].astype(bool).sum())
     # a distribuição é montada DEPOIS do achado: a rampa de cor dos pontos é a
     # ordem dos excedentes, e é ela que faz o gráfico e a lista concordarem
     # sobre quem importa (ver `distribuicao_do_procedimento`)
@@ -1595,7 +1688,7 @@ def area_painel_procedimento(
     sinal = filtrar_sinalizados(em_cena)
     re_ = dados.rodar_pipeline_execucao(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo, config.PISO_EXECUCOES_ANO,
-        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps)
+        config.Q_CONFUNDIDOR, None, p.criterio, p.referencia, p.incluir_ps, confianca=p.confianca)
     rs_all = re_["posicao_proc_rs"]
     rs_proc = rs_all[(rs_all["AREA_ATUACAO"] == nome)
                      & (rs_all["CD_PROCEDIMENTO"] == cd)]
@@ -1663,7 +1756,12 @@ def area_painel_procedimento(
         distribuicao, nucleo, acima, peso, repeticao, autorref,
         None if linha_norma is None else {
             "apresentavel": bool(linha_norma["apresentavel"]),
-            "rotulo": ("sólida" if linha_norma["apresentavel"]
+            "nivel_referencia": (None if not linha_norma["apresentavel"]
+                                 else str(linha_norma["nivel_referencia"])),
+            "referencia_especialidade": blocos.referencia_da_especialidade(
+                apr.rotulo_exibicao(nome), linha_norma),
+            "rotulo": (config.ROTULO_REFERENCIA_ESPECIALIDADE if nivel_esp else
+                       "sólida" if linha_norma["apresentavel"]
                        else "referência não conclusiva"),
             "n_solicitantes": int(linha_norma["n_solicitantes_elegiveis"]),
             "prevalencia_fmt": blocos.fmt_pct(float(linha_norma["prevalencia"])),
@@ -1683,7 +1781,7 @@ def area_painel_procedimento(
     fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
     evolucao = None
     if preco and len(fatias) >= config.MIN_JANELAS_AVALIAVEIS and ids_sinal:
-        pers = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
+        pers = dados.rodar_persistencia(p.janela_ini, p.janela_fim, p.piso, p.n_minimo, p.criterio,
                                         p.referencia, None,
                                         config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
         evolucao = blocos.evolucao_do_procedimento(
@@ -1692,7 +1790,9 @@ def area_painel_procedimento(
             pers.get("por_janela_cooperado"), ids_sinal, preco,
             referencia_val, referencia_val is not None,
             [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias],
-            dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim))
+            dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim),
+            nivel_referencia=(None if linha_norma is None
+                              else linha_norma.get("nivel_referencia")))
     painel["evolucao"] = evolucao
 
     # REPARTIÇÃO ETÁRIA das solicitações do procedimento na área: contexto,
@@ -1741,7 +1841,7 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
                                                 p.incluir_ps)
 
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
-                         p.criterio, p.referencia, p.incluir_ps)
+                         p.criterio, p.referencia, p.incluir_ps, p.confianca)
     posproc = r["posicao_proc"]
     posproc_coop = posproc[(posproc["AREA_ATUACAO"] == nome)
                            & (posproc["ID_COOPERADO"] == cooperado_id)]
@@ -1750,7 +1850,7 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
     persist_coop = None
     trimestral = None
     if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
-        pers = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
+        pers = dados.rodar_persistencia(p.janela_ini, p.janela_fim, p.piso, p.n_minimo, p.criterio,
                                         p.referencia, None,
                                         config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
         pp = pers["por_procedimento"]
@@ -1770,10 +1870,10 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
     # Fora do `if` pela mesma razão de lá: o custo do mês é soma de solicitações
     # valoradas e existe em qualquer janela; o excedente é que depende de
     # trimestre fechado. Na janela de 3m o dossiê ficava sem série nenhuma.
-    evolucao = blocos.evolucao_mensal(
+    evolucao = blocos.nota_sem_ajuste_na_serie(blocos.evolucao_mensal(
         dados.rodar_custo_mensal(p.janela_ini, p.janela_fim, None,
                                  p.incluir_ps, cooperado=cooperado_id),
-        p.janela_ini, p.janela_fim, trimestral)
+        p.janela_ini, p.janela_fim, trimestral), p.confianca)
 
     pares, conf = casc.get("pares"), casc.get("conf")
     pares_coop = (pares[pares["ID_COOPERADO"] == cooperado_id]
@@ -1784,7 +1884,7 @@ def cooperado_dossie(cooperado_id: Annotated[str, PathParam(description="id do c
     re_ = dados.rodar_pipeline_execucao(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
         config.PISO_EXECUCOES_ANO, config.Q_CONFUNDIDOR, None,
-        p.criterio, p.referencia, p.incluir_ps)
+        p.criterio, p.referencia, p.incluir_ps, confianca=p.confianca)
     rs = re_["posicao_proc_rs"]
     rs_coop = filtrar_sinalizados(
         rs[(rs["AREA_ATUACAO"] == nome) & (rs["ID_COOPERADO"] == cooperado_id)],
@@ -1920,14 +2020,17 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
     # O p25 não viaja em norma_proc (que carrega mediana/p75/p90): sai da MESMA
     # população que produziu os outros percentis — os formadores da norma neste
     # procedimento —, nunca de outra amostra.
-    do_proc = posproc[(posproc["AREA_ATUACAO"] == nome)
-                      & (posproc["CD_PROCEDIMENTO"] == cd)]
+    # Com REFERÊNCIA DA ESPECIALIDADE, a régua é a da especialidade inteira: a
+    # caixa desenhada tem de ser a mesma que mediu o par, nunca a da área.
+    nivel_esp = linha_par.get("nivel_referencia") == config.NIVEL_REFERENCIA_ESPECIALIDADE
+    do_proc = posproc[(posproc["CD_PROCEDIMENTO"] == cd)
+                      & ((posproc["AREA_ATUACAO"] == nome) | nivel_esp)]
     formadores = do_proc[do_proc["elegivel_norma"].astype(bool)
                          & do_proc["avaliavel"]]["taxa"]
     # QUANTOS cooperados a área tem, para o painel dizer "32 DE 63" em vez de um
     # 32 solto: sem o denominador, o leitor não sabe se 32 é a área inteira ou
     # um punhado dela.
-    n_area = int(pos_all[(pos_all["AREA_ATUACAO"] == nome)
+    n_area = int(pos_all[((pos_all["AREA_ATUACAO"] == nome) | nivel_esp)
                          & pos_all["avaliavel"].astype(bool)].shape[0])
     regua = None
     if (bool(linha_par["apresentavel"]) and bool(linha_par["avaliavel"])
@@ -1954,7 +2057,7 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
     fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
     serie = None
     if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
-        pers = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
+        pers = dados.rodar_persistencia(p.janela_ini, p.janela_fim, p.piso, p.n_minimo, p.criterio,
                                         p.referencia, None,
                                         config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
         pj = pers["por_janela"]
@@ -1962,7 +2065,7 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
             pj[pj["ID_COOPERADO"] == cooperado_id], cd, len(fatias))
 
     casc = _cascata_area(nome, p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
-                         p.criterio, p.referencia, p.incluir_ps)
+                         p.criterio, p.referencia, p.incluir_ps, p.confianca)
     conf = casc.get("conf")
     conf_row = None
     if conf is not None and len(conf):
@@ -1975,7 +2078,7 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
     re_ = dados.rodar_pipeline_execucao(
         p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
         config.PISO_EXECUCOES_ANO, config.Q_CONFUNDIDOR, None,
-        p.criterio, p.referencia, p.incluir_ps)
+        p.criterio, p.referencia, p.incluir_ps, confianca=p.confianca)
     rs = re_["posicao_proc_rs"]
     linha_rs = rs[(rs["ID_COOPERADO"] == cooperado_id)
                   & (rs["CD_PROCEDIMENTO"] == cd)]
@@ -1992,7 +2095,7 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
     # as barras mostram só o custo, e o bloco declara isso.
     evolucao = None
     if preco and len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
-        pers_ev = dados.rodar_persistencia(fatias, p.piso, p.n_minimo, p.criterio,
+        pers_ev = dados.rodar_persistencia(p.janela_ini, p.janela_fim, p.piso, p.n_minimo, p.criterio,
                                            p.referencia, None,
                                            config.MIN_JANELAS_AVALIAVEIS,
                                            p.incluir_ps)
@@ -2006,7 +2109,8 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
             float(linha_par[alvo_col]) if pd.notna(linha_par.get(alvo_col)) else None,
             mede,
             [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias],
-            dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim))
+            dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim),
+            nivel_referencia=linha_par.get("nivel_referencia"))
 
     # REPARTIÇÃO ETÁRIA das solicitações deste exame: contexto, nunca cálculo.
     # A do cooperado e a da área saem da mesma chamada, sob a mesma janela e o
@@ -2018,8 +2122,12 @@ def painel_procedimento(cooperado_id: Annotated[str, PathParam(description="id d
         cd, str(linha_par.get("DS_PROCEDIMENTO", config.SEM_MEDIDA)).strip(),
         conc_row, pacientes, autorref_row, regua, serie,
         blocos._confianca_do_par(conf_row), linha_par, conc_row, preco, total_coop)
-    painel["evolucao"] = evolucao
+    painel["evolucao"] = blocos.nota_sem_ajuste_na_serie(evolucao, p.confianca)
     painel["faixas"] = faixas
+    # o bloco fixo da referência da especialidade, quando o par foi medido
+    # contra ela (LEXICO: em todo lugar onde o número aparece)
+    painel["referencia_especialidade"] = blocos.referencia_da_especialidade(
+        apr.rotulo_exibicao(nome), linha_par)
     return painel
 
 
@@ -2269,12 +2377,6 @@ def tela_cooperado(cooperado_id: str):
     O nome da rota é a COISA (cooperado), não a tela (dossiê) — é o que a API
     já expunha em /api/cooperado/{id}, e é o que sobrevive a um redesenho.
     """
-    return FileResponse(PAGINA)
-
-
-@app.get("/metodologia", include_in_schema=False)
-def tela_metodologia():
-    """Nota metodológica: o método e as defesas escritas (espec §4)."""
     return FileResponse(PAGINA)
 
 

@@ -644,10 +644,18 @@ export async function abrirPainelDoExame(destino, area, linha, recorte,
      linha clicada fica atrás da gaveta. Uma linha, não uma seção. */
   if (d.qualidade) {
     const ident = el('div', 'pnl-ent');
+    const esp = d.qualidade.referencia_especialidade;
     ident.appendChild(el('span', 'sub',
       `${d.qualidade.prevalencia_fmt} dos comparáveis solicitam · referência `
-      + `${d.qualidade.rotulo} com ${d.qualidade.n_solicitantes} solicitantes`
+      + `${esp ? 'da especialidade' : d.qualidade.rotulo} com ${d.qualidade.n_solicitantes} solicitantes`
       + (d.recorte?.rotulo ? ` · em cena: ${d.recorte.rotulo} (${d.recorte.n})` : '')));
+    /* a etiqueta e o texto fixo, quando a referência é a da especialidade */
+    if (esp) {
+      const t = el('span', 'tag tag-ref', esp.etiqueta);
+      t.title = esp.texto;
+      ident.appendChild(t);
+      for (const par of esp.paragrafos ?? [esp.texto]) ident.appendChild(el('span', 'sub', par));
+    }
     corpo.appendChild(ident);
   }
 

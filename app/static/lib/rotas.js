@@ -11,7 +11,6 @@
  *     /cooperado/{id}       Dossiê do cooperado
  *     /procedimentos        Índice de procedimentos (a porta para um SADT)
  *     /procedimento/{cd}    O procedimento na especialidade inteira
- *     /metodologia          Nota metodológica
  *     /conta                Minha conta (identidade e segurança da sessão)
  *
  * `/cooperados` no plural é a COLEÇÃO e `/cooperado/{id}` é UM. Menu nomeia
@@ -38,7 +37,6 @@ export const TELAS = {
   procedimentos: { rotulo: 'Procedimentos', caminho: () => '/procedimentos' },
   procedimento: { rotulo: 'Procedimento',
                   caminho: (cd) => `/procedimento/${encodeURIComponent(cd)}` },
-  metodologia: { rotulo: 'Nota Metodológica', caminho: () => '/metodologia' },
   /* Não está na navegação lateral: a porta é o bloco de conta do rodapé. Entra
      aqui porque a migalha e `inicio.js` leem deste mapa. */
   conta: { rotulo: 'Minha Conta', caminho: () => '/conta' },
@@ -58,7 +56,6 @@ export function rotaAtual() {
   if (raiz === 'cooperado') return { tela: 'cooperado', cooperado: alvo };
   if (raiz === 'procedimentos') return { tela: 'procedimentos' };
   if (raiz === 'procedimento') return { tela: 'procedimento', procedimento: alvo };
-  if (raiz === 'metodologia') return { tela: 'metodologia' };
   if (raiz === 'conta') return { tela: 'conta' };
   return { tela: null };
 }

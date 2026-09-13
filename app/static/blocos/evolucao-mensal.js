@@ -183,8 +183,16 @@ function montarCelula(cel, q) {
   if (q.exc_barra_pct != null) {
     const trilho = el('span', 'evom-fatia');
     const preenche = el('i');
-    preenche.style.width = `${q.exc_barra_pct}%`;
+    /* a parte da ESPECIALIDADE sai do cheio e entra hachurada no fim dele,
+       como na barra do Pareto e da série por trimestre */
+    const esp = q.exc_esp_barra_pct ?? 0;
+    preenche.style.width = `${q.exc_barra_pct - esp}%`;
     trilho.appendChild(preenche);
+    if (esp > 0) {
+      const hach = el('i', 'esp');
+      hach.style.width = `${esp}%`;
+      trilho.appendChild(hach);
+    }
     exc.appendChild(trilho);
   }
   /* A LINHA DE APOIO DO EXCEDENTE só existe se tiver o que dizer: sem fatia e

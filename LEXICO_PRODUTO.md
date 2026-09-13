@@ -31,6 +31,7 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 | exame (o objeto solicitado) | **procedimento** ·  ver a nota abaixo da tabela |
 | itens | **solicitações** (ou **eventos**) |
 | excedente | **variação excedente** (1ª menção: *variação de utilização acima da referência da área*) |
+| excedente apurado por trimestre (13/set/2026) | frase de apoio fixa: **soma dos trimestres acima da referência do período** |
 | oportunidade bruta/qualificada | **oportunidade identificada / qualificada** (manter) |
 | protocolo carimbado | **rotina na carteira** — sempre com o número ao lado: "74% da carteira vs 7% dos pares" |
 | padrão difuso | **variação difusa multiprocedimento** |
@@ -116,7 +117,10 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 | família de atendimento (v2) | **tipo de atendimento** |
 | gatilho degradado pelo n | **critério ajustado ao tamanho do grupo** |
 | bootstrap abaixo do portão | **intervalo não calculável** |
-| norma do procedimento com poucos solicitantes | **referência não conclusiva** |
+| norma do procedimento com poucos solicitantes (na área e na especialidade) | **referência não conclusiva** |
+| `nivel_referencia = "area"` | **referência da área** (o padrão, sem etiqueta) |
+| ajuste de confiança (13/set/2026) | controle **Ajuste de confiança**: opção padrão **Valor medido** (faixa: "Confiança sem ajuste"); com um nível, "Confiança 90%". Par que ficou no medido por poucos pacientes: etiqueta **sem ajuste de confiança**, motivo "Excesso apoiado em poucos pacientes. O valor mostrado é o medido, sem ajuste de confiança." A ficha do total traz "Valor medido" e "Com 90% de confiança". Nunca o mínimo de pacientes (critério interno) |
+| `nivel_referencia = "especialidade"` (13/set/2026) | **referência da especialidade**: etiqueta nas tabelas, painéis e carimbo; no Pareto, o trecho HACHURADO da barra e a caixa hachurada na legenda; todo total que a contém leva a divisão na DICA EM FICHA do número (R$ e % de cada nível, um por linha), nunca em texto sob o valor, que cortava a grade. Frase fixa que acompanha a etiqueta nos painéis e hovers: "Referência da especialidade aplicada devido ao volume insuficiente para uma referência própria." |
 | número que não pôde ser calculado | **não apurado** (`config.SEM_MEDIDA`) — era "sem medida" até set/2026, que soava como defeito do instrumento; o fato é que o número não foi levantado. Nunca travessão: travessão sozinho numa célula lê como zero |
 | percentil | sempre acompanhado da tradução: **"P92 · acima de 9 em cada 10 colegas da área"** |
 | valor padrão do parâmetro | **recomendado** ("P90 ✓ recomendado"; ao desviar, aviso discreto com ação de restaurar) |
@@ -154,8 +158,8 @@ Implementado em `apresentacao.traduzir_percentil`. A frase nasce no Python; a te
 - **Carimbo de proveniência** em todo número: `critério P90 · referência mediana ·
   confiança 90% · pipeline v0.9 · dados 2025-05→2026-04 · classificação v1.0
   (não homologada — validação clínica pendente)`.
-- **Nota metodológica** como página do app (a METODOLOGIA_ANALITICA renderizada) +
-  glossário com as definições formais — o "por quê" de cada número a um clique.
+- **Nota metodológica** como página do app: REMOVIDA em 13/set/2026. O "por quê" de
+  cada número vive nos hovers e fichas das telas; o método, em METODOLOGIA_ANALITICA.md.
 - **Trilha de auditoria** *(v1 — fora do MVP)*: quem alterou estado de caso, quando,
   com que justificativa. Desenhada, não implementada.
 - **Ciclo de governança da classificação**: vigência, revisão periódica, fluxo de

@@ -242,12 +242,14 @@ def janela_dados() -> tuple[str, str]:
 
 @lru_cache(maxsize=32)
 def rodar_pipeline(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
-                   area: str | None, gatilho: str, alvo: str, incluir_ps: bool):
-    """pipeline() do lado da solicitação, com exclusão por par ativa."""
+                   area: str | None, gatilho: str, alvo: str, incluir_ps: bool,
+                   confianca: float | None = None):
+    """pipeline() do lado da solicitação, com exclusão por par ativa.
+    `confianca` é o ajuste do excedente exibido (None = valor medido)."""
     return pl.pipeline(
         carregar_fato(), janela_ini, janela_fim, piso=piso, n_minimo=n_minimo,
         area=area, gatilho=gatilho, alvo=alvo, incluir_ps=incluir_ps,
-        exclusoes_por_par=exclusao_por_par(),
+        exclusoes_por_par=exclusao_por_par(), confianca=confianca,
     )
 
 
@@ -255,14 +257,16 @@ def rodar_pipeline(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
 def rodar_pipeline_execucao(janela_ini: str, janela_fim: str, piso: int,
                             n_minimo: int, piso_execucoes: int,
                             q_confundidor: float, area: str | None,
-                            gatilho: str, alvo: str, incluir_ps: bool):
-    """pipeline_execucao(): R$ derivado (quarentena) + confundidores."""
+                            gatilho: str, alvo: str, incluir_ps: bool,
+                            confianca: float | None = None):
+    """pipeline_execucao(): R$ derivado (quarentena) + confundidores.
+    `confianca` é o ajuste do excedente exibido (None = valor medido)."""
     return pl.pipeline_execucao(
         carregar_fato(), carregar_contas(), janela_ini, janela_fim,
         piso=piso, n_minimo=n_minimo, piso_execucoes=piso_execucoes,
         q_confundidor=q_confundidor, mapa_executantes=carregar_executantes(),
         area=area, gatilho=gatilho, alvo=alvo, incluir_ps=incluir_ps,
-        exclusoes_por_par=exclusao_por_par(),
+        exclusoes_por_par=exclusao_por_par(), confianca=confianca,
     )
 
 
@@ -342,18 +346,18 @@ def volume_do_par_por_trimestre(cooperado: str, cd: str, janelas: tuple,
 
 
 @lru_cache(maxsize=32)
-def rodar_persistencia(janelas: tuple, piso: int, n_minimo: int,
+def rodar_persistencia(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
                        gatilho: str, alvo: str, area: str | None,
                        min_janelas_avaliaveis: int, incluir_ps: bool):
-    """persistencia_temporal() sobre janelas disjuntas (tupla de (ini, fim)).
+    """persistencia_temporal() na janela inteira: o motor fatia por dentro, com
+    a MESMA régua anual que mede o excedente (METODOLOGIA §5.4.1).
 
     O PREÇO entra aqui, e não como argumento: uma tabela de preços não é
-    hashável e quebraria o `lru_cache`. A janela do preço é a união das fatias
-    (da primeira à última), a MESMA do resto da tela.
+    hashável e quebraria o `lru_cache`. A janela do preço é a da tela.
     """
-    precos = rodar_precos(janelas[0][0], janelas[-1][1]) if janelas else None
+    precos = rodar_precos(janela_ini, janela_fim)
     return pl.persistencia_temporal(
-        carregar_fato(), list(janelas), piso=piso, n_minimo=n_minimo,
+        carregar_fato(), janela_ini, janela_fim, piso=piso, n_minimo=n_minimo,
         gatilho=gatilho, alvo=alvo, area=area,
         min_janelas_avaliaveis=min_janelas_avaliaveis, incluir_ps=incluir_ps,
         exclusoes_por_par=exclusao_por_par(), precos=precos,
@@ -458,36 +462,24 @@ def posicao_na_area(posicao_area: pd.DataFrame) -> pd.Series:
 
 
 def fatiar_trimestres(janela_ini: str, janela_fim: str) -> tuple:
-    """Fatia a janela em trimestres disjuntos alinhados ao mês, o fatiamento
-    da persistência (config.JANELA_MINIMA é trimestral). Janela de 12 meses vira
-    4 fatias, idênticas aos trimestres do notebook.
+    """As fatias COMPLETAS da janela, como pares (ini, fim), para rótulos e
+    para o denominador da persistência. Fonte única: `pipeline.fatiar_janela`,
+    a mesma que o motor usa para apurar o excedente (METODOLOGIA §5.4.1).
 
-    Só devolve trimestres COMPLETOS. Um resto de fim de janela mais curto que um
-    trimestre é descartado, nunca devolvido como fatia: uma "janela" de poucos
-    dias entraria no denominador da persistência e produziria um 2/2 sustentado
-    por um único dia de dado, anedota vestida de evidência (rigor-estatistico
-    §2, disciplina do 1/1). O resto descartado é reportado por
-    `resto_fora_dos_trimestres`, para que o descarte apareça na tela.
+    A fatia parcial do fim (o resto) não entra aqui: uma "janela" de poucos dias
+    no denominador da persistência produziria um 2/2 sustentado por um dia de
+    dado. Ela existe no motor (apurada e devolvida como `resto`) e é reportada
+    por `resto_fora_dos_trimestres`, para que nada saia da tela em silêncio.
     """
-    ini = pd.Timestamp(janela_ini)
-    fim = pd.Timestamp(janela_fim)
-    fatias = []
-    while ini <= fim:
-        fim_fatia = ini + pd.DateOffset(months=3) - pd.Timedelta(days=1)
-        if fim_fatia > fim:          # resto incompleto: fora do fatiamento
-            break
-        fatias.append((str(ini.date()), str(fim_fatia.date())))
-        ini = fim_fatia + pd.Timedelta(days=1)
-    return tuple(fatias)
+    return tuple((ft["ini"], ft["fim"])
+                 for ft in pl.fatiar_janela(janela_ini, janela_fim) if ft["completa"])
 
 
 def resto_fora_dos_trimestres(janela_ini: str, janela_fim: str) -> int:
-    """Dias no fim da janela que não formam um trimestre completo e ficam fora
-    da persistência. Zero na janela de 12m. Nada é descartado em silêncio."""
-    fatias = fatiar_trimestres(janela_ini, janela_fim)
-    if not fatias:
-        return (pd.Timestamp(janela_fim) - pd.Timestamp(janela_ini)).days + 1
-    return (pd.Timestamp(janela_fim) - pd.Timestamp(fatias[-1][1])).days
+    """Dias da janela na fatia PARCIAL (fora das células de trimestre). Zero na
+    janela de 12m. O excedente desses dias existe e é declarado, não descartado."""
+    return sum(ft["dias"] for ft in pl.fatiar_janela(janela_ini, janela_fim)
+               if not ft["completa"])
 
 
 def resolver_janela(rotulo: str) -> tuple[str, str]:
@@ -504,7 +496,8 @@ def resolver_janela(rotulo: str) -> tuple[str, str]:
 
 def custo_por_area(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
                    gatilho: str, alvo: str, incluir_ps: bool,
-                   so_comparaveis: bool = False) -> dict[str, float]:
+                   so_comparaveis: bool = False,
+                   confianca: float | None = None) -> dict[str, float]:
     """Custo total solicitado por ÁREA. Sai daqui, e não de uma soma no
     endpoint, porque é agregação sobre a saída de um motor — a API entrega
     blocos, não calcula (CLAUDE.md, mapa dos documentos).
@@ -523,7 +516,7 @@ def custo_por_area(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
     """
     re_ = rodar_pipeline_execucao(janela_ini, janela_fim, piso, n_minimo,
                                   config.PISO_EXECUCOES_ANO, config.Q_CONFUNDIDOR,
-                                  None, gatilho, alvo, incluir_ps)
+                                  None, gatilho, alvo, incluir_ps, confianca=confianca)
     rs = re_["posicao_proc_rs"]
     rs = rs[rs["preco_mediano"].notna()]
     if so_comparaveis:

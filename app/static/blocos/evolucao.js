@@ -64,7 +64,14 @@ export function montarEvolucao(destino, d, opcoes = {}) {
     /* A marca do excedente só existe se houver excedente. Sem isso, o exame sem
        variação apurada exibia uma legenda para uma cor que não está no gráfico. */
     if (d.linhas.some((l) => l.excedente_reais != null)) {
-      marca('bar-exc', 'Custo excedente');
+      /* com parte medida contra a especialidade, duas caixas: a cheia é a da
+         área, a hachurada a da especialidade (mesma legenda do Pareto) */
+      if (d.tem_especialidade) {
+        marca('bar-exc', 'Custo excedente · referência da área');
+        marca('bar-exc-esp', 'Custo excedente · referência da especialidade');
+      } else {
+        marca('bar-exc', 'Custo excedente');
+      }
     }
     if (!nu) topo.appendChild(legenda);
   }
@@ -135,9 +142,19 @@ export function montarEvolucao(destino, d, opcoes = {}) {
          do custo; NEGATIVO ele desce abaixo do zero, onde não existe custo para
          preencher. Aninhado, o caso negativo não teria onde ser desenhado. */
       const dentro = el('i', `evo-exc${l.exc_negativo ? ' evo-exc-neg' : ''}`);
-      dentro.style.height = `${l.altura_exc_pct}%`;
+      /* o trecho da ESPECIALIDADE sai da altura do cheio e sobe hachurado por
+         cima dele, deixando ver o cinza do custo entre os traços */
+      const esp = l.exc_negativo ? 0 : (l.altura_exc_esp_pct ?? 0);
+      dentro.style.height = `${l.altura_exc_pct - esp}%`;
       dentro.style.bottom = l.exc_negativo
         ? `calc(${zero}% - ${l.altura_exc_pct}%)` : `${zero}%`;
+      if (esp > 0) {
+        const hach = el('i', 'evo-exc-esp');
+        hach.style.height = `${esp}%`;
+        hach.style.bottom = `calc(${zero}% + ${l.altura_exc_pct - esp}%)`;
+        if (l.tooltip) hach.title = l.tooltip;
+        plot.appendChild(hach);
+      }
       /* O MESMO hover da barra: o trecho verde cobre a base do custo, e sem o
          título aqui metade da área da coluna ficaria sem dica. */
       if (l.tooltip) dentro.title = l.tooltip;

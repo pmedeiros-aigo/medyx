@@ -482,6 +482,122 @@ def subtitulo_recorte(rotulo: str, n: int) -> str:
     return f"excedente somado sobre: {rotulo} ({fmt(n, 0)})"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# REFERÊNCIA DA ESPECIALIDADE (13/set/2026, METODOLOGIA §6.2, LEXICO)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _esp(nivel) -> bool:
+    return nivel == config.NIVEL_REFERENCIA_ESPECIALIDADE
+
+
+FRASE_REFERENCIA_ESPECIALIDADE = ("Referência da especialidade aplicada devido ao volume "
+                                  "insuficiente para uma referência própria.")
+
+
+def referencia_da_especialidade(area: str, linha) -> dict | None:
+    """O bloco que acompanha TODO número medido com referência da especialidade:
+    a etiqueta (uma só no app) e o parágrafo fixo, impessoal, com a composição
+    da referência. `linha` é uma linha de posicao_proc ou de norma_proc já
+    resolvida pelo motor (nivel_referencia, *_area, *_especialidade). None
+    quando o par foi medido contra a própria área.
+
+    Redigido aqui, e não na tela, porque texto que carrega número é parte do
+    número; e com a composição por área sempre, porque é ela que o médico vai
+    questionar, e é melhor o app dizer antes.
+    """
+    if linha is None or not _esp(linha.get("nivel_referencia")):
+        return None
+    n_area = linha.get("n_solicitantes_area")
+    n_area = 0 if n_area is None or pd.isna(n_area) else int(n_area)
+    n_esp = int(linha["n_solicitantes_especialidade"])
+    comp = list(linha.get("composicao_especialidade") or [])
+    # UMA frase (redação do usuário, 13/set/2026); os números da composição
+    # seguem no payload para quem precisar deles
+    paragrafos = [FRASE_REFERENCIA_ESPECIALIDADE]
+    return {"etiqueta": config.ROTULO_REFERENCIA_ESPECIALIDADE,
+            "texto": " ".join(paragrafos),
+            "paragrafos": paragrafos,
+            "n_area": n_area, "n_especialidade": n_esp,
+            "composicao": [{"area": apr.rotulo_exibicao(c["area"]), "n": int(c["n"])}
+                           for c in comp]}
+
+
+def divisao_por_nivel(total: float | None, especialidade: float | None) -> str | None:
+    """A frase de divisão que acompanha um total em R$ quando parte dele foi
+    medida com referência da especialidade (LEXICO: total nunca sem a divisão).
+    None quando tudo é da área: aí não há o que dividir."""
+    esp = float(especialidade or 0.0)
+    if not total or esp <= 0:
+        return None
+    return (f"{fmt_reais(float(total) - esp)} com referência da área · "
+            f"{fmt_reais(esp)} com {config.ROTULO_REFERENCIA_ESPECIALIDADE}")
+
+
+def ficha_divisao(titulo: str, total: float | None, especialidade: float | None,
+                  fatia_da_area: float | None = None,
+                  medido: float | None = None, sem_ajuste: float | None = None,
+                  confianca: float | None = None) -> str | None:
+    """A DICA EM FICHA de um custo excedente que tem parte medida contra a
+    especialidade (LEXICO): título, e um dado por linha com R$ e % de cada
+    nível. Vai no hover do número; nada visível ao lado dele, porque a frase
+    de divisão sob o valor cortava a grade da Leitura (13/set/2026).
+    None quando tudo é da área: aí a dica continua sendo a frase de sempre."""
+    esp = float(especialidade or 0.0)
+    tot = float(total or 0.0)
+    com_ajuste = confianca is not None and medido is not None
+    if tot <= 0 or (esp <= 0 and not com_ajuste):
+        return None
+    linhas = [titulo]
+    if com_ajuste:
+        # com ajuste de confiança, a ficha diz os dois valores e o que ficou
+        # sem ajuste por poucos pacientes (sem citar o mínimo: é interno)
+        linhas.append(f"Valor medido: {fmt_reais(float(medido))}")
+        linhas.append(f"Com {confianca:.0%} de confiança: {fmt_reais(tot)}")
+        if sem_ajuste and float(sem_ajuste) > 0:
+            linhas.append("Sem ajuste, por poucos pacientes: "
+                          f"{fmt_reais(float(sem_ajuste))}")
+    if esp > 0:
+        area = tot - esp
+        linhas.append(f"Com referência da área: {fmt_reais(area)} · {fmt_pct(area / tot)}")
+        linhas.append(f"Com {config.ROTULO_REFERENCIA_ESPECIALIDADE}: {fmt_reais(esp)} · {fmt_pct(esp / tot)}")
+    linhas.append("Base: soma dos trimestres acima da referência do período")
+    if fatia_da_area is not None and round(fatia_da_area, 2) < 1:
+        linhas.append(f"Parte do custo excedente da área: {fmt_pct(fatia_da_area)}")
+    return "\n".join(linhas)
+
+
+def nota_sem_ajuste_na_serie(bloco: dict | None, confianca: float | None) -> dict | None:
+    """Com ajuste de confiança ativo, a série por trimestre continua com o valor
+    medido (o sorteio produz um valor por período inteiro, doc §8), e o bloco
+    diz isso na nota, em vez de deixar o leitor somar as células e não fechar
+    com o total ajustado."""
+    if not bloco or confianca is None:
+        return bloco
+    frase = ("As células de trimestre trazem o valor medido. O ajuste de "
+             "confiança se aplica aos totais do período.")
+    bloco["nota"] = f"{bloco['nota']} {frase}" if bloco.get("nota") else frase
+    return bloco
+
+
+def _anotar_nivel(linha: dict, exc_total: float, exc_esp: float, duplo: bool) -> None:
+    """Numa linha de Pareto já montada: o R$ medido com referência da
+    especialidade, a largura desse trecho (a partir da largura do excedente,
+    para o desenho ser uma fração do que já existe) e a etiqueta."""
+    esp = float(exc_esp or 0.0)
+    base = linha.get("largura_exc_pct" if duplo else "largura_pct") or 0.0
+    linha["excedente_rs_especialidade"] = round(esp, 2)
+    linha["largura_exc_esp_pct"] = (round(base * esp / exc_total, 2)
+                                    if exc_total > 0 and esp > 0 else 0.0)
+    linha["nivel_referencia"] = (
+        None if esp <= 0 else
+        config.NIVEL_REFERENCIA_ESPECIALIDADE if esp >= exc_total - 0.005 else "misto")
+    linha["etiqueta_referencia"] = (config.ROTULO_REFERENCIA_ESPECIALIDADE
+                                    if esp > 0 else None)
+    if esp > 0:
+        linha.setdefault("detalhes", []).append(
+            f"Com {config.ROTULO_REFERENCIA_ESPECIALIDADE}: {fmt_reais(esp)}")
+
+
 def leitura_da_area(cards: list[dict], ids: list[str], n_comparaveis: int,
                     concentracao_partes: dict | None,
                     excedente_itens_area: float, excedente_reais_area: float | None,
@@ -573,11 +689,23 @@ def leitura_da_area(cards: list[dict], ids: list[str], n_comparaveis: int,
                               f"{fmt(n_procs, 0)} procedimentos da área."))),
             _linha("_custo_exc", "excedente",
                    config.SEM_MEDIDA if reais_em_cena is None else fmt_reais(reais_em_cena),
-                   titulo=("Parte do custo acima da referência da área. Mesma "
-                           "base do total, então a comparação entre as duas "
-                           "linhas é legítima."
-                           + _fatia_da_area(reais_em_cena, excedente_reais_area,
-                                            "do custo excedente"))),
+                   # com parte medida contra a especialidade, o hover vira
+                   # FICHA: R$ e % de cada nível, um por linha (LEXICO)
+                   titulo=(ficha_divisao(
+                               f"Custo excedente: {fmt_reais(reais_em_cena)}",
+                               reais_em_cena,
+                               (por_chave.get("reais") or {}).get("excedente_reais_especialidade"),
+                               (reais_em_cena / excedente_reais_area)
+                               if reais_em_cena and excedente_reais_area else None,
+                               medido=(por_chave.get("reais") or {}).get("excedente_reais_medido"),
+                               sem_ajuste=(por_chave.get("reais") or {}).get("excedente_reais_sem_ajuste"),
+                               confianca=(por_chave.get("reais") or {}).get("confianca"))
+                           or ("Parte do custo acima da referência da área. Soma "
+                               "dos trimestres acima da referência do período. Mesma "
+                               "base do total, então a comparação entre as duas "
+                               "linhas é legítima."
+                               + _fatia_da_area(reais_em_cena, excedente_reais_area,
+                                                "do custo excedente")))),
         ]},
     ]
 
@@ -709,7 +837,11 @@ def cards_do_recorte(reais_por_coop: dict[str, float],
                      itens_por_coop: dict[str, float],
                      ids: list[str], rotulo: str,
                      n_comparaveis: int,
-                     base_por_coop: dict[str, dict] | None = None) -> list[dict]:
+                     base_por_coop: dict[str, dict] | None = None,
+                     reais_esp_por_coop: dict[str, float] | None = None,
+                     reais_medido_por_coop: dict[str, float] | None = None,
+                     reais_sem_ajuste_por_coop: dict[str, float] | None = None,
+                     confianca: float | None = None) -> list[dict]:
     """Os cards abaixo dos chips: quem está em cena, o que ele pede e o excesso.
 
     Seguem o recorte (CLAUDE.md, lei 0: acima dos chips é a área, abaixo é a
@@ -726,6 +858,9 @@ def cards_do_recorte(reais_por_coop: dict[str, float],
     em_cena = set(ids)
     itens = float(sum(v for c, v in itens_por_coop.items() if c in em_cena))
     reais = float(sum(v for c, v in reais_por_coop.items() if c in em_cena))
+    reais_esp = float(sum(v for c, v in (reais_esp_por_coop or {}).items() if c in em_cena))
+    reais_medido = float(sum(v for c, v in (reais_medido_por_coop or {}).items() if c in em_cena))
+    reais_sem_ajuste = float(sum(v for c, v in (reais_sem_ajuste_por_coop or {}).items() if c in em_cena))
     base = [v for c, v in (base_por_coop or {}).items() if c in em_cena]
     consultas = float(sum(v.get("consultas") or 0 for v in base))
     sadt = float(sum(v.get("solicitacoes") or 0 for v in base))
@@ -770,6 +905,13 @@ def cards_do_recorte(reais_por_coop: dict[str, float],
          # inteiro, e em duas linhas ele risca o KPI de ponta a ponta. O custo
          # dos N exames é o que o card ao lado já diz; aqui fica a ressalva.
          "apoio": "acima da referência",
+         # a DIVISÃO por nível de referência, quando existe (LEXICO): o total
+         # nunca viaja sem ela, e a Leitura a imprime sob o número
+         "apoio_divisao": divisao_por_nivel(reais, reais_esp),
+         "excedente_reais_especialidade": round(reais_esp, 2),
+         "excedente_reais_medido": round(reais_medido, 2),
+         "excedente_reais_sem_ajuste": round(reais_sem_ajuste, 2),
+         "confianca": confianca,
          "titulo_longo": (f"Custo das {fmt(itens, 0)} solicitações acima do padrão, "
                           "apurado procedimento a procedimento contra a "
                           "referência de cada "
@@ -2301,6 +2443,10 @@ def linhas_cooperados(posicao_area: pd.DataFrame, norma_linha,
                       cesta_excluida: frozenset = frozenset(),
                       reais_coop: dict[str, float] | None = None,
                       custo_coop: dict[str, dict] | None = None,
+                      reais_coop_esp: dict[str, float] | None = None,
+                      reais_coop_medido: dict[str, float] | None = None,
+                      reais_coop_sem_ajuste: dict[str, float] | None = None,
+                      confianca: float | None = None,
                       ) -> list[dict]:
     """Uma linha por cooperado da área, com todas as colunas da tabela do guia:
     cooperado · perfil · consultas · índice/consulta · posição (percentil OU
@@ -2434,6 +2580,15 @@ def linhas_cooperados(posicao_area: pd.DataFrame, norma_linha,
                                 round(float(reais_coop[coop]), 2)),
             "excedente_reais_fmt": (None if not (reais_coop or {}).get(coop) else
                                     fmt_reais(reais_coop[coop])),
+            # a parte medida com referência da ESPECIALIDADE e a frase de
+            # divisão (LEXICO): o total nunca viaja sem ela
+            "excedente_reais_especialidade": round(float((reais_coop_esp or {}).get(coop, 0.0)), 2),
+            "divisao_excedente": divisao_por_nivel((reais_coop or {}).get(coop),
+                                                   (reais_coop_esp or {}).get(coop)),
+            # com ajuste de confiança: o medido e o que ficou sem ajuste
+            "excedente_reais_medido": round(float((reais_coop_medido or {}).get(coop, 0.0)), 2),
+            "excedente_reais_sem_ajuste": round(float((reais_coop_sem_ajuste or {}).get(coop, 0.0)), 2),
+            "confianca": confianca,
             "procedimentos_em_revisao": n_procs,
             "avaliavel": avaliavel,
             "forma_referencia": avaliavel and bool(linha["elegivel_norma"]),
@@ -2658,8 +2813,16 @@ def cabecalho_dossie(linha: dict, posicao_area: pd.DataFrame,
         _par_da_area("Custo do excesso",
                      linha.get("excedente_reais_fmt") or config.SEM_MEDIDA,
                      _mediana_das_linhas(linhas_area, "excedente_reais", -1),
-                     "Valor das solicitações acima da referência da área. Indica "
-                     "oportunidade de revisão, não economia já realizada.", "custo_excesso"),
+                     ficha_divisao(f"Custo do excesso: {linha.get('excedente_reais_fmt')}",
+                                   linha.get("excedente_reais"),
+                                   linha.get("excedente_reais_especialidade"),
+                                   medido=linha.get("excedente_reais_medido"),
+                                   sem_ajuste=linha.get("excedente_reais_sem_ajuste"),
+                                   confianca=linha.get("confianca"))
+                     or ("Valor das solicitações acima da referência da área. Soma dos "
+                         "trimestres acima da referência do período. Indica "
+                         "oportunidade de revisão, não economia já realizada."),
+                     "custo_excesso"),
     ]
 
 
@@ -2702,8 +2865,8 @@ def carteira_atendida(minha: dict | None, da_area: dict | None) -> dict | None:
     n, cob = minha["n_beneficiarios"], minha["cobertura"]
     if n < config.MIN_BENEFICIARIOS_CARTEIRA:
         return {"n_fmt": fmt(n, 0), "faixas": [], "motivo": (
-            f"Carteira de {fmt(n, 0)} beneficiários no período, abaixo do mínimo "
-            f"de {config.MIN_BENEFICIARIOS_CARTEIRA} para descrever a composição.")}
+            f"Carteira de {fmt(n, 0)} beneficiários no período, pequena demais "
+            "para descrever a composição.")}
     if cob < config.COBERTURA_MINIMA_PERFIL:
         return {"n_fmt": fmt(n, 0), "faixas": [], "motivo": (
             f"Idade conhecida em {fmt_pct(cob)} dos beneficiários do período, "
@@ -2883,14 +3046,17 @@ def _confianca_do_par(row_conf) -> dict:
     # de uns poucos casos atípicos" —, e não descreve o método. "Limite inferior
     # do intervalo de confiança" era exato e ilegível: quem lê a tela é auditor
     # assistencial, não estatístico. O método vai no hover, para quem quiser.
+    nivel = float(row_conf.get("nivel_confianca", config.NIVEL_CONFIANCA_DEFAULT))
+    n_pac = row_conf.get("n_pacientes_proc")
+    pac = ("" if n_pac is None or pd.isna(n_pac)
+           else f" O excesso se apoia em {fmt(float(n_pac), 0)} pacientes.")
+    frase = (f"Pelo menos {piso} das {central} solicitações excedentes se mantêm "
+             f"com {nivel:.0%} de confiança, mesmo com outra composição da "
+             f"carteira.{pac}")
     return {"estado": "calculavel",
             "piso_itens": round(float(row_conf["excedente_piso"]), 2),
-            "rotulo": f"{piso} de {central} se sustentam",
-            "detalhe": (f"Das {central} solicitações acima da referência, {piso} "
-                        f"se mantêm mesmo sem o peso dos beneficiários que mais "
-                        f"receberam. Verificado sorteando a carteira do cooperado "
-                        f"mil vezes: em 9 de cada 10 sorteios a variação excedente "
-                        f"ficou acima de {piso}.")}
+            "rotulo": frase,
+            "detalhe": frase}
 
 
 def _serie_do_procedimento(janelas_proc: pd.DataFrame | None, cd: str,
@@ -3033,15 +3199,34 @@ def procedimentos_do_cooperado(posproc_coop: pd.DataFrame,
             "motivo_nao_medido": (None if medido else
                                   "Menos de "
                                   f"{config.N_MINIMO_PEER_GROUP} cooperados da área "
-                                  "solicitam este procedimento. Abaixo desse "
-                                  "mínimo a referência não é estatisticamente "
-                                  "sustentável."),
+                                  "e da especialidade solicitam este procedimento. "
+                                  "Abaixo desse mínimo a referência não é "
+                                  "estatisticamente sustentável."),
+            # o NÍVEL da referência e, quando é a da especialidade, o bloco
+            # fixo com a etiqueta e o texto (LEXICO: em todo lugar onde o
+            # número aparece)
+            "nivel_referencia": (None if not medido else str(r["nivel_referencia"])),
+            "referencia_especialidade": referencia_da_especialidade(
+                apr.rotulo_exibicao(str(r.get("AREA_ATUACAO", ""))), r),
+            # AJUSTE DE CONFIANÇA (doc §8): o que a célula mostra é o ajustado;
+            # o medido vai na ficha, e o par sem ajuste ganha a etiqueta
+            "ajuste_confianca": (None if not sinalizado else r.get("ajuste_confianca")),
+            "excedente_medido_fmt": (fmt(r["excedente_itens_medido"], 0)
+                                     if sinalizado and pd.notna(r.get("excedente_itens_medido"))
+                                     else None),
+            "etiqueta_confianca": (("sem ajuste de confiança"
+                                    if sinalizado and r.get("ajuste_confianca") == "medido"
+                                    else None)),
+            "motivo_sem_ajuste": (("Excesso apoiado em poucos pacientes. O valor "
+                                   "mostrado é o medido, sem ajuste de confiança.")
+                                  if sinalizado and r.get("ajuste_confianca") == "medido"
+                                  else None),
             "sinalizado": sinalizado,
             "excedente_itens": None if exc is None else round(exc, 2),
             "excedente_fmt": fmt(exc, 0) if exc else config.SEM_MEDIDA,
             "excedente_motivo": (None if sinalizado else
-                                 "A área de atuação não tem referência apurável "
-                                 "para este procedimento."
+                                 "Sem referência apurável na área nem na "
+                                 "especialidade para este procedimento."
                                  if not medido else
                                  "Volume de consultas abaixo do mínimo exigido "
                                  "para comparação."
@@ -3113,7 +3298,7 @@ def procedimentos_do_cooperado(posproc_coop: pd.DataFrame,
 def frase_do_caso(linha: dict) -> str | None:
     """O caso numa FRASE, para o subtítulo da Leitura do caso: posição, origem
     e consistência na língua do leitor — o que este médico é, nunca a regra do
-    método (a regra mora na Nota Metodológica e nos hovers).
+    método (a regra mora em METODOLOGIA_ANALITICA.md e nos hovers).
 
     ── o que cada pedaço precisou ganhar (set/2026) ───────────────────────────
     A versão anterior dizia "acima de 97% dos cooperados da área, excedente
@@ -3533,7 +3718,8 @@ def painel_do_procedimento(cd: str, descricao: str, conc_row, pacientes: dict | 
 
 def _tooltip_trimestre(meses: str | None, consultas: float,
                        custo: float | None, exc: float | None,
-                       volume_baixo: bool = False, piso=None) -> str:
+                       volume_baixo: bool = False, piso=None,
+                       exc_esp: float | None = None) -> str:
     """O hover de uma barra da evolução trimestral, em FICHA.
 
     Redigido aqui, e não na tela, pela mesma razão que a ressalva de método:
@@ -3560,8 +3746,12 @@ def _tooltip_trimestre(meses: str | None, consultas: float,
         linhas.append(f"Custo total: {fmt_reais(custo)}")
         if exc and exc > 0:
             linhas.append(f"Acima da referência: {fmt_reais(exc)}")
-        elif exc and exc < 0:
-            linhas.append(f"Abaixo da referência: {fmt_reais(abs(exc))}")
+            # a divisão por nível, como na ficha da Leitura da área
+            if exc_esp and exc_esp > 0:
+                area = exc - exc_esp
+                linhas.append(f"Com referência da área: {fmt_reais(area)} · {fmt_pct(area / exc)}")
+                linhas.append(f"Com {config.ROTULO_REFERENCIA_ESPECIALIDADE}: "
+                              f"{fmt_reais(exc_esp)} · {fmt_pct(exc_esp / exc)}")
         else:
             linhas.append("Dentro da referência da área")
     linhas.append(f"Consultas: {fmt(consultas, 0)}")
@@ -3576,7 +3766,8 @@ def evolucao_do_procedimento(n_por_janela: dict, por_janela: pd.DataFrame | None
                              cooperado: str | list[str], preco: float | None,
                              alvo_taxa: float | None, mede_excedente: bool,
                              rotulos: list[str] | None = None,
-                             resto_dias: int | None = None) -> dict | None:
+                             resto_dias: int | None = None,
+                             nivel_referencia: str | None = None) -> dict | None:
     """A série trimestral de UM exame: custo do período e a parcela excedente.
 
     Mesma construção do bloco do dossiê (`evolucao_trimestral`) e a MESMA régua
@@ -3615,7 +3806,10 @@ def evolucao_do_procedimento(n_por_janela: dict, por_janela: pd.DataFrame | None
         n = float(vol.get("solicitacoes") or 0.0)
         pac = vol.get("pacientes")
         custo = n * float(preco)
-        exc = (custo - cons[j] * float(alvo_taxa) * float(preco)) if tem_exc else None
+        # a MESMA regra do motor (METODOLOGIA §5.4.1): referência do ano,
+        # truncado em zero por trimestre; a soma das barras é o par
+        exc = (max(0.0, custo - cons[j] * float(alvo_taxa) * float(preco))
+               if tem_exc else None)
         rot = (rotulos[j - 1] if rotulos and len(rotulos) >= j else None)
         linhas.append({
             "janela": j, "rotulo": f"T{j}", "meses": rot,
@@ -3638,7 +3832,8 @@ def evolucao_do_procedimento(n_por_janela: dict, por_janela: pd.DataFrame | None
             "excedente_reais_fmt": None if exc is None else fmt_reais_exato(exc),
             "custo_por_consulta_fmt": None,
             "_exc_bruto": exc,
-            "tooltip": _tooltip_exame(rot, n, custo, exc),
+            "tooltip": _tooltip_exame(rot, n, custo, exc,
+                                      _esp(nivel_referencia)),
         })
 
     # sobra de arredondamento na maior barra, pelo mesmo motivo do bloco do
@@ -3667,6 +3862,11 @@ def evolucao_do_procedimento(n_por_janela: dict, por_janela: pd.DataFrame | None
         l["altura_pct"] = round(l["custo"] / amplitude * 100, 2)
         l["exc_negativo"] = bool(tem_exc and exc < 0)
         l["altura_exc_pct"] = round(abs(exc) / amplitude * 100, 2) if tem_exc else 0.0
+        # procedimento tem um nível só: medido contra a especialidade, o
+        # trecho inteiro é hachurado
+        l["altura_exc_esp_pct"] = l["altura_exc_pct"] if _esp(nivel_referencia) else 0.0
+        l["excedente_reais_especialidade"] = (l["excedente_reais"]
+                                              if _esp(nivel_referencia) and exc > 0 else 0.0)
         l["topo_fmt"] = l["custo_fmt"]
         l["exc_fmt_dentro"] = (l["excedente_reais_fmt"]
                                if (tem_exc and not l["exc_negativo"]
@@ -3683,24 +3883,21 @@ def evolucao_do_procedimento(n_por_janela: dict, por_janela: pd.DataFrame | None
         "grade": grade,
         "zero_pct": zero_pct,
         "tem_negativo": any(l["exc_negativo"] for l in linhas),
+        "tem_especialidade": bool(tem_exc and _esp(nivel_referencia)),
         "nota": " ".join(x for x in (
             _ressalva_do_resto(resto_dias, rotulos),
             (None if tem_exc else
              "Sem variação excedente apurada para este procedimento no período; "
              "as barras mostram o custo total."),
-            # O TRIMESTRE ABAIXO DO ZERO precisa dizer o que é, senão a barra
-            # que desce lê como erro. E a frase precisa dizer o que ele faz com
-            # o número do ano, que é a pergunta seguinte de quem soma as barras.
-            ("Trimestre abaixo da referência reduz o excedente do ano. Os "
-             "quatro somam o total do resumo."
-             if any(l["exc_negativo"] for l in linhas) else None),
+            ("Soma dos trimestres acima da referência do período."
+             if tem_exc else None),
         ) if x) or None,
         "linhas": linhas,
     }
 
 
 def _tooltip_exame(meses: str | None, n: float, custo: float,
-                   exc: float | None) -> str:
+                   exc: float | None, especialidade: bool = False) -> str:
     """O hover de uma barra da série do exame, em FICHA.
 
     Mesma forma do hover da evolução trimestral (`_tooltip_trimestre`): título na
@@ -3719,8 +3916,8 @@ def _tooltip_exame(meses: str | None, n: float, custo: float,
     if exc is not None:
         if exc > 0:
             linhas.append(f"Acima da referência: {fmt_reais_exato(exc)}")
-        elif exc < 0:
-            linhas.append(f"Abaixo da referência: {fmt_reais_exato(abs(exc))}")
+            if especialidade:
+                linhas.append(f"Referência: {config.ROTULO_REFERENCIA_ESPECIALIDADE}")
         else:
             linhas.append("Dentro da referência da área")
     linhas.append(f"Solicitações: {fmt(n, 0)}")
@@ -3766,9 +3963,11 @@ def _ressalva_do_resto(resto_dias: int | None, rotulos: list[str] | None) -> str
     """A frase que declara o pedaço da janela que os trimestres não cobrem.
 
     `fatiar_trimestres` só devolve trimestres COMPLETOS: um resto de fim de
-    janela mais curto que três meses é descartado, porque uma fatia de poucos
-    dias no denominador da persistência produz um "4 de 4" sustentado por
-    quase nada. A decisão é certa e está documentada lá.
+    janela mais curto que três meses não vira célula, porque uma fatia de
+    poucos dias no denominador da persistência produz um "4 de 4" sustentado
+    por quase nada. O excedente desses dias EXISTE (o motor apura a fatia
+    parcial e ele entra no total do período, METODOLOGIA §5.4.1); o que a
+    frase declara é que ele não está nas células.
 
     O que faltava era DIZER isso onde as barras aparecem. Numa janela de 12
     meses o resto é zero e ninguém percebe; numa de 13 (abr/25 a abr/26) o
@@ -3785,11 +3984,12 @@ def _ressalva_do_resto(resto_dias: int | None, rotulos: list[str] | None) -> str
     # emendava dois fatos com dois-pontos. Esta diz o período coberto e o motivo
     # do que sobra, em duas frases, sem citar gráfico, série nem fatiamento.
     dias = f"{fmt(resto_dias, 0)} {'dia' if resto_dias == 1 else 'dias'}"
+    fora = (f"Os {dias} finais do período não completam um trimestre. O "
+            "excedente desses dias entra no total do período e não nas células.")
     if not rotulos:
-        return f"Os {dias} finais do período não completam um trimestre."
+        return fora
     return (f"Período coberto: {rotulos[0].split('–')[0]} a "
-            f"{rotulos[-1].split('–')[-1]}. Os {dias} finais do período não "
-            f"completam um trimestre.")
+            f"{rotulos[-1].split('–')[-1]}. {fora}")
 
 
 # o cooperado sintético da série da ÁREA: `evolucao_trimestral` recorta por
@@ -3833,10 +4033,10 @@ def evolucao_da_area(por_janela: pd.DataFrame | None,
 
     cj = None
     if custo_por_janela is not None and len(custo_por_janela):
-        cj = (custo_por_janela.groupby("janela")
-              .agg(custo=("custo", "sum"),
-                   excedente_reais=("excedente_reais", "sum"))
-              .reset_index())
+        _agg = {"custo": ("custo", "sum"), "excedente_reais": ("excedente_reais", "sum")}
+        if "excedente_reais_especialidade" in custo_por_janela.columns:
+            _agg["excedente_reais_especialidade"] = ("excedente_reais_especialidade", "sum")
+        cj = custo_por_janela.groupby("janela").agg(**_agg).reset_index()
         cj["ID_COOPERADO"] = _ID_AREA
 
     return evolucao_trimestral(pj, cj, _ID_AREA, rotulos, resto_dias)
@@ -4114,11 +4314,17 @@ def _celula_trimestre(q: dict | None, linhas: list[dict], k: int,
         # primeira vírgula.
         "excedente_reais": exc,
         "excedente_fmt": q.get("excedente_reais_fmt"),
+        "excedente_reais_especialidade": q.get("excedente_reais_especialidade"),
         "exc_negativo": bool(q.get("exc_negativo")),
         # a barrinha da fatia só existe quando há fatia POSITIVA para desenhar:
         # trimestre abaixo da referência não tem parcela do custo acima dela
         "exc_barra_pct": (None if fatia is None or fatia <= 0
                           else round(min(fatia, 1.0) * 100, 1)),
+        # a parte da barrinha medida com referência da especialidade (hachura)
+        "exc_esp_barra_pct": (None if fatia is None or fatia <= 0 or not exc
+                              or not q.get("excedente_reais_especialidade")
+                              else round(min(fatia, 1.0) * 100
+                                         * float(q["excedente_reais_especialidade"]) / exc, 1)),
         "exc_pct_fmt": (None if fatia is None or fatia <= 0
                         else f"{fmt_pct(fatia)} do trimestre"),
         "variacao_exc": var_exc,
@@ -4161,7 +4367,8 @@ def evolucao_trimestral(por_janela: pd.DataFrame | None,
         return None
     # O PISO DE VOLUME NÃO SE APLICA AQUI (set/2026). Ele existe para decidir se
     # uma TAXA é comparável, e este bloco não compara nada: o custo é uma soma, e
-    # o excedente do trimestre é a decomposição de uma medição já feita no ano.
+    # o excedente do trimestre é a MEDIÇÃO (régua do ano, truncado em zero,
+    # METODOLOGIA §5.4.1), cuja soma é o excedente do cooperado.
     # Antes, o trimestre abaixo do piso vinha sem barra e com "trimestre não
     # medido", escondendo um custo que é conhecido e ainda por cima quebrando a
     # identidade que faz os quatro somarem o excedente do período.
@@ -4181,9 +4388,12 @@ def evolucao_trimestral(por_janela: pd.DataFrame | None,
         consultas = float(r.get("consultas_totais") or 0)
         itens = float(r.get("total_itens") or 0)
         custo = exc = None
+        exc_esp = 0.0
         if cj is not None and j in cj.index:
             custo = float(cj.loc[j, "custo"])
             exc = float(cj.loc[j, "excedente_reais"])
+            if "excedente_reais_especialidade" in cj.columns:
+                exc_esp = float(cj.loc[j, "excedente_reais_especialidade"])
         rot = (rotulos[j - 1] if rotulos and len(rotulos) >= j else None)
         piso = r.get("piso")
         linhas.append({
@@ -4215,6 +4425,7 @@ def evolucao_trimestral(por_janela: pd.DataFrame | None,
             "custo_fmt": None if custo is None else fmt_reais(custo),
             "excedente_reais": None if exc is None else round(exc, 2),
             "excedente_reais_fmt": None if exc is None else fmt_reais(exc),
+            "excedente_reais_especialidade": round(exc_esp, 2),
             # o valor sem arredondar, para o ajuste de sobra logo abaixo
             "_exc_bruto": exc,
             "custo_por_consulta_fmt": (
@@ -4227,7 +4438,7 @@ def evolucao_trimestral(por_janela: pd.DataFrame | None,
             # decomposição do total. Consultas e custo por consulta já estão no
             # cartão logo abaixo, e repeti-los aqui é ruído.
             "tooltip": _tooltip_trimestre(rot, consultas, custo, exc,
-                                          volume_baixo, piso),
+                                          volume_baixo, piso, exc_esp),
         })
     if not linhas:
         return None
@@ -4262,11 +4473,9 @@ def evolucao_trimestral(por_janela: pd.DataFrame | None,
         for l in linhas:
             l.pop("_exc_bruto", None)
 
-    # A ESCALA CRUZA O ZERO quando algum trimestre tem excedente negativo. Isso
-    # acontece de verdade: o excedente do trimestre é medido contra a referência
-    # do ANO, e num trimestre em que ele pediu menos do que ela previa a conta dá
-    # abaixo de zero. Sem clip (é o que faz os quatro somarem o número do ano),
-    # então a régua precisa de espaço para baixo.
+    # Desde 13/set/2026 (METODOLOGIA §5.4.1) o excedente do trimestre é
+    # truncado em zero no motor e nunca é negativo; a régua continua genérica
+    # (aceita piso abaixo de zero) porque é escala, e escala não conhece regra.
     negativos = [(l["excedente_reais"] or 0.0) for l in linhas if l["avaliavel"]]
     teto, piso, marcas = _escala_grade(max(valores) or 1.0,
                                        min(negativos) if negativos else 0.0)
@@ -4281,6 +4490,11 @@ def evolucao_trimestral(por_janela: pd.DataFrame | None,
         exc = (l["excedente_reais"] or 0.0) if l["avaliavel"] else 0.0
         l["exc_negativo"] = bool(tem_rs and exc < 0)
         l["altura_exc_pct"] = round(abs(exc) / amplitude * 100, 2) if tem_rs else 0.0
+        # o trecho HACHURADO: a parte do excedente medida com referência da
+        # especialidade, como fração da altura do excedente
+        _esp = l.get("excedente_reais_especialidade") or 0.0
+        l["altura_exc_esp_pct"] = (round(l["altura_exc_pct"] * _esp / exc, 2)
+                                   if tem_rs and exc > 0 and _esp > 0 else 0.0)
         l["topo_fmt"] = (None if not l["avaliavel"]
                          else (l["custo_fmt"] if tem_rs else fmt(l["itens"], 0)))
         # O VALOR DO EXCEDENTE dentro da própria barra, e só quando cabe: 10% da
@@ -4377,6 +4591,7 @@ def evolucao_trimestral(por_janela: pd.DataFrame | None,
         "grade": grade,
         "zero_pct": zero_pct,
         "tem_negativo": tem_negativo,
+        "tem_especialidade": any((l.get("excedente_reais_especialidade") or 0) > 0 for l in linhas),
         # A NOTA declara a base de comparação, e para aí. A versão anterior
         # explicava o método em três frases ("por isso os quatro somam", "sob a
         # régua do próprio período", uma remissão à coluna Consistência): isso é
@@ -4389,6 +4604,21 @@ def evolucao_trimestral(por_janela: pd.DataFrame | None,
 
 
 def pareto_custo_do_cooperado(rs_coop: pd.DataFrame) -> dict | None:
+    """Envelope de `_pareto_custo_do_cooperado`: anota em cada linha o R$ medido
+    com referência da especialidade e a etiqueta (LEXICO)."""
+    bloco = _pareto_custo_do_cooperado(rs_coop)
+    if bloco is None or rs_coop is None or not len(rs_coop):
+        return bloco
+    d = rs_coop[rs_coop["preco_mediano"].notna() & rs_coop["sinalizado"].astype(bool)].copy()
+    d["_exc"] = d["excedente_itens"].fillna(0).clip(lower=0) * d["preco_mediano"]
+    exc = d.groupby("CD_PROCEDIMENTO")["_exc"].sum().to_dict()
+    esp = (d[d["nivel_referencia"] == config.NIVEL_REFERENCIA_ESPECIALIDADE]
+           .groupby("CD_PROCEDIMENTO")["_exc"].sum().to_dict()
+           if "nivel_referencia" in d.columns else {})
+    return _anotar_pareto(bloco, exc, esp)
+
+
+def _pareto_custo_do_cooperado(rs_coop: pd.DataFrame) -> dict | None:
     """Onde está o dinheiro deste cooperado, por procedimento.
 
     MESMA construção do Pareto da tela de Área (`pareto_cooperados`), no outro
@@ -4524,6 +4754,33 @@ def _pareto_vazio(titulo: str, colunas: dict, subtitulo: str | None,
 
 
 def pareto_cooperados(reais_coop: dict[str, float],
+                      *args, reais_coop_esp: dict[str, float] | None = None, **kwargs):
+    """Envelope: `reais_coop_esp` (R$ por cooperado medido com referência da
+    especialidade) anota cada linha com o trecho e a etiqueta (LEXICO)."""
+    bloco = _pareto_cooperados(reais_coop, *args, **kwargs)
+    return _anotar_pareto(bloco, reais_coop, reais_coop_esp)
+
+
+def _anotar_pareto(bloco, exc: dict, exc_esp: dict | None):
+    """Percorre as ordens de um Pareto já montado e anota o nível de cada
+    linha. `tem_especialidade` diz à tela se a coluna da etiqueta existe."""
+    if not bloco:
+        return bloco
+    ordens = (bloco.get("dados") or {"unica": bloco}).values()
+    for o in ordens:
+        if not o or "linhas" not in o:
+            continue
+        for linha in o["linhas"]:
+            _anotar_nivel(linha, float(exc.get(linha["id"], 0.0) or 0.0),
+                          float((exc_esp or {}).get(linha["id"], 0.0) or 0.0),
+                          bool(o.get("duplo")))
+        o["tem_especialidade"] = any(l.get("excedente_rs_especialidade") for l in o["linhas"])
+        esp_total = float(sum(l.get("excedente_rs_especialidade") or 0.0 for l in o["linhas"]))
+        o["divisao"] = divisao_por_nivel(o.get("total"), esp_total)
+    return bloco
+
+
+def _pareto_cooperados(reais_coop: dict[str, float],
                       linhas_coop: list[dict],
                       ids: list[str] | None = None,
                       subtitulo: str | None = None,
@@ -4673,6 +4930,24 @@ def pareto_procedimentos(rs_area: pd.DataFrame,
                          subtitulo: str | None = None,
                          custo_pares: pd.DataFrame | None = None,
                          sem_regua: bool = False) -> dict | None:
+    """Envelope de `_pareto_procedimentos`: anota em cada linha o R$ medido com
+    referência da especialidade e a etiqueta (LEXICO)."""
+    bloco = _pareto_procedimentos(rs_area, ids, subtitulo, custo_pares, sem_regua)
+    rs = rs_area if rs_area is not None else pd.DataFrame()
+    if ids is not None and len(rs):
+        rs = rs[rs["ID_COOPERADO"].isin(list(ids))]
+    exc = (rs.groupby("CD_PROCEDIMENTO")["excedente_reais"].sum().to_dict() if len(rs) else {})
+    esp = ({} if not len(rs) or "nivel_referencia" not in rs.columns else
+           rs[rs["nivel_referencia"] == config.NIVEL_REFERENCIA_ESPECIALIDADE]
+           .groupby("CD_PROCEDIMENTO")["excedente_reais"].sum().to_dict())
+    return _anotar_pareto(bloco, exc, esp)
+
+
+def _pareto_procedimentos(rs_area: pd.DataFrame,
+                          ids: list[str] | None = None,
+                          subtitulo: str | None = None,
+                          custo_pares: pd.DataFrame | None = None,
+                          sem_regua: bool = False) -> dict | None:
     """Pareto de custo por procedimento, com o EXCEDENTE aninhado dentro dele.
     `sem_regua`: como em pareto_cooperados — custo igual, excedente SEM_MEDIDA.
 
@@ -4907,19 +5182,26 @@ def linhas_procedimentos(norma_proc_area: pd.DataFrame, posproc_area: pd.DataFra
             },
             "qualidade": {
                 "apresentavel": bool(r["apresentavel"]),
+                "nivel_referencia": (None if not r["apresentavel"]
+                                     else str(r["nivel_referencia"])),
+                "referencia_especialidade": referencia_da_especialidade(
+                    apr.rotulo_exibicao(str(r["AREA_ATUACAO"])), r),
                 "gatilho_usado": gat,
                 "criterio_ajustado": bool(gat is not None and gat != gatilho_pedido),
                 # rótulos do LEXICO_PRODUTO.md — a UI não inventa a própria frase.
                 # O caso APRESENTÁVEL também recebe rótulo: a coluna de qualidade
                 # da aba Procedimentos precisa dizer os dois estados, e "célula
                 # vazia" ali leria como ausência de informação, não como "está boa".
-                "rotulo": ("sólida" if r["apresentavel"] else "referência não conclusiva"),
+                "rotulo": (config.ROTULO_REFERENCIA_ESPECIALIDADE
+                           if _esp(r["nivel_referencia"]) else
+                           "sólida" if r["apresentavel"] else "referência não conclusiva"),
                 "rotulo_criterio": ("critério ajustado ao tamanho do grupo"
                                     if gat is not None and gat != gatilho_pedido else None),
                 "motivo": (None if r["apresentavel"] else
                            f"referência construída com "
-                           f"{int(r['n_solicitantes_elegiveis'])} solicitantes, "
-                           f"abaixo do mínimo"),
+                           f"{int(r['n_solicitantes_area'])} solicitantes na área e "
+                           f"{int(r['n_solicitantes_especialidade']) if pd.notna(r.get('n_solicitantes_especialidade')) else 0} "
+                           "na especialidade, abaixo do mínimo"),
             },
             # zero aqui é zero MEDIDO — ninguém em cena pediu este exame —,
             # e por isso sai como "0" e não como travessão.
@@ -5415,14 +5697,20 @@ def principais_oportunidades(pares: pd.DataFrame, rs: pd.DataFrame,
             "leitura_razao": (
                 f"{fmt_frequencia(r.taxa)} solicitações por consulta, "
                 f"em {fmt(r.consultas_totais, 0)} consultas do período. "
-                + ("Referência da área para este procedimento: "
-                   f"{fmt_frequencia(referencia)}."
+                + ((f"{config.ROTULO_REFERENCIA_ESPECIALIDADE.capitalize()} para este "
+                    f"procedimento: {fmt_frequencia(referencia)}."
+                    if _esp(getattr(r, "nivel_referencia", None)) else
+                    "Referência da área para este procedimento: "
+                    f"{fmt_frequencia(referencia)}.")
                    if referencia is not None and not pd.isna(referencia)
                    else "Sem referência publicada para este procedimento.")),
             "excedente_itens": round(float(r.excedente_itens), 2),
             "excedente_itens_fmt": fmt(r.excedente_itens, 0),
             "excedente_reais": round(valor, 2),
             "excedente_reais_fmt": fmt_reais(valor),
+            "nivel_referencia": getattr(r, "nivel_referencia", None),
+            "etiqueta_referencia": (config.ROTULO_REFERENCIA_ESPECIALIDADE
+                                    if _esp(getattr(r, "nivel_referencia", None)) else None),
             # QUANTO ESTE CASO MOVE, que é a pergunta da tela: um par de R$ 47
             # mil não diz por si se vale uma conversa; 1% do excedente da área
             # diz. É a coluna que separa este bloco de mais uma lista ordenada.
@@ -5458,7 +5746,10 @@ def principais_oportunidades(pares: pd.DataFrame, rs: pd.DataFrame,
         if excedente_reais_area:
             txt += (f", {fmt_pct(soma / excedente_reais_area)} do custo "
                     f"excedente {escopo}")
-        return txt
+        # a divisão por nível de referência, quando existe (LEXICO)
+        esp = sum(l["excedente_reais"] for l in linhas[:ate] if l["etiqueta_referencia"])
+        div = divisao_por_nivel(soma, esp)
+        return txt if not div else f"{txt} · {div}"
 
     resumo = _resumo(corte)
     resumo_todos = _resumo(len(linhas))
@@ -5564,12 +5855,17 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
         else:
             sem_regua.append(a)
 
+    # TODAS as áreas com medida somam (13/set/2026): a área sem referência
+    # própria entra com os pares medidos contra a especialidade
+    medidas = com_regua + sem_regua
     exc_itens = sum(totais.get(a["id"], {}).get("excedente_itens", 0.0)
-                    for a in com_regua)
+                    for a in medidas)
     exc_reais = sum(totais.get(a["id"], {}).get("excedente_reais", 0.0)
-                    for a in com_regua)
+                    for a in medidas)
+    exc_reais_esp = sum(totais.get(a["id"], {}).get("excedente_reais_especialidade", 0.0)
+                        for a in medidas)
     n_com_exc = sum(totais.get(a["id"], {}).get("n_com_excedente", 0)
-                    for a in com_regua)
+                    for a in medidas)
     n_coop = sum(a["n_total"] for a in areas)
     n_comparaveis = sum(a["n_avaliaveis"] for a in com_regua)
     n_pendente = pendente["n_total"] if pendente else 0
@@ -5602,11 +5898,18 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
         "texto": (f"{fmt(exc_itens, 0)} solicitações excedentes de "
                   f"{fmt(n_com_exc, 0)} cooperados"),
         "titulo": ("Solicitações acima da referência da própria área, somadas "
-                   "procedimento a procedimento.")})
+                   "procedimento a procedimento. Soma dos trimestres acima da "
+                   "referência do período.")})
     contexto.append({
         "texto": fmt_reais(exc_reais),
         "titulo": ("As mesmas solicitações excedentes valoradas a preços de "
                    "referência internos derivados das contas do período.")})
+    if divisao_por_nivel(exc_reais, exc_reais_esp):
+        contexto.append({
+            "texto": divisao_por_nivel(exc_reais, exc_reais_esp),
+            "titulo": ("Parte do excedente medida contra a especialidade inteira, "
+                       "onde a área não tem solicitantes suficientes para uma "
+                       "referência própria.")})
 
     # ── onde o excesso está ─────────────────────────────────────────────────
     # A barra é a fatia da ÁREA no excedente da especialidade, não a fatia da
@@ -5629,7 +5932,12 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
     def _linhas_do_cartao(a: dict, t: dict) -> list[dict]:
         custo = t.get("custo_total")
         custo_comp = t.get("custo_comparaveis") or custo
-        exc = t.get("excedente_reais") if a["comparavel"] else None
+        # a área sem referência própria mostra o excedente medido contra a
+        # especialidade, com a divisão ao lado (13/set/2026); sem medida
+        # nenhuma, a ausência é declarada
+        exc = t.get("excedente_reais")
+        if not a["comparavel"] and not exc:
+            exc = None
         pct = (exc / custo_comp) if (custo_comp and exc is not None) else None
         return [
             {"rotulo": "Custo total",
@@ -5649,8 +5957,15 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
              "motivo": (None if exc is not None else
                         "sem referência da área para medir excesso"),
              "destaque": True,
-             "titulo": ("Solicitações acima da referência da própria área, "
-                        "valoradas aos mesmos preços internos.")},
+             "titulo": (ficha_divisao(f"Custo excedente: {fmt_reais(exc)}", exc,
+                                      t.get("excedente_reais_especialidade"),
+                                      medido=t.get("excedente_reais_medido"),
+                                      sem_ajuste=t.get("excedente_reais_sem_ajuste"),
+                                      confianca=t.get("confianca"))
+                        if exc else None)
+                       or ("Solicitações acima da referência da própria área, "
+                           "valoradas aos mesmos preços internos. Soma dos "
+                           "trimestres acima da referência do período.")},
         ]
 
     cartoes = []
@@ -5670,7 +5985,9 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
                           f"{'comparáveis' if a['n_avaliaveis'] != 1 else 'comparável'}"
                           f" de {fmt(a['n_total'], 0)}"),
             "qualificados": (f"{fmt(t.get('n_qualificados', 0), 0)} casos qualificados"
-                             if a["comparavel"] else
+                             + ("" if a["comparavel"] else
+                                f" com {config.ROTULO_REFERENCIA_ESPECIALIDADE}")
+                             if a["comparavel"] or t.get("n_qualificados") else
                              ("nenhum cooperado forma a referência"
                               if not a["n_formam_referencia"] else
                               "cooperados insuficientes para sustentar percentil")),
@@ -5902,9 +6219,15 @@ def indice_de_procedimentos(posproc_rs: pd.DataFrame,
     base["_custo"] = base["_solicitacoes"] * base["preco_mediano"].fillna(0.0)
     # o EXCEDENTE só conta de par sinalizado e com preço: é o mesmo filtro que
     # produz todo R$ excedente do app (`filtrar_sinalizados`, Lei 1)
-    sinal = base["sinalizado"] & com_preco & base["AREA_ATUACAO"].isin(areas_com_regua)
+    # todo par SINALIZADO com preço conta, medido contra a área ou contra a
+    # especialidade (13/set/2026): o nível viaja na linha, e o filtro por área
+    # com régua própria deixou de existir, senão a área pequena voltava a ser
+    # cegueira aqui depois de deixar de ser no Panorama
+    sinal = base["sinalizado"].astype(bool) & com_preco
     base["_exc"] = base["excedente_reais"].where(sinal, 0.0)
     base["_exc_itens"] = base["excedente_itens"].where(sinal, 0.0)
+    base["_exc_esp"] = base["_exc"].where(
+        base["nivel_referencia"] == config.NIVEL_REFERENCIA_ESPECIALIDADE, 0.0)
 
     linhas = []
     for (cd, ds), g in base.groupby(["CD_PROCEDIMENTO", "DS_PROCEDIMENTO"],
@@ -5912,7 +6235,9 @@ def indice_de_procedimentos(posproc_rs: pd.DataFrame,
         acima = g[g["_exc"] > 0]
         exc = float(g["_exc"].sum())
         custo = float(g["_custo"].sum())
-        tem_regua = bool(g["AREA_ATUACAO"].isin(areas_com_regua).any())
+        # há régua quando algum par tem referência, em qualquer nível
+        tem_regua = bool(g["apresentavel"].eq(True).any())
+        exc_esp = float(g["_exc_esp"].sum())
         linhas.append({
             "codigo": str(cd),
             "descricao": str(ds).strip(),
@@ -5932,6 +6257,10 @@ def indice_de_procedimentos(posproc_rs: pd.DataFrame,
                             else config.SEM_MEDIDA),
             "excedente_reais": round(exc, 2),
             "excedente_fmt": fmt_reais(exc) if tem_regua else config.SEM_MEDIDA,
+            "excedente_reais_especialidade": round(exc_esp, 2),
+            "etiqueta_referencia": (config.ROTULO_REFERENCIA_ESPECIALIDADE
+                                    if exc_esp > 0 else None),
+            "divisao": divisao_por_nivel(exc, exc_esp),
             "excedente_itens_fmt": (fmt(g["_exc_itens"].sum(), 0) if tem_regua
                                     else config.SEM_MEDIDA),
             # a fração é o que torna a linha comparável entre procedimentos de
@@ -5948,6 +6277,7 @@ def indice_de_procedimentos(posproc_rs: pd.DataFrame,
     com_exc = [l for l in linhas if l["excedente_reais"] > 0]
     multi = [l for l in com_exc if l["n_areas"] >= 2]
     total_exc = float(sum(l["excedente_reais"] for l in linhas))
+    total_esp = float(sum(l["excedente_reais_especialidade"] for l in linhas))
     resumo = (f"{fmt(len(linhas), 0)} procedimentos solicitados no período. "
               f"{fmt(len(com_exc), 0)} têm custo acima da referência, "
               f"{fmt(len(multi), 0)} deles em mais de uma área de atuação.")
@@ -5957,6 +6287,7 @@ def indice_de_procedimentos(posproc_rs: pd.DataFrame,
         "n_com_excedente": len(com_exc),
         "n_multiarea": len(multi),
         "excedente_total_fmt": fmt_reais(total_exc) if total_exc else config.SEM_MEDIDA,
+        "divisao": divisao_por_nivel(total_exc, total_esp),
         "resumo": resumo,
     }
 
@@ -6009,17 +6340,21 @@ def retrato_do_procedimento(posproc_rs: pd.DataFrame, norma_proc: pd.DataFrame,
     base["_solicitacoes"] = base["taxa"] * base["consultas_totais"]
     base["_custo"] = base["_solicitacoes"] * base["preco_mediano"].fillna(0.0)
     # o mesmo filtro que produz todo R$ excedente do app (Lei 1)
-    sinal = (base["sinalizado"].astype(bool) & base["preco_mediano"].notna()
-             & base["AREA_ATUACAO"].isin(areas_com_regua))
+    # em qualquer nível de referência (13/set/2026): o par da área pequena,
+    # medido contra a especialidade, entra com a etiqueta
+    sinal = base["sinalizado"].astype(bool) & base["preco_mediano"].notna()
     base["_exc"] = base["excedente_reais"].where(sinal, 0.0)
     base["_exc_itens"] = base["excedente_itens"].where(sinal, 0.0)
+    base["_exc_esp"] = base["_exc"].where(
+        base["nivel_referencia"] == config.NIVEL_REFERENCIA_ESPECIALIDADE, 0.0)
 
     solicitacoes = float(base["_solicitacoes"].sum())
     custo = float(base["_custo"].sum())
     exc = float(base["_exc"].sum())
     exc_itens = float(base["_exc_itens"].sum())
     acima = base[base["_exc"] > 0]
-    tem_regua = bool(base["AREA_ATUACAO"].isin(areas_com_regua).any())
+    tem_regua = bool(base["apresentavel"].eq(True).any())
+    exc_esp = float(base["_exc_esp"].sum())
     com_preco = preco_val is not None
 
     # ── LEITURA ──────────────────────────────────────────────────────────────
@@ -6082,9 +6417,11 @@ def retrato_do_procedimento(posproc_rs: pd.DataFrame, norma_proc: pd.DataFrame,
         "grupos": grupos,
         "destaque": {
             "valor_fmt": fmt_reais(exc) if tem_regua and exc else config.SEM_MEDIDA,
-            "apoio": ((f"de variação excedente, {fmt_pct(exc / custo)} do custo "
-                       f"deste procedimento") if tem_regua and exc and custo
-                      else "de variação excedente"),
+            "apoio": " · ".join(x for x in (
+                ((f"de variação excedente, {fmt_pct(exc / custo)} do custo "
+                  f"deste procedimento") if tem_regua and exc and custo
+                 else "de variação excedente"),
+                divisao_por_nivel(exc, exc_esp)) if x),
         },
         "notas": notas,
     }
@@ -6098,8 +6435,9 @@ def retrato_do_procedimento(posproc_rs: pd.DataFrame, norma_proc: pd.DataFrame,
         if npc is not None and len(npc):
             achou = npc[npc["AREA_ATUACAO"] == area]
             n_linha = achou.iloc[0] if len(achou) else None
-        regua = area in areas_com_regua and n_linha is not None
+        regua = n_linha is not None
         apresentavel = bool(regua and n_linha.get("apresentavel"))
+        nivel_esp = bool(apresentavel and _esp(n_linha.get("nivel_referencia")))
         g_acima = g[g["_exc"] > 0]
         c_area = float(g["_custo"].sum())
         e_area = float(g["_exc"].sum())
@@ -6120,6 +6458,10 @@ def retrato_do_procedimento(posproc_rs: pd.DataFrame, norma_proc: pd.DataFrame,
             "custo_fmt": fmt_reais(c_area) if c_area else config.SEM_MEDIDA,
             "excedente_reais": round(e_area, 2),
             "excedente_fmt": fmt_reais(e_area) if apresentavel else config.SEM_MEDIDA,
+            "nivel_referencia": (None if not apresentavel else str(n_linha["nivel_referencia"])),
+            "etiqueta_referencia": (config.ROTULO_REFERENCIA_ESPECIALIDADE if nivel_esp else None),
+            "referencia_especialidade": (referencia_da_especialidade(
+                apr.rotulo_exibicao(str(area)), n_linha) if nivel_esp else None),
             "motivo": (None if apresentavel else
                        ("área sem referência nesta janela" if not regua else
                         f"menos de {fmt(n_minimo, 0)} solicitantes para "
@@ -6151,6 +6493,9 @@ def retrato_do_procedimento(posproc_rs: pd.DataFrame, norma_proc: pd.DataFrame,
             "excedente_itens_fmt": fmt(l["_exc_itens"], 0),
             "excedente_reais": round(float(l["_exc"]), 2),
             "excedente_fmt": fmt_reais(float(l["_exc"])),
+            "nivel_referencia": l.get("nivel_referencia"),
+            "etiqueta_referencia": (config.ROTULO_REFERENCIA_ESPECIALIDADE
+                                    if _esp(l.get("nivel_referencia")) else None),
         })
 
     quem_bloco = {

@@ -216,54 +216,63 @@ Duas perguntas de negócio diferentes, **nunca misturadas**:
 Usar norma recalculada para medir progresso faz o número mentir. Esta é provavelmente a decisão
 mais importante do documento.
 
-#### 5.4.1 A regra aplicada à série trimestral do dossiê (set/2026)
+#### 5.4.1 Régua anual, apuração trimestral (revisto em 13/set/2026)
 
-O corolário operacional da regra acima, decidido depois de a tela contradizer a si mesma: a soma
-dos quatro trimestres do gráfico de evolução não fechava com o excedente do ano exibido no mesmo
-dossiê (R$ 516.498 contra R$ 728.498 no `cooperado_85`), porque cada trimestre estava sendo medido
-sob a norma do próprio trimestre.
+A primeira versão desta seção (set/2026) tinha duas réguas: recalculada por trimestre para a
+consistência, congelada no ano para o dinheiro. Em 13/set/2026 a decisão passou a ser UMA regra,
+sem divergência em nenhuma tela:
 
-**Régua recalculada para SINALIZAR; régua congelada para ACOMPANHAR.**
+**Critério e referência saem do ano. O excedente é apurado por trimestre, com a régua do ano,
+truncado em zero. Tudo o mais é soma.**
 
-| Leitura | Régua | Onde vive |
-| --- | --- | --- |
-| em quantos trimestres ele passou o critério | recalculada por trimestre | mini-série de consistência (`persistencia_temporal`) |
-| como o excedente se distribui no tempo | congelada no ano | gráfico de evolução trimestral |
+| Grandeza | Onde é calculada |
+| --- | --- |
+| referência de cada (área, procedimento): mediana, P75, P90 | janela inteira (§5) |
+| cesta: pares que passam os três portões (piso, n mínimo, acima do critério) | janela inteira (§6, §7) |
+| preço de cada procedimento | janela inteira |
+| excedente de um par | por fatia de `config.APURACAO_EXCEDENTE_MESES` meses, somado |
+| excedente do cooperado, do procedimento, da área | soma dos pares |
+| consistência (persistência) | fatias em que o excedente do par é positivo |
 
-O motor por trimestre (`persistencia_temporal`) continua sendo a fonte da **consistência**. Ele
-não é fonte de **dinheiro**.
+> excedente da fatia = max(0, itens da fatia − referência anual × consultas da fatia) × preço anual
 
-A distribuição do excedente no tempo usa, todos anuais: a **cesta** de pares sinalizados, o
-**alvo** contra o qual o excedente foi medido e o **preço**. O trimestre entra apenas com os
-itens e as consultas dele:
+A fatia é a mesma unidade da janela mínima (§5.1): o trimestre. Os dias que sobram no fim de uma
+janela livre formam uma fatia parcial, apurada com a mesma fórmula e declarada como parcial. A
+persistência conta só as fatias completas; o dinheiro conta todas.
 
-> excedente do trimestre = (solicitações do trimestre × preço) − (consultas do trimestre × Σ alvo × preço)
+**Por que truncar em zero por trimestre.** Decisão de produto, não de estatística: a unidade de
+cobrança é o trimestre, e um trimestre abaixo da referência não abate os que ficaram acima. O
+custo declarado dessa escolha: o número é maior ou igual ao anual (o anual é o caso de uma fatia
+só), e a diferença é maior em quem está perto da referência, porque é ali que a oscilação cruza a
+linha com mais frequência. Medido na área de Endoscopia Ginecológica, janela de 12 meses: +9% no
+total da área, +4% no maior caso, ordem do topo inalterada
+(`unimed_natal/verificacao_excedente_trimestral.ipynb`). A tela diz o que o número é: soma dos
+trimestres acima da referência do período.
 
-**Sem clip por trimestre.** Os dois lados são lineares em itens e em consultas, e é isso que faz
-os trimestres somarem exatamente o excedente do ano; clipar em zero por trimestre quebraria a
-identidade. O clip continua onde sempre esteve: por par, no ano. Trimestre negativo é resultado
-válido e significa que naquele período ele solicitou menos do que a referência anual previa para
-as consultas dele; a tela desenha abaixo do zero e declara "dentro da referência neste trimestre".
+**Identidades que valem por construção.** A soma das fatias é o excedente do par; a soma dos
+pares é o do cooperado; a soma dos cooperados é o da área. A série trimestral do dossiê e a da
+Área são essas somas, e nenhum trimestre é negativo. Régua única também para a consistência: um
+par é "sinalizado no trimestre" quando o excedente da fatia é positivo, e persistente quando
+todas as fatias completas são positivas. Não existe mais referência recalculada por trimestre nem
+portão de n mínimo por trimestre.
 
-Ressalva aceita: com régua congelada, a sazonalidade da área é atribuída ao cooperado. É o custo
-de qualquer baseline fixo, e é preferível ao inverso (a régua descer junto com o consumo da área,
+Ressalva aceita: com régua anual, a sazonalidade da área é atribuída ao cooperado. É o custo de
+qualquer baseline fixo, e é preferível ao inverso (a régua descer junto com o consumo da área,
 mostrando melhora onde não houve). Se um dia incomodar, o caminho é uma referência anual
 sazonalizada, não a volta da régua móvel.
 
-**O piso de consultas não se aplica a esta distribuição.** O piso decide se uma TAXA é
-comparável (§5.2); aqui não há comparação: o custo é uma soma e o excedente do trimestre é a
-parcela de uma medição já feita no ano. Esconder o trimestre abaixo do piso omitia um custo
-conhecido e ainda quebrava a identidade da soma. O que o piso continua dizendo entra como
-ressalva no trimestre ("volume baixo"), qualificando as taxas daquele período (SADT e custo por
-consulta) e nunca o custo. Trimestre sem barra só existe quando não há preço apurado.
+**O piso de consultas não se aplica às fatias.** O piso decide se uma TAXA anual é comparável
+(§5.2); a fatia não compara nada, só apura. Um trimestre de volume baixo continua com o custo e
+o excedente apurados; a ressalva "volume baixo" qualifica as taxas daquele período (SADT e custo
+por consulta), nunca o dinheiro. Trimestre sem barra só existe quando não há preço apurado.
 
 **Arredondamento.** As barras são publicadas com duas casas; quatro arredondamentos
-independentes somariam até dois centavos fora do número do ano. A sobra é aplicada à MAIOR
-barra, onde é imperceptível, em vez de ficar visível na conta de quem soma.
+independentes somariam até dois centavos fora do total. A sobra é aplicada à MAIOR barra, onde é
+imperceptível, em vez de ficar visível na conta de quem soma.
 
-Aceite permanente: a soma dos trimestres tem de bater com o excedente do ano **na casa do
-centavo**, para todo cooperado com excedente valorado. Verificado em 63/63 na área de
-Ginecologia, com diferença máxima de R$ 0,005.
+Aceite permanente: a soma das fatias tem de bater com o excedente do par, do cooperado e da área
+**na casa do centavo**, e nenhuma fatia pode ser negativa. Cobrado em `smoke_fase3.py` (motor,
+contra o gabarito do notebook) e em `smoke_api.py` (telas).
 
 #### 5.4.2 A granularidade mensal do custo, e por que o excedente não desce a ela (set/2026)
 
@@ -421,6 +430,15 @@ está em vigor:
 2. **Referência insuficiente** — há formadores, mas poucos demais para sinalizar: leitura
    descritiva por posto, sem percentil e sem sinalização. Inclui o caso-limite de **zero
    formadores** (a área existe, a referência não).
+   **Segundo nível, por procedimento (13/set/2026):** quando a ÁREA não tem
+   `N_MINIMO_PEER_GROUP` solicitantes de um exame, a referência aplicada passa a ser a da
+   **especialidade inteira** (todas as áreas, entre quem forma norma e solicita o exame), desde
+   que ela tenha `N_MINIMO_REFERENCIA_ESPECIALIDADE` solicitantes. O par carrega
+   `nivel_referencia` e a tela carrega a etiqueta "referência da especialidade" em todo lugar
+   onde o número aparece, com a composição da referência por área. É comparação que cruza
+   áreas com práticas diferentes: entra como oportunidade, sempre identificada, nunca somada a um
+   total sem a divisão por nível ao lado. Abaixo do mínimo nos dois níveis, "referência não
+   conclusiva": o custo aparece, o excedente não.
 3. **Sem grupo de pares** — o cooperado não tem área definida (classificação pendente): nenhuma
    comparação é aplicada; restam apenas as leituras que não dependem de grupo (concentração,
    trajetória própria, coerência de cascata clínica).
@@ -428,33 +446,64 @@ está em vigor:
 Em nenhum desses estados o cooperado desaparece do sistema; muda o que o sistema se permite
 afirmar sobre ele.
 
+O mesmo vale para qualquer **grandeza**, não só para a pessoa (Lei 5 do `CLAUDE.md`, set/2026):
+um procedimento sem referência apresentável não some da leitura de custo. O custo dele é dado
+observado e aparece; o que não aparece é o excedente, e a ausência é declarada com o motivo
+("sem padrão na área para comparar"). Toda decomposição fecha com o total: custo com referência
+mais custo sem referência é o custo do cooperado, sem resto.
+
 ---
 
 ## 7. Excedente / oportunidade de redução
 
-### 7.1 Gatilho e alvo são parâmetros SEPARADOS
+### 7.1 Gatilho e alvo são parâmetros SEPARADOS (revisto em 13/set/2026)
 
-Erro a evitar: usar o mesmo corte para *sinalizar* e para *reduzir*. Trazer todos acima do P-corte
-para o próprio P-corte condena, por construção, o quartil superior inteiro — sempre existe um
-quartil superior, mesmo numa área eficiente. Um médico derruba isso em trinta segundos:
-"escolheram um corte que me condena por definição".
+São duas perguntas diferentes, e por isso dois parâmetros:
 
-Portanto:
-- **`gatilho`** = quem é atípico o suficiente para sinalizar (ex.: um percentil alto).
-- **`alvo`** = o nível plausível para o qual se calcula a redução (ex.: a mediana da área).
-- Nunca são o mesmo valor. Defaults em `GATILHO_DEFAULT` e `ALVO_DEFAULT`.
+- **`gatilho`** = quem é atípico o suficiente para entrar na lista (um percentil alto da área).
+- **`alvo`** = o nível contra o qual se mede quanto ele pediu a mais.
+
+O gatilho decide QUEM; o alvo decide QUANTO. Trocar o alvo não muda a lista; trocar o gatilho muda.
+
+**O que o alvo responde, conforme onde está:**
+
+| Alvo | Pergunta | Leitura |
+| --- | --- | --- |
+| igual ao critério (ex.: P90) | quanto ele pediu além do limite que a área aceita | o **piso**: o número mínimo, o que sobra mesmo trazendo cada um só até a borda |
+| na referência típica (ex.: mediana) | quanto ele pediria a menos se praticasse como o colega típico | o **teto**: o que sobraria se cada um convergisse ao padrão |
+
+As duas leituras são legítimas e o app calcula as duas como uma faixa (piso e teto). O
+**padrão do produto é o piso** (`ALVO_DEFAULT` = `GATILHO_DEFAULT`, decisão de 11/set/2026: o que
+o controle mostra é o que se calcula), coerente com a regra de precisão acima de recall: o
+primeiro número que chega a um médico é o menor defensável. Quem quiser o teto troca o alvo na
+tela, e a faixa se abre.
+
+**O que esta seção dizia antes, e por que caiu.** A versão anterior mandava que gatilho e alvo
+nunca coincidissem, com o argumento de que "trazer todos acima do P-corte para o próprio P-corte
+condena o quartil superior por construção". O "por construção" é propriedade do critério por
+percentil: com gatilho P90 os 10% do topo entram na lista sempre, numa área eficiente ou não, com
+qualquer alvo. O argumento descrevia um problema real do gatilho e o atribuía ao alvo. A defesa
+contra esse problema não é o alvo, é a cascata (§8 e `cascata.py`: persistência, contexto,
+intervalo de confiança), que existe exatamente para separar posição em percentil de evidência.
+
+Ressalva técnica que continua valendo: com alvo igual ao critério, o excedente de quem está logo
+acima do corte é pequeno e quase todo oscilação amostral. Esses casos pesam pouco em R$, e o
+degrau de confiança da cascata os filtra. Não é motivo para proibir a coincidência; é motivo para
+nunca apresentar o excedente sem o intervalo de confiança ao lado.
 
 ### 7.2 Cálculo (em palavras, sem número)
 
-Para cada cooperado **acima do `gatilho`** em um procedimento, a oportunidade é o excedente de
-`valor_por_consulta` acima do `alvo`, reconvertido para volume total pela quantidade de consultas
-do cooperado na janela, e então valorado pela `função_de_valor`. Some-se por cooperado, por
-procedimento e por área conforme a pergunta — lembrando que somar entre cooperados é legítimo,
-mas somar entre áreas exige cuidado (peer groups distintos).
+Para cada cooperado **acima do `gatilho`** em um procedimento (portões: piso de consultas, n
+mínimo de solicitantes, taxa anual acima do critério anual), a oportunidade é apurada **por fatia
+de tempo** (§5.4.1): em cada fatia, o excedente de itens acima do que a referência anual (`alvo`)
+previa para as consultas daquela fatia, truncado em zero, valorado pela `função_de_valor`. O
+excedente do par é a soma das fatias. Some-se por cooperado, por procedimento e por área conforme
+a pergunta, lembrando que somar entre cooperados é legítimo, mas somar entre áreas exige cuidado
+(peer groups distintos). Não existe outra medida de excedente: toda tela lê esta soma.
 
 **Coorte entre períodos:** comparações temporais usam a **mesma coorte** de cooperados presente
 nas duas janelas. Caso a população mude (entrada/saída/reclassificação de cooperados), isso é
-explicitado — senão se atribui à ferramenta um efeito que foi só rotatividade.
+explicitado, senão se atribui à ferramenta um efeito que foi só rotatividade.
 
 ### 7.3 Confundidor antes de oportunidade
 
@@ -477,6 +526,22 @@ O excedente não é um ponto, é uma faixa (por tamanho de amostra e variância)
 UI escolhe quão conservador é o número reportado: *"com `nível_confiança` de confiança, a
 oportunidade é **pelo menos** Y"*. Calculado por intervalo de confiança / bootstrap sobre o
 excedente. Default em `NIVEL_CONFIANCA_DEFAULT`.
+
+O excedente reamostrado segue a MESMA definição da tela (§7.2): apurado por fatia, com a
+referência anual e truncado em zero, sobre o volume real de consultas de cada fatia. Um piso
+calculado sobre o excedente anual se referiria a outro número.
+
+**Como o controle funciona na tela (revisto em 13/set/2026).** Por padrão o excedente exibido é
+o **valor medido**, sem ajuste (`AJUSTE_CONFIANCA_DEFAULT`). Quando o analista escolhe um nível
+no controle "Ajuste de confiança", o excedente de cada par sinalizado passa a ser o valor
+conservador nesse nível, e tudo o que soma pares (R$, Paretos, totais, Panorama) segue; a
+ficha do número mostra o medido ao lado. O ajuste só é possível onde o exame tem
+`MIN_PACIENTES_AJUSTE_CONFIANCA` ou mais pacientes recebendo; abaixo disso o par fica com o
+valor medido e é declarado na tela ("sem ajuste de confiança"), sem citar o mínimo, que é
+critério interno. A série por trimestre não recebe o ajuste, porque o sorteio produz um valor
+por período inteiro: a nota do bloco declara. O degrau "com confiança estatística" da cascata
+continua com o próprio sorteio interno (`NIVEL_CONFIANCA_DEFAULT`, `MIN_PACIENTES_BOOTSTRAP`),
+pendência registrada.
 
 > Este controlador é **incerteza estatística**, não desconto de realização. "Que fração da
 > oportunidade é capturável na prática" é uma premissa de negócio separada, assumida

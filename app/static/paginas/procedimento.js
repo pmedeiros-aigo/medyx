@@ -133,6 +133,12 @@ await abrirPagina({
           const t = el('span', 'tag tag-caveat', l.motivo);
           nome.appendChild(t);
         }
+        /* a área medida contra a especialidade: a etiqueta única (LEXICO) */
+        if (l.etiqueta_referencia) {
+          const t = el('span', 'tag tag-ref', l.etiqueta_referencia);
+          if (l.referencia_especialidade) t.title = l.referencia_especialidade.texto;
+          nome.appendChild(t);
+        }
         tr.appendChild(nome);
         for (const [classe, texto] of [
           ['col-num', String(l.solicitantes)], ['col-num', l.prevalencia_fmt],
@@ -159,7 +165,12 @@ await abrirPagina({
         a.textContent = l.id;
         id.appendChild(a);
         tr.appendChild(id);
-        tr.appendChild(el('td', 'col-txt', l.area));
+        const area = el('td', 'col-txt', l.area);
+        if (l.etiqueta_referencia) {
+          area.appendChild(document.createTextNode(' '));
+          area.appendChild(el('span', 'tag tag-ref', l.etiqueta_referencia));
+        }
+        tr.appendChild(area);
         for (const [classe, texto] of [
           ['col-num', l.taxa_fmt], ['col-num', l.referencia_fmt],
           ['col-num', l.razao_fmt], ['col-num', l.consultas_fmt],

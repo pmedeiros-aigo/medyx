@@ -1,6 +1,6 @@
 # ESPECIFICAÇÃO FUNCIONAL — APP MEDYX (MVP v3, jul/2026)
 
-MVP = **3 páginas + Nota Metodológica**, derivadas do fluxo do auditor:
+MVP = **3 páginas** (a Nota Metodológica saiu do app em 13/set/2026), derivadas do fluxo do auditor:
 onde está a oportunidade? → fora do padrão em relação a quem? → com que evidência converso?
 Cada elemento: O QUE mostra ← QUAL motor alimenta. **Páginas nunca calculam.**
 **[v0]** agora · **[v1]** fase seguinte.
@@ -278,7 +278,9 @@ Cooperado"]
     trimestre com o excedente apurado ali, a fatia do custo que ele representa e a
     variação sobre o trimestre anterior.
   - **Por que duas unidades**: custo é soma e desce ao mês; excedente é apurado por
-    trimestre (METODOLOGIA §5.4.2). Um excedente mensal seria uma medida que a
+    trimestre, com a régua do ano e truncado em zero (METODOLOGIA §5.4.1, §5.4.2). A
+    célula do trimestre é a MEDIÇÃO, não uma repartição: nunca é negativa, e as
+    quatro somam o excedente do cooperado. Um excedente mensal seria uma medida que a
     metodologia não fez. É a única razão de o bloco ter duas camadas em vez de uma.
   - **O alinhamento é estrutural, não calculado**: o grupo de meses e a célula do
     fechamento recebem o MESMO peso (o número de meses, que vem do motor), e por isso
@@ -723,12 +725,12 @@ das duas telas é número comparado, e a faixa é o carimbo de sob qual régua.
 
 Preço com dispersão (IQR do valor unitário) e a série trimestral do procedimento.
 
-## 5. NOTA METODOLÓGICA [v0 — render do md]
+## 5. NOTA METODOLÓGICA [REMOVIDA em 13/set/2026]
 
-METODOLOGIA renderizada + glossário do léxico + as defesas escritas: mediana e
-robustez, percentis e não p-valor, critério ≠ referência, critério degradado por n,
-fronteira GO/Ginecologia, regra do PS, quarentena do preço, premissa da
-autorreferência.
+A página saiu do app por decisão do usuário: item da lateral, rota `/metodologia`,
+módulo `paginas/metodologia.js` e migalha. O método continua em
+`METODOLOGIA_ANALITICA.md`, e o "por quê" de cada número vive nos hovers e fichas
+das próprias telas.
 
 ## FORA DO MVP (decidido)
 

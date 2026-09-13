@@ -30,8 +30,6 @@ export function montarBarraSuperior(meta, area) {
     const partes = [{ txt: 'SADT' }];
     if (tela === 'panorama') {
       partes.push({ txt: TELAS.panorama.rotulo });
-    } else if (tela === 'metodologia') {
-      partes.push({ txt: TELAS.metodologia.rotulo });
     } else if (tela === 'cooperados') {
       partes.push({ txt: TELAS.cooperados.rotulo });
     } else if (tela === 'conta') {
