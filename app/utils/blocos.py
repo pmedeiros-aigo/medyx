@@ -5746,10 +5746,9 @@ def principais_oportunidades(pares: pd.DataFrame, rs: pd.DataFrame,
         if excedente_reais_area:
             txt += (f", {fmt_pct(soma / excedente_reais_area)} do custo "
                     f"excedente {escopo}")
-        # a divisão por nível de referência, quando existe (LEXICO)
-        esp = sum(l["excedente_reais"] for l in linhas[:ate] if l["etiqueta_referencia"])
-        div = divisao_por_nivel(soma, esp)
-        return txt if not div else f"{txt} · {div}"
+        # SEM a divisão por nível (13/set/2026): no cabeçalho ela encostava
+        # no título, e a etiqueta de cada linha já diz a referência do caso
+        return txt
 
     resumo = _resumo(corte)
     resumo_todos = _resumo(len(linhas))
@@ -5878,47 +5877,9 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
     n_coop = sum(a["n_total"] for a in areas)
     n_comparaveis = sum(a["n_avaliaveis"] for a in com_regua)
     n_pendente = pendente["n_total"] if pendente else 0
-    n_sem_regua = sum(a["n_total"] for a in sem_regua)
 
-    # ── a linha de contexto: o ESCOPO, que não se move com nada ──────────────
-    # Mesma forma da linha da tela de Área: fatos separados por ponto médio,
-    # cada um com a própria leitura no hover. É texto e não cartão porque
-    # descreve o alcance da medição, e cartão promete grandeza comparável.
-    contexto = [
-        {"texto": f"{fmt(n_coop, 0)} cooperados",
-         "titulo": "Cooperados da especialidade com atividade registrada no período."},
-        {"texto": (f"{fmt(n_comparaveis, 0)} comparáveis em "
-                   f"{fmt(len(com_regua), 0)} "
-                   f"{'áreas' if len(com_regua) != 1 else 'área'} com referência"),
-         "titulo": ("Volume suficiente para comparação, cada um dentro da "
-                    "própria área de atuação.")},
-    ]
-    if n_pendente:
-        contexto.append({
-            "texto": f"{fmt(n_pendente, 0)} em classificação pendente",
-            "titulo": ("Sem área de atuação atribuída. Seguem listados e não "
-                       "sinalizam, porque não há grupo contra o qual comparar.")})
-    if n_sem_regua:
-        contexto.append({
-            "texto": f"{fmt(n_sem_regua, 0)} em áreas sem referência",
-            "titulo": ("Áreas pequenas demais para sustentar percentil. A "
-                       "posição aparece como posto descritivo.")})
-    contexto.append({
-        "texto": (f"{fmt(exc_itens, 0)} solicitações excedentes de "
-                  f"{fmt(n_com_exc, 0)} cooperados"),
-        "titulo": ("Solicitações acima da referência da própria área, somadas "
-                   "procedimento a procedimento. Soma dos trimestres acima da "
-                   "referência do período.")})
-    contexto.append({
-        "texto": fmt_reais(exc_reais),
-        "titulo": ("As mesmas solicitações excedentes valoradas a preços de "
-                   "referência internos derivados das contas do período.")})
-    if divisao_por_nivel(exc_reais, exc_reais_esp):
-        contexto.append({
-            "texto": divisao_por_nivel(exc_reais, exc_reais_esp),
-            "titulo": ("Parte do excedente medida contra a especialidade inteira, "
-                       "onde a área não tem solicitantes suficientes para uma "
-                       "referência própria.")})
+    # A LINHA DE CONTEXTO SAIU (13/set/2026): repetia, em uma frase longa, o
+    # que o extrato abaixo lista linha a linha e fecha no total.
 
     # ── o EXTRATO das áreas ─────────────────────────────────────────────────
     # UMA LINHA POR ÁREA, as mesmas colunas em todas, fechando num TOTAL.
@@ -5944,33 +5905,67 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
     # área: a pergunta é quanto do problema mora ali, as fatias somam 100% e a
     # barra cheia da linha de total é esse inteiro. Normalizar pela maior faria
     # a segunda área parecer maior sempre que a primeira encolhesse.
+    # COLUNAS (13/set/2026): saiu "Qualificados"; entraram cooperados e
+    # solicitações como NÚMEROS, com a parte da especialidade embaixo. A única
+    # barra do extrato continua sendo a fatia do excedente (decisão do usuário)
     colunas = [
-        {"chave": "area", "rotulo": "Área de atuação", "direita": False,
-         "classe": "col-area", "titulo": None},
+        {"chave": "area", "rotulo": "Área de atuação", "direita": False, "titulo": None},
+        {"chave": "cooperados", "rotulo": "Cooperados", "direita": True,
+         "titulo": ("Cooperados da área com atividade no período. Embaixo, a "
+                    "parte da área no total de cooperados da especialidade.")},
+        {"chave": "solicitacoes", "rotulo": "Solicitações", "direita": True,
+         "titulo": ("Procedimentos solicitados pelos cooperados da área no "
+                    "período. Embaixo, a parte da área no total da especialidade.")},
         {"chave": "custo", "rotulo": "Custo solicitado", "direita": True,
-         "classe": "col-num-md",
-         "titulo": ("Valor de tudo que os cooperados desta área solicitaram no "
-                    "período, a preços de referência internos derivados das "
-                    "contas, com o peso da área no custo da especialidade "
-                    "embaixo. Existe com ou sem referência da área.")},
+         "titulo": ("Valor de tudo que os cooperados da área solicitaram no "
+                    "período, a preços de referência internos. Embaixo, o peso "
+                    "da área no custo da especialidade.")},
         {"chave": "excedente", "rotulo": "Custo excedente", "direita": True,
-         "classe": "col-num-md",
-         "titulo": ("Parte do custo solicitado que está acima da referência, "
-                    "valorada aos mesmos preços internos, com a fração do "
-                    "custo da própria área embaixo. Soma dos trimestres acima "
-                    "da referência do período.")},
+         "titulo": ("Parte do custo solicitado acima da referência, somada "
+                    "por trimestre. Embaixo, a fração do custo da própria área.")},
         {"chave": "fatia", "rotulo": "Fatia do excedente", "direita": False,
-         "classe": "col-fatia",
-         "titulo": ("Quanto do custo excedente da especialidade está nesta "
-                    "área. As fatias somam 100%, e a barra cheia da linha de "
-                    "total é esse inteiro.")},
-        {"chave": "qualificados", "rotulo": "Casos qualificados", "direita": True,
-         "classe": "col-num",
-         "titulo": ("Cooperados que atravessam todos os degraus de "
-                    "qualificação dentro da própria área: variação persistente "
-                    "em todos os trimestres, sem fator de contexto verificado, "
-                    "com intervalo de confiança calculável.")},
+         "titulo": ("Parte da área no custo excedente da especialidade. As "
+                    "fatias somam 100%. O trecho hachurado é a parte medida "
+                    "com referência da especialidade.")},
     ]
+
+    def _contagem(n: float, total: float, valor_fmt: str, titulo: str) -> dict:
+        """Uma célula de NÚMERO com a parte da especialidade embaixo (mesma
+        forma das colunas de custo) e a ficha no hover."""
+        fr = (n / total) if total else None
+        return _celula(valor_fmt,
+                       apoio=(None if fr is None else f"{_pct_visivel(fr)} da especialidade"),
+                       titulo=titulo)
+
+    def _ficha_area(nome: str, t: dict, custo, exc, esp, pct_custo, fatia,
+                    pendente: bool = False) -> str | None:
+        """A dica em FICHA da área, no formato da evolução mensal: título e um
+        dado por linha, com o excedente destrinchado por nível de referência."""
+        if not custo:
+            return None
+        linhas_f = [nome, f"Custo solicitado: {fmt_reais(custo)}"]
+        if exc is None:
+            linhas_f.append("Custo excedente: sem área de atuação para medir"
+                            if pendente else
+                            "Custo excedente: sem referência para medir")
+            return "\n".join(linhas_f)
+        linhas_f.append(f"Custo excedente: {fmt_reais(exc)}"
+                        + (f" · {_pct_visivel(pct_custo)} do custo da área" if pct_custo else ""))
+        conf = t.get("confianca")
+        if conf is not None and t.get("excedente_reais_medido") is not None:
+            linhas_f.append(f"Valor medido: {fmt_reais(float(t['excedente_reais_medido']))}")
+            linhas_f.append(f"Com {conf:.0%} de confiança: {fmt_reais(exc)}")
+            if t.get("excedente_reais_sem_ajuste"):
+                linhas_f.append("Sem ajuste, por poucos pacientes: "
+                                f"{fmt_reais(float(t['excedente_reais_sem_ajuste']))}")
+        if esp and exc:
+            area_v = exc - esp
+            linhas_f.append(f"Com referência da área: {fmt_reais(area_v)} · {fmt_pct(area_v / exc)}")
+            linhas_f.append(f"Com {config.ROTULO_REFERENCIA_ESPECIALIDADE}: "
+                            f"{fmt_reais(esp)} · {fmt_pct(esp / exc)}")
+        if fatia is not None:
+            linhas_f.append(f"Parte do custo excedente da especialidade: {_pct_visivel(fatia)}")
+        return "\n".join(linhas_f)
 
     def _pct_visivel(fracao: float | None) -> str | None:
         """O percentual com as casas que o número PEDE, e não com zero fixo.
@@ -6001,18 +5996,22 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
         return {"valor_fmt": valor_fmt, "apoio": apoio, "motivo": motivo,
                 "titulo": titulo}
 
-    # As linhas do extrato, e só elas, formam o total: área de classificação
-    # pendente não entra em nenhum dos dois. Um total que somasse mais do que a
-    # tela lista seria um número que o leitor não consegue conferir somando.
-    ordenadas = [a for a in sorted(
-        areas, key=lambda x: (not x["comparavel"],
+    # As linhas do extrato, e só elas, formam o total. A classificação
+    # pendente ENTRA como última linha (decisão do usuário, 13/set/2026): são
+    # cooperados da especialidade, com solicitações e custo reais; o que lhes
+    # falta é área, e com ela o excesso. Fora da tabela, eram gente que a
+    # página não listava, e o total somava menos do que a especialidade tem.
+    ordenadas = sorted(
+        areas, key=lambda x: (x["nome"] == area_pendente, not x["comparavel"],
                               -(totais.get(x["id"], {}).get("excedente_reais") or 0.0),
                               -x["n_total"]))
-        if a["nome"] != area_pendente]
     custo_esp = sum(float(totais.get(a["id"], {}).get("custo_total") or 0.0)
                     for a in ordenadas)
     custo_comp_esp = sum(float(totais.get(a["id"], {}).get("custo_comparaveis") or 0.0)
                          for a in ordenadas)
+    coop_esp = sum(int(a["n_total"]) for a in ordenadas)
+    solic_esp = sum(float(totais.get(a["id"], {}).get("solicitacoes") or 0.0)
+                    for a in ordenadas)
 
     linhas = []
     for a in ordenadas:
@@ -6033,11 +6032,18 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
         # qualificado diz "0" — o motivo vai no hover; só onde não houve
         # avaliação a célula recua, porque ali não falta variação, falta norma.
         tem_qual = a["comparavel"] or n_qual > 0
+        # a linha dos SEM ÁREA: nome próprio (o rótulo interno é de estado, não
+        # de área) e a população diz o que falta
+        eh_pendente = a["nome"] == area_pendente
+        nome_linha = "Sem área de atuação" if eh_pendente else a["titulo"]
         linhas.append({
-            "id": a["id"], "nome": a["titulo"], "comparavel": a["comparavel"],
+            "id": a["id"], "nome": nome_linha, "comparavel": a["comparavel"],
+            "pendente": eh_pendente,
             # a POPULAÇÃO sob o nome, e não em coluna: ela é identidade da
             # linha (contra quantos a área é medida), não uma sexta medida
             "populacao": (
+                f"{fmt(a['n_total'], 0)} cooperado{'s' if a['n_total'] != 1 else ''}"
+                " · classificação pendente" if eh_pendente else
                 f"{fmt(a['n_avaliaveis'], 0)} "
                 f"{'comparáveis' if a['n_avaliaveis'] != 1 else 'comparável'}"
                 f" de {fmt(a['n_total'], 0)}" if a["comparavel"] else
@@ -6046,17 +6052,24 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
             # os números crus viajam ao lado do texto: quem confere a soma não
             # deveria ter de reverter a formatação para somar (smoke, léxico)
             "n_total": a["n_total"], "n_comparaveis": a["n_avaliaveis"],
-            # A ETIQUETA ÚNICA da referência da especialidade fica ao lado do
-            # NOME, e não no hover do valor: ela qualifica a linha inteira —
-            # ali toda medida saiu da especialidade, não da área —, e ressalva
-            # de método que só existe para quem passa o mouse não é ressalva.
-            "etiqueta": (config.ROTULO_REFERENCIA_ESPECIALIDADE
-                         if (esp > 0 and not a["comparavel"]) else None),
-            "titulo_etiqueta": (FRASE_REFERENCIA_ESPECIALIDADE
-                                if (esp > 0 and not a["comparavel"]) else None),
+            # SEM ETIQUETA junto ao nome (decisão do usuário, 13/set/2026): a
+            # parte medida contra a especialidade aparece HACHURADA na fatia,
+            # como nos Paretos e nas séries, e a ficha do excedente diz a divisão
+            "cooperados": _contagem(
+                a["n_total"], coop_esp, fmt(a["n_total"], 0),
+                "\n".join([nome_linha, f"Cooperados: {fmt(a['n_total'], 0)}",
+                           ("Sem área de atuação atribuída" if eh_pendente else
+                            f"Com volume para comparação: {fmt(a['n_avaliaveis'], 0)}")])),
+            "solicitacoes": _contagem(
+                float(t.get("solicitacoes") or 0.0), solic_esp,
+                fmt(float(t.get("solicitacoes") or 0.0), 0),
+                "\n".join([nome_linha,
+                           f"Solicitações: {fmt(float(t.get('solicitacoes') or 0.0), 0)}"])),
             "custo": _celula(
                 config.SEM_MEDIDA if not custo else fmt_reais(custo),
-                apoio=(f"{_pct_visivel(custo / custo_esp)} do total"
+                # "da especialidade", como nas colunas vizinhas (13/set/2026):
+                # "do total" ao lado de "da especialidade" lia como duas bases
+                apoio=(f"{_pct_visivel(custo / custo_esp)} da especialidade"
                        if custo and custo_esp else None),
                 motivo=None if custo else "sem procedimento com preço apurado"),
             "excedente": _celula(
@@ -6064,13 +6077,11 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
                 apoio=(None if pct_custo is None else
                        f"{_pct_visivel(pct_custo)} do custo da área"),
                 motivo=(None if exc is not None else
+                        "sem área de atuação, e por isso sem grupo de pares "
+                        "para medir excesso" if eh_pendente else
                         "sem referência da área para medir excesso"),
-                titulo=(ficha_divisao(f"Custo excedente: {fmt_reais(exc)}", exc,
-                                      esp or None,
-                                      medido=t.get("excedente_reais_medido"),
-                                      sem_ajuste=t.get("excedente_reais_sem_ajuste"),
-                                      confianca=t.get("confianca"))
-                        if exc else None)),
+                titulo=_ficha_area(nome_linha, t, custo, exc, esp, pct_custo, fatia,
+                                   pendente=eh_pendente)),
             # SEM MEDIDA NÃO DESENHA BARRA, e não imprime percentual: trilho
             # com preenchimento zero afirmaria "excedente = 0". O trilho fica
             # tracejado — a mesma marca de ressalva da etiqueta — e o motivo
@@ -6079,9 +6090,17 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
             "fatia": {
                 "valor_fmt": None if fatia is None else _pct_visivel(fatia),
                 "largura_pct": 0.0 if fatia is None else round(fatia * 100, 1),
+                # o trecho hachurado: a parte da fatia medida contra a especialidade
+                "largura_esp_pct": (round(fatia * 100 * esp / exc, 1)
+                                    if fatia is not None and exc and esp else 0.0),
                 "sinaliza": fatia is not None,
-                "titulo": (f"{_pct_visivel(fatia)} do custo excedente da especialidade"
+                # a MESMA ficha do excedente: passar o mouse na barra destrincha
+                # o custo excedente por nível, como na evolução mensal
+                "titulo": (_ficha_area(nome_linha, t, custo, exc, esp, pct_custo, fatia)
                            if fatia is not None else
+                           "Sem área de atuação, o excesso não é medido, e a "
+                           "linha não tem fatia no excedente da especialidade."
+                           if eh_pendente else
                            "Sem excesso medido nesta área, então ela não tem "
                            "fatia no excedente da especialidade.")},
             "qualificados": _celula(
@@ -6098,7 +6117,9 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
                         "Sem cooperados suficientes para sustentar percentil e "
                         "critério de revisão. A posição aparece como posto "
                         "descritivo, e ninguém é sinalizado.")),
-            "acao": (f"Abrir {a['titulo']} com o mesmo período e os mesmos "
+            "acao": ("Abrir a fila de classificação pendente com o mesmo "
+                     "período e os mesmos critérios." if eh_pendente else
+                     f"Abrir {a['titulo']} com o mesmo período e os mesmos "
                      "critérios."),
         })
 
@@ -6111,9 +6132,13 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
                        for a in ordenadas)
     total = {
         "nome": "Total",
-        "populacao": "soma das áreas acima",
+        "populacao": "soma das linhas acima",
+        "cooperados": _celula(fmt(coop_esp, 0), apoio="100% da especialidade",
+                              titulo="Cooperados das linhas acima, com ou sem área."),
+        "solicitacoes": _celula(fmt(solic_esp, 0), apoio="100% da especialidade",
+                                titulo="Solicitações das linhas acima, com ou sem área."),
         "custo": _celula(config.SEM_MEDIDA if not custo_esp else fmt_reais(custo_esp),
-                         apoio="100% do total" if custo_esp else None),
+                         apoio="100% da especialidade" if custo_esp else None),
         "excedente": _celula(
             config.SEM_MEDIDA if not exc_reais else fmt_reais(exc_reais),
             apoio=(f"{_pct_visivel(exc_reais / custo_comp_esp)} do custo solicitado"
@@ -6124,6 +6149,8 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
                                   exc_reais, exc_reais_esp or None)
                     if exc_reais else None)),
         "fatia": {"valor_fmt": fmt_pct(1.0), "largura_pct": 100.0,
+                  "largura_esp_pct": (round(100.0 * exc_reais_esp / exc_reais, 1)
+                                      if exc_reais else 0.0),
                   "sinaliza": bool(exc_reais),
                   "titulo": ("O excedente das áreas acima é o inteiro contra o "
                              "qual as fatias de cada linha são medidas.")},
@@ -6152,7 +6179,6 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
     return {
         "titulo": especialidade,
         "pergunta": "Onde está o custo excedente, e por onde começar?",
-        "contexto": contexto,
         "areas": {
             # O TÍTULO NÃO PROMETE "onde o excesso está" (set/2026). Sete
             # cartões lado a lado são o CATÁLOGO da especialidade: dizem o que
@@ -6161,9 +6187,11 @@ def panorama_da_especialidade(especialidade: str, areas: list[dict],
             # própria mais abaixo na página. Um título que promete concentração
             # sobre uma grade que lista faz o leitor procurar ali uma resposta
             # que o desenho não dá.
+            # A seção é sobre as ÁREAS (o usuário recusou "Cooperados por área
+            # de atuação", 13/set/2026); a linha dos sem área é uma delas.
             "titulo": "Áreas de atuação",
-            "subtitulo": ("Cada área é medida contra a própria referência; o "
-                          "excesso é a única grandeza comparável entre elas"),
+            # o subtítulo diz o que a tabela mostra, sem tese de método
+            "subtitulo": "Volume, custo e custo excedente de cada área no período",
             "colunas": colunas,
             "linhas": linhas,
             "total": total,
@@ -6186,7 +6214,9 @@ def concentracao_da_especialidade(reais_coop: dict[str, float],
                                   custos_coop: dict[str, float],
                                   areas_por_coop: dict[str, str],
                                   reais_area: dict[str, float] | None = None,
-                                  custos_area: dict[str, float] | None = None
+                                  custos_area: dict[str, float] | None = None,
+                                  reais_coop_esp: dict[str, float] | None = None,
+                                  reais_area_esp: dict[str, float] | None = None
                                   ) -> dict | None:
     """Onde o excesso se concentra, em DUAS agregações alternáveis: por área de
     atuação e por cooperado.
@@ -6210,7 +6240,8 @@ def concentracao_da_especialidade(reais_coop: dict[str, float],
     """
     linhas = [{"id": coop, "area": areas_por_coop.get(coop)}
               for coop in reais_coop]
-    p = pareto_cooperados(reais_coop, linhas, None, None, custos_coop)
+    p = pareto_cooperados(reais_coop, linhas, None, None, custos_coop,
+                          reais_coop_esp=reais_coop_esp)
     if not p:
         return None
     # O TÍTULO é o do bloco, não o do Pareto genérico: os dois Paretos desta tela
@@ -6233,7 +6264,7 @@ def concentracao_da_especialidade(reais_coop: dict[str, float],
     if reais_area:
         linhas_a = [{"id": nome} for nome in reais_area]
         por_area = pareto_cooperados(reais_area, linhas_a, None, None,
-                                     custos_area or {})
+                                     custos_area or {}, reais_coop_esp=reais_area_esp)
     if not por_area:
         return p
 

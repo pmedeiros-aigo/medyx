@@ -925,8 +925,12 @@ def panorama(p: ParametrosDep,
                                        p.criterio, p.referencia, p.incluir_ps,
                                        so_comparaveis=True, confianca=p.confianca)
 
+    # SOLICITAÇÕES por área: dado real, existe com ou sem referência, e é uma
+    # das barras do extrato (13/set/2026)
+    _solic = r["taxa_agregada"].groupby("AREA_ATUACAO")["total_itens"].sum().to_dict()
     totais = {a["id"]: {"custo_total": custos.get(a["nome"]),
-                        "custo_comparaveis": custos_comp.get(a["nome"])}
+                        "custo_comparaveis": custos_comp.get(a["nome"]),
+                        "solicitacoes": float(_solic.get(a["nome"], 0.0))}
               for a in _todas}
     # os pares das áreas COM RÉGUA, empilhados: é o que sustenta a lista de
     # oportunidades da especialidade inteira. Empilhar é legítimo porque cada
@@ -934,6 +938,7 @@ def panorama(p: ParametrosDep,
     # achado, nunca a régua.
     pares, rs_pares, confs, custo_pares = [], [], [], []
     reais_coop, custos_coop, area_do_coop = {}, {}, {}
+    reais_coop_esp = {}
     for a in _todas:
         # Desde 13/set/2026 TODA área com pares entra, e não só as comparáveis:
         # a área sem referência própria tem os pares medidos contra a
@@ -972,6 +977,7 @@ def panorama(p: ParametrosDep,
         if casc["conf"] is not None:
             confs.append(casc["conf"])
         reais_coop.update(casc["excedente_reais_coop"])
+        reais_coop_esp.update(casc["excedente_reais_coop_especialidade"])
         custos_coop.update(casc["valor_total_coop"])
         custo_pares.append(casc["custo_pares"])
         for coop in casc["excedente_reais_coop"]:
@@ -998,7 +1004,10 @@ def panorama(p: ParametrosDep,
             {a["titulo"]: totais[a["id"]]["excedente_reais"] for a in _todas
              if "excedente_reais" in totais[a["id"]]},
             {a["titulo"]: totais[a["id"]].get("custo_total") or 0.0
-             for a in _todas if "excedente_reais" in totais[a["id"]]})
+             for a in _todas if "excedente_reais" in totais[a["id"]]},
+            reais_coop_esp=reais_coop_esp,
+            reais_area_esp={a["titulo"]: totais[a["id"]]["excedente_reais_especialidade"]
+                            for a in _todas if "excedente_reais" in totais[a["id"]]})
         bloco["transversais"] = blocos.procedimentos_transversais(
             pd.concat(rs_pares),
             pd.concat(custo_pares) if any(len(c) for c in custo_pares) else None)

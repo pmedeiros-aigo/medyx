@@ -766,8 +766,10 @@ _op = endo["oportunidades"]
 checar("área · oportunidades com referência da especialidade carregam a etiqueta",
        all((l["etiqueta_referencia"] == ROT_ESP) == (l["nivel_referencia"] == "especialidade")
            for l in _op["linhas"]), True)
-checar("área · o resumo das oportunidades traz a divisão quando há parte da especialidade",
-       (ROT_ESP in _op["resumo"]) == any(l["etiqueta_referencia"] for l in _op["linhas"][:5]), True)
+# desde 13/set/2026 o resumo NÃO traz a divisão por nível (encostava no título);
+# a etiqueta de cada linha diz a referência do caso
+checar("área · o resumo das oportunidades é curto, sem a divisão por nível",
+       ROT_ESP in _op["resumo"], False)
 _, d85 = get("/api/cooperado/cooperado_85")
 _esp85 = [l for l in d85["procedimentos"]["linhas"] if l.get("nivel_referencia") == "especialidade"]
 checar("dossiê · linhas da especialidade com o bloco fixo e a etiqueta",
@@ -805,9 +807,12 @@ checar("painel do dossiê · a série do exame da especialidade é hachurada int
        pan["evolucao"]["tem_especialidade"]
        and all(l["altura_exc_esp_pct"] == l["altura_exc_pct"]
                for l in pan["evolucao"]["linhas"] if l["excedente_reais"]), True)
+# a linha de contexto do Panorama SAIU em 13/set/2026 (repetia o extrato); a
+# divisão por nível vive nos totais do extrato e na ficha de cada área
 _, pano_esp = get("/api/panorama")
-checar("panorama · a linha de contexto traz a divisão",
-       any(ROT_ESP in c["texto"] for c in pano_esp["contexto"]), True)
+checar("panorama · sem linha de contexto sob o título", "contexto" in pano_esp, False)
+checar("panorama · a divisão por nível segue na ficha do total do extrato",
+       ROT_ESP in (pano_esp["areas"]["total"]["excedente"]["titulo"] or ""), True)
 
 print("\n6c. AJUSTE DE CONFIANÇA · valor medido por padrão, conservador quando escolhido")
 # 13/set/2026 (METODOLOGIA §8): o excedente exibido é o medido, salvo quando o
@@ -1021,12 +1026,10 @@ _com_regua = {k: c for k, c in _linhas_pano.items() if c["comparavel"]}
 # TODA ÁREA VIRA LINHA, com referência ou sem. A tela é o catálogo da
 # especialidade, e área que não aparece é área que ninguém lembra de
 # classificar. O que separa as duas famílias é o CONTEÚDO da linha, não a
-# presença.
+# presença. Desde 13/set/2026 a classificação pendente também é linha.
 _, _meta_areas = get("/api/meta")
-checar("panorama · toda área de atuação vira linha do extrato",
-       sorted(_linhas_pano),
-       sorted(a["id"] for a in _meta_areas["areas"]
-              if a["id"] != blocos.slug(config.AREA_INDEFINIDA)))
+checar("panorama · toda área de atuação vira linha do extrato, e os sem área também",
+       sorted(_linhas_pano), sorted(a["id"] for a in _meta_areas["areas"]))
 checar("panorama · e só as com régua trazem excedente",
        sorted(_com_regua), ["endoscopia-ginecologica", "ginecologia-geral", "obstetricia"])
 # AS MESMAS COLUNAS EM TODA LINHA, na mesma ordem: é o que um extrato é, e é
@@ -1037,7 +1040,7 @@ checar("panorama · e só as com régua trazem excedente",
 # sobram para trabalhar.
 checar("panorama · o extrato declara as colunas, na ordem de leitura",
        [c["chave"] for c in pano["areas"]["colunas"]],
-       ["area", "custo", "excedente", "fatia", "qualificados"])
+       ["area", "cooperados", "solicitacoes", "custo", "excedente", "fatia"])
 checar("panorama · e toda coluna de número carrega a própria definição",
        all(c["titulo"] for c in pano["areas"]["colunas"] if c["chave"] != "area"),
        True)
@@ -1058,16 +1061,25 @@ checar("panorama · área sem comparáveis declara o motivo do custo ausente",
 # Desde 13/set/2026 a área sem régua própria pode ter excesso medido contra a
 # ESPECIALIDADE: aí o valor aparece e a linha ganha a etiqueta única. Sem medida
 # em nível nenhum, continua ausência declarada, nunca zero.
-checar("panorama · sem régua, o excesso é ausência declarada ou vem com a referência da especialidade",
+checar("panorama · sem régua, o excesso é ausência declarada ou vem hachurado (especialidade)",
        all((c["excedente"]["valor_fmt"] == config.SEM_MEDIDA
             and c["excedente"]["motivo"])
-           or c["etiqueta"] == config.ROTULO_REFERENCIA_ESPECIALIDADE
+           or c["fatia"]["largura_esp_pct"] > 0
            for c in _linhas_pano.values() if not c["comparavel"]), True)
-# A ETIQUETA É DA LINHA, não do hover: ali toda medida saiu da especialidade, e
-# ressalva de método que só existe para quem passa o mouse não é ressalva. Área
-# com referência própria não a carrega.
-checar("panorama · a etiqueta da especialidade não aparece em área com régua",
-       [c["nome"] for c in _com_regua.values() if c["etiqueta"]], [])
+# SEM ETIQUETA junto ao nome (13/set/2026): a parte da especialidade é o
+# trecho hachurado da fatia, e nunca passa da própria fatia
+checar("panorama · o extrato não carrega mais a etiqueta junto ao nome",
+       all("etiqueta" not in c for c in _linhas_pano.values()), True)
+checar("panorama · o trecho hachurado cabe na fatia",
+       all(0 <= c["fatia"]["largura_esp_pct"] <= c["fatia"]["largura_pct"] + 0.05
+           for c in _linhas_pano.values()), True)
+checar("panorama · as partes hachuradas somam a do total",
+       abs(sum(c["fatia"]["largura_esp_pct"] for c in _linhas_pano.values())
+           - pano["areas"]["total"]["fatia"]["largura_esp_pct"]) <= 0.5, True)
+_conc_area = pano["concentracao"]["dados"]["area"]
+checar("panorama · o Pareto por área traz o trecho da especialidade",
+       _conc_area["tem_especialidade"]
+       and any(l["excedente_rs_especialidade"] > 0 for l in _conc_area["linhas"]), True)
 # SEM MEDIDA NÃO DESENHA BARRA: trilho com preenchimento zero afirmaria
 # "excedente = 0", e ali não falta variação, falta norma.
 checar("panorama · linha sem excedente medido não desenha fatia",
@@ -1076,16 +1088,32 @@ checar("panorama · linha sem excedente medido não desenha fatia",
            if c["excedente"]["valor_fmt"] == config.SEM_MEDIDA), True)
 # ZERO É MEDIDA, ausência é ausência: área com régua e ninguém qualificado diz
 # "0", com o motivo no hover; só onde não houve avaliação a célula recua.
-checar("panorama · área com régua sempre conta os casos qualificados",
-       all(c["qualificados"]["valor_fmt"] != config.SEM_MEDIDA
-           for c in _com_regua.values()), True)
+# as BARRAS de cooperados e de solicitações são partes da especialidade: somam
+# a barra cheia do total, e a ficha da barra do excedente destrincha por nível
+checar("panorama · cooperados e solicitações são números, sem barra",
+       all("largura_pct" not in c["cooperados"] and "largura_pct" not in c["solicitacoes"]
+           for c in _linhas_pano.values()), True)
+checar("panorama · o total de solicitações soma as linhas",
+       num_ptbr(pano["areas"]["total"]["solicitacoes"]["valor_fmt"]),
+       float(sum(num_ptbr(c["solicitacoes"]["valor_fmt"]) for c in _linhas_pano.values())))
+checar("panorama · a ficha da fatia destrincha o excedente por nível",
+       all("Custo excedente" in (c["fatia"]["titulo"] or "")
+           and ("referência da área" in c["fatia"]["titulo"]) == (c["fatia"]["largura_esp_pct"] > 0)
+           for c in _linhas_pano.values() if c["fatia"]["sinaliza"]), True)
 # NINGUÉM DESAPARECE: as linhas e a classificação pendente somam a
 # especialidade inteira. É a regra que impede a tela de esconder quem não pode
 # ser medido, que é justamente quem mais precisa aparecer.
+# desde 13/set/2026 a classificação pendente é uma LINHA do extrato ("Sem área
+# de atuação"), a última; as linhas sozinhas somam a especialidade
 _pop = sum(c["n_total"] for c in _linhas_pano.values())
-checar("panorama · ninguém desaparece da especialidade",
-       _pop + int(num_ptbr(pano["pendente"]["valor_fmt"])),
-       pano["totais"]["cooperados"])
+checar("panorama · ninguém desaparece da especialidade", _pop, pano["totais"]["cooperados"])
+_ult = pano["areas"]["linhas"][-1]
+checar("panorama · a classificação pendente é a última linha, sem excesso apurado",
+       (_ult["pendente"], _ult["nome"], _ult["excedente"]["valor_fmt"],
+        _ult["n_total"] == int(num_ptbr(pano["pendente"]["valor_fmt"]))),
+       (True, "Sem área de atuação", config.SEM_MEDIDA, True))
+checar("panorama · só a última linha é pendente",
+       sum(1 for l in pano["areas"]["linhas"] if l["pendente"]), 1)
 # ── O TOTAL SOMA EXATAMENTE O QUE A TELA LISTA ──────────────────────────────
 # É a razão de a linha existir: o leitor confere a conta somando o que está
 # diante dele. Um total que somasse mais do que o extrato mostra seria um número
@@ -1095,11 +1123,9 @@ _total_pano = pano["areas"]["total"]
 checar("panorama · o extrato fecha num total",
        _total_pano["excedente"]["valor_fmt"],
        fmt_reais(pano["totais"]["excedente_reais"]))
-checar("panorama · e o total dos qualificados soma as linhas",
-       num_ptbr(_total_pano["qualificados"]["valor_fmt"]),
-       float(sum(int(num_ptbr(c["qualificados"]["valor_fmt"]))
-                 for c in _linhas_pano.values()
-                 if c["qualificados"]["valor_fmt"] != config.SEM_MEDIDA)))
+checar("panorama · o total de cooperados soma as linhas",
+       num_ptbr(_total_pano["cooperados"]["valor_fmt"]),
+       float(sum(c["n_total"] for c in _linhas_pano.values())))
 # AS FATIAS SOMAM O INTEIRO, e a barra cheia do total é esse inteiro: a fatia é
 # a parte da área no excedente da ESPECIALIDADE, não a parte da maior área.
 checar("panorama · as fatias somam a barra cheia do total",
@@ -1123,7 +1149,7 @@ checar("panorama · o custo solicitado bate com a Leitura da área",
 checar("panorama · a linha traz a intensidade sob o excedente",
        _com_regua[AREA_REF]["excedente"]["apoio"].endswith("do custo da área"), True)
 checar("panorama · e o peso da área sob o custo solicitado",
-       _com_regua[AREA_REF]["custo"]["apoio"].endswith("do total"), True)
+       _com_regua[AREA_REF]["custo"]["apoio"].endswith("da especialidade"), True)
 checar("Leitura · e não imprime mais apoio sob nenhum número",
        [l["apoio"] for g in gin["leitura"]["grupos"] for l in g["linhas"]
         if l["apoio"]], [])

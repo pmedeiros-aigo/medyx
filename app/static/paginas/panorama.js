@@ -26,10 +26,6 @@ import { buscar } from '../lib/api.js';
 import { el } from '../lib/dom.js';
 import { abrirPagina } from '../lib/pagina.js';
 import { TELAS, comRegua } from '../lib/rotas.js';
-/* A MESMA MOLDURA das outras tabelas do app, e o mesmo cabeçalho: o extrato
-   das áreas não é um desenho novo, é a tabela que a página inteira já fala,
-   com as colunas desta tela. */
-import { moldura, cabecalho } from '../lib/tabelas.js';
 /* O MESMO BLOCO da tela de Área, com o conjunto trocado: lá os pares de uma
    área, aqui os de todas as que têm régua. Um desenho, duas escalas. */
 import { montarOportunidades } from '../blocos/oportunidades.js';
@@ -55,8 +51,25 @@ function contexto(partes) {
 }
 
 
+/* O EXTRATO É UMA GRADE, NÃO UMA `<table>`.
+ *
+ * A primeira versão usou a `moldura()` das outras tabelas do app, e ficou com
+ * cara de tabela: faixa cinza de cabeçalho, altura de célula de dado tabular,
+ * calha de 12px. O bloco não é a tabela de cooperados — é o CATÁLOGO da
+ * especialidade, oito linhas que se leem de uma vez, e o cromo de tabela pesa
+ * mais que o conteúdo nesse tamanho.
+ *
+ * O que ele é, então: um cartão com um cabeçalho de bloco, rótulos de coluna em
+ * corpo miúdo sobre um filete, linhas de 52px com respiro de 24px nas bordas, e
+ * o total numa faixa no pé. Uma grade CSS com o mesmo literal de colunas nas
+ * três partes — cabeçalho, linhas e total —, porque três cópias de larguras
+ * desalinham na primeira vez que uma coluna muda.
+ */
+const GRADE = 'pa-grade';
+
+
 /**
- * Uma CÉLULA DE NÚMERO do extrato: o valor, e a razão que anda com ele.
+ * Uma CÉLULA DE NÚMERO: o valor, e a razão que anda com ele logo abaixo.
  *
  * O apoio é a MESMA medida numa segunda leitura (quanto é, e quanto pesa), e é
  * por isso que ele mora sob o valor e não em coluna própria: uma coluna para
@@ -66,13 +79,14 @@ function contexto(partes) {
  * hover. Nunca zero, nunca célula vazia — zero afirmaria que não há variação, e
  * vazio manda o leitor procurar o número que não existe.
  */
-function celulaNumero(c, classe) {
-  const td = el('td', `${classe} rt`);
-  const v = el('span', c.motivo ? 'ext-v pano-ausente' : 'ext-v', c.valor_fmt);
+function celulaNumero(c, forte) {
+  const cel = el('span', 'pa-num');
+  const v = el('span', c.motivo ? 'pa-v pano-ausente' : 'pa-v', c.valor_fmt);
+  if (forte) v.classList.add('pa-v-forte');
   if (c.titulo || c.motivo) v.title = c.motivo ?? c.titulo;
-  td.appendChild(v);
-  if (c.apoio) td.appendChild(el('span', 'cell-sub', c.apoio));
-  return td;
+  cel.appendChild(v);
+  if (c.apoio) cel.appendChild(el('span', 'pa-sub', c.apoio));
+  return cel;
 }
 
 
@@ -90,8 +104,8 @@ function celulaNumero(c, classe) {
  * não diz se é prática ou ruído.
  */
 function celulaArea(l) {
-  const td = el('td', 'col-area');
-  const nome = el('span', 'ext-nome');
+  const cel = el('span', 'pa-id');
+  const nome = el('span', 'pa-nome');
   if (l.id) {
     const a = document.createElement('a');
     a.href = comRegua(TELAS.area.caminho(l.id));
@@ -101,16 +115,10 @@ function celulaArea(l) {
   } else {
     nome.textContent = l.nome;
   }
-  /* A ETIQUETA ÚNICA da referência da especialidade (LEXICO), na mesma posição
-     em que ela aparece no dossiê e no índice de procedimentos: ao lado do nome,
-     com a frase do motor no hover. */
-  if (l.etiqueta) {
-    const t = el('span', 'tag tag-ref', l.etiqueta);
-    if (l.titulo_etiqueta) t.title = l.titulo_etiqueta;
-    nome.append(document.createTextNode(' '), t);
-  }
-  td.append(nome, el('span', 'cell-sub', l.populacao));
-  return td;
+  /* sem etiqueta junto ao nome (13/set/2026): a parte medida contra a
+     especialidade é o trecho hachurado da fatia, como nos outros gráficos */
+  cel.append(nome, el('span', 'pa-sub', l.populacao));
+  return cel;
 }
 
 
@@ -126,32 +134,41 @@ function celulaArea(l) {
  * tracejado, que é a gramática de ressalva do app, e o motivo vive no hover.
  */
 function celulaFatia(f) {
-  const td = el('td', 'col-fatia');
-  const caixa = el('div', 'ext-fatia');
+  const cel = el('span', 'pa-fatia');
   const trilho = el('span', f.sinaliza ? 'trilho' : 'trilho trilho-vazio');
   if (f.sinaliza) {
+    /* o trecho medido contra a ESPECIALIDADE sai do cheio e entra hachurado
+       no fim dele, como na barra do Pareto e da série por trimestre */
+    const esp = f.largura_esp_pct ?? 0;
     const i = document.createElement('i');
-    i.style.width = `${f.largura_pct}%`;
+    i.style.width = `${f.largura_pct - esp}%`;
     trilho.appendChild(i);
+    if (esp > 0) {
+      const h = document.createElement('i');
+      h.className = 'esp';
+      h.style.width = `${esp}%`;
+      trilho.appendChild(h);
+    }
   }
-  caixa.appendChild(trilho);
-  caixa.appendChild(el('span', 'ext-pct', f.valor_fmt ?? ''));
-  if (f.titulo) td.title = f.titulo;
-  td.appendChild(caixa);
-  return td;
+  cel.append(trilho, el('span', 'pa-pct', f.valor_fmt ?? ''));
+  if (f.titulo) cel.title = f.titulo;
+  return cel;
 }
 
 
 /** Uma linha do extrato, na ordem das colunas que o motor declarou. */
-function linhaDeArea(l) {
-  const tr = document.createElement('tr');
-  if (!l.comparavel) tr.className = 'ext-sem-regua';
-  tr.append(celulaArea(l),
-            celulaNumero(l.custo, 'col-num-md'),
-            celulaNumero(l.excedente, 'col-num-md ext-forte'),
-            celulaFatia(l.fatia),
-            celulaNumero(l.qualificados, 'col-num'));
-  return tr;
+function linhaDeArea(l, total) {
+  const linha = el('div', total ? `${GRADE} pa-l pa-total` : `${GRADE} pa-l`);
+  if (!total && !l.comparavel) linha.classList.add('pa-sem-regua');
+  /* seis colunas desde 13/set/2026: saiu "Qualificados"; entraram cooperados e
+     solicitações como números. A única barra é a da fatia. */
+  linha.append(celulaArea(l),
+               celulaNumero(l.cooperados, false),
+               celulaNumero(l.solicitacoes, false),
+               celulaNumero(l.custo, false),
+               celulaNumero(l.excedente, true),
+               celulaFatia(l.fatia));
+  return linha;
 }
 
 
@@ -284,47 +301,46 @@ await abrirPagina({
     conteudo.appendChild(topo);
 
     if (d.areas?.linhas?.length) {
-      /* A MOLDURA PADRÃO, sem `tbl-fill` nem `tbl-sticky`: as duas servem às
-         tabelas que são o corpo da tela e rolam por dentro. Este extrato tem
-         uma linha por área de atuação — ele cabe inteiro, e prender o
-         cabeçalho de uma tabela que não rola não prende nada. */
-      const { quadro, topo, tabela, pe } = moldura();
-      quadro.classList.remove('tbl-fill', 'tbl-sticky');
-      quadro.classList.add('tbl-areas');
-      pe.remove();
-      topo.append(el('span', 't', d.areas.titulo),
+      const bloco = el('section', 'pano-areas');
+
+      /* O CABEÇALHO DO BLOCO: título e, SOB ele, a frase que enquadra a
+         leitura. À direita ela competia com o título pela mesma linha; embaixo
+         ela se lê como o que é, uma legenda do bloco inteiro. */
+      const topo = el('div', 'pa-hd');
+      topo.append(el('h3', null, d.areas.titulo),
                   el('span', 'sub', d.areas.subtitulo));
+      bloco.appendChild(topo);
 
-      /* O CABEÇALHO vem do motor: rótulo e definição de cada coluna são texto
-         de produto, e a UI imprime, não redige (léxico). Sem ordenação — a
-         ordem do extrato é a da leitura (quem tem referência primeiro, pelo
-         excedente), e uma seta prometeria reordenar um conjunto que foi
-         escolhido por essa ordem. */
-      tabela.appendChild(cabecalho(
-        (d.areas.colunas ?? []).map((c) => ({
-          nome: c.rotulo, def: c.titulo, direita: c.direita, classe: c.classe,
-        })), null, null, () => {}));
+      /* ROLAGEM HORIZONTAL só quando a grade não couber: as colunas têm piso em
+         px, e numa janela estreita o extrato rola em vez de espremer os
+         números até eles quebrarem no meio. */
+      const rolagem = el('div', 'pa-rolagem');
+      const corpo = el('div', 'pa-corpo');
 
-      const corpo = document.createElement('tbody');
-      for (const l of d.areas.linhas) corpo.appendChild(linhaDeArea(l));
-      tabela.appendChild(corpo);
-
-      /* O TOTAL em `<tfoot>`, e não numa faixa fora da tabela: ele soma as
-         colunas acima, então tem de estar ALINHADO a elas. Um rodapé de cartão
-         (`.tbl-ft`) é texto sobre a tabela; isto é a última linha dela. */
-      if (d.areas.total) {
-        const rodape = document.createElement('tfoot');
-        const tr = document.createElement('tr');
-        const t = d.areas.total;
-        tr.append(celulaArea(t),
-                  celulaNumero(t.custo, 'col-num-md'),
-                  celulaNumero(t.excedente, 'col-num-md ext-forte'),
-                  celulaFatia(t.fatia),
-                  celulaNumero(t.qualificados, 'col-num'));
-        rodape.appendChild(tr);
-        tabela.appendChild(rodape);
+      /* OS RÓTULOS DE COLUNA vêm do motor, e a definição de cada um vai no
+         hover — como no cabeçalho das outras tabelas do app. Aqui eles são
+         rótulos em corpo miúdo sobre um filete, não uma faixa: oito linhas não
+         precisam de cabeçalho pesado para se orientar. */
+      const cab = el('div', `${GRADE} pa-cab`);
+      for (const c of d.areas.colunas ?? []) {
+        const r = el('span', c.direita ? 'rt' : null, c.rotulo);
+        if (c.titulo) r.title = c.titulo;
+        cab.appendChild(r);
       }
-      conteudo.appendChild(quadro);
+      corpo.appendChild(cab);
+
+      const corpoLinhas = el('div', 'pa-linhas');
+      for (const l of d.areas.linhas) corpoLinhas.appendChild(linhaDeArea(l, false));
+      corpo.appendChild(corpoLinhas);
+
+      /* O TOTAL fecha o extrato numa faixa própria, alinhado às mesmas colunas:
+         ele soma o que está acima, e é para isso que existe — o leitor confere
+         a conta somando o que está diante dele. */
+      if (d.areas.total) corpo.appendChild(linhaDeArea(d.areas.total, true));
+
+      rolagem.appendChild(corpo);
+      bloco.appendChild(rolagem);
+      conteudo.appendChild(bloco);
     }
 
     /* PRINCIPAIS OPORTUNIDADES da especialidade. Sem `aoAbrir`: o painel do

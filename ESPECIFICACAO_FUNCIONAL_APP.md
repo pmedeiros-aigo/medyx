@@ -128,7 +128,13 @@ própria tela, no rodapé, até entrarem.
   - O **título da seção é "Áreas de atuação"**, não "Onde o excesso está": um título
     que promete concentração sobre um extrato que lista faz o leitor procurar ali uma
     resposta que o desenho não dá. Concentração é pergunta de Pareto, que tem seção
-    própria na etapa 3.
+    própria na etapa 3. ("Cooperados por área de atuação" foi tentado e recusado em
+    13/set/2026: a seção é sobre as áreas.) O subtítulo diz só o que a tabela mostra
+    ("Volume, custo e custo excedente de cada área no período"), sem tese de método.
+  - **Todo apoio percentual tem a mesma base**, "da especialidade": cooperados,
+    solicitações e custo. "do total" ao lado de "da especialidade" lia como duas bases.
+  - **Não há linha de contexto sob o título** (saiu em 13/set/2026): a frase longa
+    repetia o que o extrato lista linha a linha e fecha no total.
   - A **barra é a fatia da área no excedente da especialidade**, não a fatia da maior:
     a pergunta é quanto do problema mora ali, as fatias somam 100% e a barra cheia do
     total é esse inteiro. Normalizar pela maior faria a segunda área parecer maior
@@ -144,19 +150,32 @@ própria tela, no rodapé, até entrarem.
   - O motivo é **redigido no bloco do Panorama**, não herdado do estado da área: a
     frase de lá termina em "motivos abaixo", apontando para a barra de composição, que
     só existe na tela de Área.
-- **Classificação pendente em faixa própria.** 72 dos 200 cooperados, 36% da
-  especialidade, e é o único número da tela cuja ação não passa por comitê: é triagem
-  clínica, trabalho de cadastro. Como mais uma linha recuada do extrato ele vira nota
-  de rodapé, e some justamente o que dá para resolver — por isso fica FORA da tabela, e
-  fora do total. **Pendência**: o motor monta este bloco (`pendente` no payload) e a
-  página ainda não o desenha; hoje o fato chega ao leitor só pela linha de contexto.
-- **Componentes reusados, nenhum novo**: o extrato é a `.tbl` do contrato com a
-  `moldura()`/`cabecalho()` que as outras tabelas do app já usam, a etiqueta ao lado do
-  nome é a `.tag-ref` da referência da especialidade, a faixa de pendência é a
-  `.res-destaque` da Leitura da área, e a linha de contexto é a mesma marcação do
-  cabeçalho da Área. As tintas da barra são as do Pareto logo abaixo (`--g-200` no
-  trilho, `--exc` no cheio): é o mesmo dinheiro, e duas tintas para ele na mesma tela
-  seriam duas grandezas para o leitor.
+- **Os cooperados sem área de atuação são a última linha do extrato** (decisão do
+  usuário, 13/set/2026; até então ficavam fora da tabela e do total, e a página não
+  os listava em lugar nenhum). A linha se chama "Sem área de atuação", com a população
+  "N cooperados · classificação pendente"; cooperados, solicitações e custo são os
+  números reais; o excedente é "não apurado" com o motivo (sem área, e por isso sem
+  grupo de pares), e a fatia fica tracejada, como nas áreas sem referência. O nome
+  leva à tela da classificação pendente. O total soma todas as linhas, e por isso
+  fecha com a especialidade inteira. O bloco `pendente` do payload continua existindo
+  no motor, sem consumidor na tela.
+- **É uma GRADE dentro de um cartão, não uma `<table>`.** A primeira versão usou a
+  `moldura()` das outras tabelas do app e veio com o cromo junto: faixa cinza de
+  cabeçalho, altura de célula de dado tabular, calha de 12px. Num bloco de oito linhas
+  o cromo pesa mais que o conteúdo, e o extrato passava a ler como a tabela de
+  cooperados. O desenho é o do artboard `Medyx Panorama.dc.html`: cartão com cabeçalho
+  de bloco, rótulos de coluna em corpo miúdo sobre um filete, linhas de 52px com
+  respiro de 24px, total em faixa no pé. **Um literal de grade** serve cabeçalho,
+  linhas e total — três cópias de larguras desalinham na primeira vez que uma coluna
+  muda.
+- **Componentes reusados, nenhum novo**: a moldura do cartão é a da `.tbl` (mesmos
+  tokens de borda, raio e sombra), a etiqueta ao lado do nome é a `.tag-ref` da
+  referência da especialidade, a faixa de pendência é a `.res-destaque` da Leitura da
+  área, e a linha de contexto é a mesma marcação do cabeçalho da Área. As tintas da
+  barra são as do Pareto logo abaixo (`--g-200` no trilho, `--exc` no cheio): é o mesmo
+  dinheiro, e duas tintas para ele na mesma tela seriam duas grandezas para o leitor.
+  Tipografia e espaço saem dos tokens (`--fs-*`, `--g-*`), então o tema escuro segue
+  sozinho.
 
 **Motor.** `blocos.panorama_da_especialidade` monta o bloco; `/api/panorama` agrega.
 **Nada nasce no endpoint**: o catálogo de áreas é o MESMO de `/api/meta`

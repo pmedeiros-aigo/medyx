@@ -456,24 +456,30 @@ def main() -> int:
         # As pastilhas viraram cartões em set/2026, e os cartões viraram um
         # EXTRATO: uma linha por área, as mesmas colunas em todas, fechando num
         # total. Cartões não somavam, e a especialidade não tinha total na tela.
-        pg.wait_for_selector(".tbl-areas tbody tr", timeout=60_000)
-        checar("e mostra todas as áreas de atuação",
-               pg.locator(".tbl-areas tbody tr").count(), 8)
+        # É uma GRADE dentro do cartão, não uma `<table>`: num bloco de oito
+        # linhas o cromo de tabela pesa mais que o conteúdo.
+        pg.wait_for_selector(".pano-areas .pa-total", timeout=60_000)
+        # 9 linhas desde 13/set/2026: as 8 áreas e a linha dos sem área
+        checar("e mostra todas as áreas de atuação, mais os sem área",
+               pg.locator(".pano-areas .pa-linhas .pa-l").count(), 9)
+        checar("e o extrato não é uma tabela",
+               pg.locator(".pano-areas table").count(), 0)
         # NINGUÉM DESAPARECE: as áreas sem régua continuam na tela, recuadas e
         # com a ausência declarada no lugar dos números que não existem.
+        # 6 desde 13/set/2026: as 5 áreas sem régua e a linha dos sem área
         checar("as áreas sem referência continuam na tela",
-               pg.locator(".tbl-areas tbody tr.ext-sem-regua").count(), 5)
+               pg.locator(".pano-areas .pa-l.pa-sem-regua").count(), 6)
         # O TOTAL é a última linha da TABELA, alinhado às colunas que ele soma:
         # é o que o leitor usa para conferir a conta somando o que está na tela.
         checar("e o extrato fecha num total",
-               pg.locator(".tbl-areas tfoot tr").count(), 1)
+               pg.locator(".pano-areas .pa-total").count(), 1)
         # A LINHA NÃO É LINK, o NOME é: o gesto útil da tela é comparar as áreas
         # entre si, e linha inteira clicável prometeria drill-down onde o
         # desenho cataloga. A porta para a área continua existindo.
         checar("a linha de área não é clicável inteira",
-               pg.locator(".tbl-areas tbody tr[onclick], .tbl-areas tbody tr a.linha").count(), 0)
+               pg.locator(".pano-areas .pa-l[onclick], .pano-areas a.pa-l").count(), 0)
         checar("mas o nome da área leva à tela dela",
-               pg.locator(".tbl-areas tbody .ext-nome a").count(), 8)
+               pg.locator(".pano-areas .pa-linhas .pa-nome a").count(), 9)
         # as PRINCIPAIS OPORTUNIDADES da especialidade, o mesmo bloco da tela de
         # Área com o conjunto trocado, ganham a coluna que diz contra qual régua
         # cada caso foi medido
@@ -486,15 +492,15 @@ def main() -> int:
         #
         # A prova é ESTRUTURAL: uma tabela só, com todas as áreas dentro dela.
         checar("um extrato só, com todas as áreas",
-               (pg.locator(".tbl-areas").count(),
-                pg.locator(".tbl-areas tbody tr").count()), (1, 8))
-        # A ÚNICA BARRA do extrato é a da fatia, que é a coluna que o ordena:
-        # barra em toda coluna de R$ faria dele um painel.
+               (pg.locator(".pano-areas").count(),
+                pg.locator(".pano-areas .pa-linhas .pa-l").count()), (1, 9))
+        # A ÚNICA BARRA do extrato é a da fatia: cooperados, solicitações e as
+        # colunas de R$ são números (decisão do usuário, 13/set/2026)
         checar("e a única barra é a da fatia",
-               pg.locator(".tbl-areas .ext-fatia .trilho").count(),
-               pg.locator(".tbl-areas tbody tr").count() + 1)
+               pg.locator(".pano-areas .trilho").count(),
+               pg.locator(".pano-areas .pa-l").count())
         checar("e o título não promete concentração",
-               pg.locator(".tbl-areas .tbl-hd .t").inner_text(), "Áreas de atuação")
+               pg.locator(".pano-areas .pa-hd h3").inner_text(), "Áreas de atuação")
         # a Nota Metodológica saiu do app em 13/set/2026: o caminho para ela
         # não existe mais, e a prova é a lateral com 4 destinos (seção 1)
         checar("a Nota Metodológica não está mais na lateral",
