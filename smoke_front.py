@@ -453,39 +453,48 @@ def main() -> int:
                pg.locator(".navitem.on").inner_text(), "Panorama")
         # espera o CONTEÚDO, não só o título: o h2 entra antes de a API
         # responder, e checar as áreas nesse intervalo é medir o meio da carga.
-        # As pastilhas viraram CARTÕES em set/2026, quando o Panorama deixou de
-        # ser esqueleto: cada área tem o seu, com régua ou sem.
-        pg.wait_for_selector(".kpis-areas .kpi", timeout=60_000)
+        # As pastilhas viraram cartões em set/2026, e os cartões viraram um
+        # EXTRATO: uma linha por área, as mesmas colunas em todas, fechando num
+        # total. Cartões não somavam, e a especialidade não tinha total na tela.
+        pg.wait_for_selector(".tbl-areas tbody tr", timeout=60_000)
         checar("e mostra todas as áreas de atuação",
-               pg.locator(".kpis-areas .kpi").count(), 8)
+               pg.locator(".tbl-areas tbody tr").count(), 8)
         # NINGUÉM DESAPARECE: as áreas sem régua continuam na tela, recuadas e
-        # com o motivo no lugar dos números que não existem.
+        # com a ausência declarada no lugar dos números que não existem.
         checar("as áreas sem referência continuam na tela",
-               pg.locator(".kpi-sem-regua").count(), 5)
-        # O CARTÃO NÃO É LINK: ele descreve a área, e o gesto útil da tela é
-        # comparar as áreas entre si, não entrar numa delas.
-        checar("e o cartão de área não é link",
-               pg.locator(".kpis-areas a.kpi").count(), 0)
+               pg.locator(".tbl-areas tbody tr.ext-sem-regua").count(), 5)
+        # O TOTAL é a última linha da TABELA, alinhado às colunas que ele soma:
+        # é o que o leitor usa para conferir a conta somando o que está na tela.
+        checar("e o extrato fecha num total",
+               pg.locator(".tbl-areas tfoot tr").count(), 1)
+        # A LINHA NÃO É LINK, o NOME é: o gesto útil da tela é comparar as áreas
+        # entre si, e linha inteira clicável prometeria drill-down onde o
+        # desenho cataloga. A porta para a área continua existindo.
+        checar("a linha de área não é clicável inteira",
+               pg.locator(".tbl-areas tbody tr[onclick], .tbl-areas tbody tr a.linha").count(), 0)
+        checar("mas o nome da área leva à tela dela",
+               pg.locator(".tbl-areas tbody .ext-nome a").count(), 8)
         # as PRINCIPAIS OPORTUNIDADES da especialidade, o mesmo bloco da tela de
         # Área com o conjunto trocado, ganham a coluna que diz contra qual régua
         # cada caso foi medido
         checar("as principais oportunidades cruzam as áreas",
                pg.locator(".tbl-oportunidades th",
                           has_text="Área de atuação").count(), 1)
-        # UMA GRADE, UM TAMANHO: houve uma versão com dois cartões grandes na
-        # frente, e eles prometiam responder "onde o excesso está" — pergunta de
-        # Pareto, que tem seção própria. Cartão grande sobre uma lista de áreas
-        # afirma concentração onde o desenho só cataloga.
+        # UM EXTRATO, UMA LINHA POR ÁREA: houve uma versão com dois cartões
+        # grandes na frente, e eles prometiam responder "onde o excesso está" —
+        # pergunta de Pareto, que tem seção própria mais abaixo.
         #
-        # A prova é ESTRUTURAL, e não a altura medida: numa janela estreita a
-        # grade quebra em duas fileiras e as alturas divergem por largura, não
-        # por desenho. O que se cobra é que exista UMA grade e que ela guarde
-        # todos os cartões.
-        checar("uma grade só, com todas as áreas",
-               (pg.locator(".kpis-areas").count(),
-                pg.locator(".kpis-areas > .kpi").count()), (1, 8))
+        # A prova é ESTRUTURAL: uma tabela só, com todas as áreas dentro dela.
+        checar("um extrato só, com todas as áreas",
+               (pg.locator(".tbl-areas").count(),
+                pg.locator(".tbl-areas tbody tr").count()), (1, 8))
+        # A ÚNICA BARRA do extrato é a da fatia, que é a coluna que o ordena:
+        # barra em toda coluna de R$ faria dele um painel.
+        checar("e a única barra é a da fatia",
+               pg.locator(".tbl-areas .ext-fatia .trilho").count(),
+               pg.locator(".tbl-areas tbody tr").count() + 1)
         checar("e o título não promete concentração",
-               pg.locator("h3").first.inner_text(), "Áreas de atuação")
+               pg.locator(".tbl-areas .tbl-hd .t").inner_text(), "Áreas de atuação")
         # a Nota Metodológica saiu do app em 13/set/2026: o caminho para ela
         # não existe mais, e a prova é a lateral com 4 destinos (seção 1)
         checar("a Nota Metodológica não está mais na lateral",

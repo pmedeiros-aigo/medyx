@@ -11,9 +11,10 @@
  * isso não existe nesta tela.
  *
  * ── o que ela tem ──────────────────────────────────────────────────────────
- * Escopo da especialidade, um cartão por área de atuação, as principais
- * oportunidades cruzando as áreas e os dois Paretos (onde o excesso se
- * concentra e quais procedimentos o puxam em mais de uma área).
+ * Escopo da especialidade, o extrato das áreas de atuação (uma linha por
+ * área, fechando num total), as principais oportunidades cruzando as áreas e os
+ * dois Paretos (onde o excesso se concentra e quais procedimentos o puxam em
+ * mais de uma área).
  *
  * O funil da especialidade ficou de fora por decisão, não por esquecimento.
  *
@@ -25,6 +26,10 @@ import { buscar } from '../lib/api.js';
 import { el } from '../lib/dom.js';
 import { abrirPagina } from '../lib/pagina.js';
 import { TELAS, comRegua } from '../lib/rotas.js';
+/* A MESMA MOLDURA das outras tabelas do app, e o mesmo cabeçalho: o extrato
+   das áreas não é um desenho novo, é a tabela que a página inteira já fala,
+   com as colunas desta tela. */
+import { moldura, cabecalho } from '../lib/tabelas.js';
 /* O MESMO BLOCO da tela de Área, com o conjunto trocado: lá os pares de uma
    área, aqui os de todas as que têm régua. Um desenho, duas escalas. */
 import { montarOportunidades } from '../blocos/oportunidades.js';
@@ -51,65 +56,102 @@ function contexto(partes) {
 
 
 /**
- * Um cartão de área: custo total e custo excedente (com o % que ele representa
- * ao lado), sempre os dois e sempre na mesma ordem, mais a população que os
- * sustenta.
+ * Uma CÉLULA DE NÚMERO do extrato: o valor, e a razão que anda com ele.
  *
- * TODAS as áreas viram cartão, do MESMO tamanho e com os MESMOS campos: a tela é
- * o catálogo da especialidade, e cartão que muda de forma conforme a área some
- * com a comparação, que é a razão de eles estarem lado a lado. Onde não há
- * medida, a linha declara a ausência com o motivo no hover.
+ * O apoio é a MESMA medida numa segunda leitura (quanto é, e quanto pesa), e é
+ * por isso que ele mora sob o valor e não em coluna própria: uma coluna para
+ * cada faria o extrato parecer ter dez medidas onde há cinco.
  *
- * A BARRA é a fatia da área no excedente da especialidade, não a fatia da
- * maior: a pergunta do cartão é quanto do problema está ali, e normalizar pela
- * maior faria a segunda área parecer maior sempre que a primeira encolhesse.
+ * AUSÊNCIA DECLARADA: onde não há medida, o valor recua e o motivo vai no
+ * hover. Nunca zero, nunca célula vazia — zero afirmaria que não há variação, e
+ * vazio manda o leitor procurar o número que não existe.
  */
-function cartaoDeArea(c) {
-  /* CARTÃO, NÃO LINK. Ele descreve a área; quem quiser entrar nela usa o
-     seletor da barra ou a navegação. Um cartão inteiro clicável promete
-     drill-down onde o gesto útil é comparar as áreas entre si. */
-  const a = el('div', c.comparavel ? 'kpi' : 'kpi kpi-sem-regua');
-  a.appendChild(el('span', 'k', c.nome));
+function celulaNumero(c, classe) {
+  const td = el('td', `${classe} rt`);
+  const v = el('span', c.motivo ? 'ext-v pano-ausente' : 'ext-v', c.valor_fmt);
+  if (c.titulo || c.motivo) v.title = c.motivo ?? c.titulo;
+  td.appendChild(v);
+  if (c.apoio) td.appendChild(el('span', 'cell-sub', c.apoio));
+  return td;
+}
 
-  /* AS MESMAS TRÊS LINHAS em todo cartão, na mesma ordem, com a `.deflist` do
-     contrato: rótulo à esquerda, valor à direita. Cartão que muda de campos
-     conforme a área obriga o leitor a reaprender o desenho a cada um, e some
-     com a comparação, que é a razão de eles estarem lado a lado. */
-  const lista = el('div', 'deflist pano-lista');
-  for (const l of c.linhas ?? []) {
-    const linha = el('div', 'def-row');
-    const k = el('span', 'def-k', l.rotulo);
-    if (l.titulo) k.title = l.titulo;
-    linha.appendChild(k);
-    /* AUSÊNCIA DECLARADA: onde não há medida, o valor recua e o motivo vai no
-       hover. Nunca zero, nunca célula vazia — zero afirmaria que não há
-       variação, e vazio manda procurar o número que não existe. */
-    const v = el('span', l.motivo ? 'def-v pano-ausente' : 'def-v', l.valor_fmt);
-    if (l.destaque && !l.motivo) v.classList.add('pano-v-forte');
-    if (l.motivo) v.title = l.motivo;
-    /* O APOIO ao lado do valor: é a mesma medida numa segunda leitura (quanto é
-       e quanto pesa), e uma linha própria faria o cartão parecer ter três
-       medidas onde há duas. */
-    if (l.apoio) {
-      const ap = el('span', 'sub pano-apoio', l.apoio);
-      if (l.titulo_apoio) ap.title = l.titulo_apoio;
-      v.appendChild(ap);
-    }
-    linha.appendChild(v);
-    lista.appendChild(linha);
+
+/**
+ * A célula de IDENTIDADE da área: o nome, a etiqueta de ressalva quando ela
+ * cabe, e a população embaixo.
+ *
+ * O NOME É O LINK, e não a linha inteira. O gesto útil deste bloco é comparar
+ * as áreas entre si; linha inteira clicável prometeria drill-down onde o
+ * desenho cataloga. A porta para a área continua existindo — ela só não é o
+ * clique acidental de quem estava lendo a coluna ao lado.
+ *
+ * A POPULAÇÃO fica sob o nome, e não em coluna: ela é identidade da linha
+ * (contra quantos a área é medida), não uma sexta medida. Taxa sem denominador
+ * não diz se é prática ou ruído.
+ */
+function celulaArea(l) {
+  const td = el('td', 'col-area');
+  const nome = el('span', 'ext-nome');
+  if (l.id) {
+    const a = document.createElement('a');
+    a.href = comRegua(TELAS.area.caminho(l.id));
+    a.textContent = l.nome;
+    a.title = l.acao;
+    nome.appendChild(a);
+  } else {
+    nome.textContent = l.nome;
   }
-  a.appendChild(lista);
+  /* A ETIQUETA ÚNICA da referência da especialidade (LEXICO), na mesma posição
+     em que ela aparece no dossiê e no índice de procedimentos: ao lado do nome,
+     com a frase do motor no hover. */
+  if (l.etiqueta) {
+    const t = el('span', 'tag tag-ref', l.etiqueta);
+    if (l.titulo_etiqueta) t.title = l.titulo_etiqueta;
+    nome.append(document.createTextNode(' '), t);
+  }
+  td.append(nome, el('span', 'cell-sub', l.populacao));
+  return td;
+}
 
-  a.appendChild(el('span', 'micro', c.populacao));
-  /* A ÚLTIMA LINHA quebra nos cartões sem régua: ali ela é o MOTIVO de as três
-     medidas acima não existirem, e truncá-lo em "cooperados insuficientes
-     para…" deixa na tela exatamente a metade que não informa. Nos cartões com
-     régua é um rótulo telegráfico ("21 casos qualificados") e cabe numa linha. */
-  const q = el('span', c.comparavel ? 'micro' : 'micro pano-motivo',
-               c.qualificados);
-  if (c.titulo_qualificados) q.title = c.titulo_qualificados;
-  a.appendChild(q);
-  return a;
+
+/**
+ * A célula da FATIA: a única barra do extrato, e o percentual ao lado.
+ *
+ * É a fatia da área no excedente da ESPECIALIDADE — as fatias somam 100% e a
+ * barra cheia do total é esse inteiro. Normalizar pela maior área responderia
+ * "qual é a maior", que as colunas de R$ já dizem.
+ *
+ * SEM MEDIDA NÃO DESENHA BARRA. Trilho com preenchimento zero afirmaria
+ * "excedente = 0", e ali não falta variação: falta norma. O trilho fica
+ * tracejado, que é a gramática de ressalva do app, e o motivo vive no hover.
+ */
+function celulaFatia(f) {
+  const td = el('td', 'col-fatia');
+  const caixa = el('div', 'ext-fatia');
+  const trilho = el('span', f.sinaliza ? 'trilho' : 'trilho trilho-vazio');
+  if (f.sinaliza) {
+    const i = document.createElement('i');
+    i.style.width = `${f.largura_pct}%`;
+    trilho.appendChild(i);
+  }
+  caixa.appendChild(trilho);
+  caixa.appendChild(el('span', 'ext-pct', f.valor_fmt ?? ''));
+  if (f.titulo) td.title = f.titulo;
+  td.appendChild(caixa);
+  return td;
+}
+
+
+/** Uma linha do extrato, na ordem das colunas que o motor declarou. */
+function linhaDeArea(l) {
+  const tr = document.createElement('tr');
+  if (!l.comparavel) tr.className = 'ext-sem-regua';
+  tr.append(celulaArea(l),
+            celulaNumero(l.custo, 'col-num-md'),
+            celulaNumero(l.excedente, 'col-num-md ext-forte'),
+            celulaFatia(l.fatia),
+            celulaNumero(l.qualificados, 'col-num'));
+  return tr;
 }
 
 
@@ -241,25 +283,48 @@ await abrirPagina({
     if (d.contexto?.length) topo.appendChild(contexto(d.contexto));
     conteudo.appendChild(topo);
 
-    if (d.areas?.cartoes?.length) {
-      const bloco = el('div', 'stack g10');
-      const t = el('div', 'stack g4');
-      t.appendChild(el('h3', null, d.areas.titulo));
-      t.appendChild(el('span', 'sub', d.areas.subtitulo));
-      bloco.appendChild(t);
+    if (d.areas?.linhas?.length) {
+      /* A MOLDURA PADRÃO, sem `tbl-fill` nem `tbl-sticky`: as duas servem às
+         tabelas que são o corpo da tela e rolam por dentro. Este extrato tem
+         uma linha por área de atuação — ele cabe inteiro, e prender o
+         cabeçalho de uma tabela que não rola não prende nada. */
+      const { quadro, topo, tabela, pe } = moldura();
+      quadro.classList.remove('tbl-fill', 'tbl-sticky');
+      quadro.classList.add('tbl-areas');
+      pe.remove();
+      topo.append(el('span', 't', d.areas.titulo),
+                  el('span', 'sub', d.areas.subtitulo));
 
-      /* UMA GRADE, UM TAMANHO. Houve uma versão com dois cartões grandes para
-         as áreas com régua e uma faixa compacta para o resto: os grandes
-         prometiam responder "onde o excesso está", e essa é pergunta de Pareto,
-         que tem seção própria mais abaixo. Cartão grande sobre uma lista de
-         áreas afirma concentração onde o desenho só cataloga.
+      /* O CABEÇALHO vem do motor: rótulo e definição de cada coluna são texto
+         de produto, e a UI imprime, não redige (léxico). Sem ordenação — a
+         ordem do extrato é a da leitura (quem tem referência primeiro, pelo
+         excedente), e uma seta prometeria reordenar um conjunto que foi
+         escolhido por essa ordem. */
+      tabela.appendChild(cabecalho(
+        (d.areas.colunas ?? []).map((c) => ({
+          nome: c.rotulo, def: c.titulo, direita: c.direita, classe: c.classe,
+        })), null, null, () => {}));
 
-         O que distingue as áreas continua sendo o CONTEÚDO do cartão e o recuo
-         de quem não tem régua, não o tamanho. */
-      const grade = el('div', 'kpis kpis-areas');
-      for (const c of d.areas.cartoes) grade.appendChild(cartaoDeArea(c));
-      bloco.appendChild(grade);
-      conteudo.appendChild(bloco);
+      const corpo = document.createElement('tbody');
+      for (const l of d.areas.linhas) corpo.appendChild(linhaDeArea(l));
+      tabela.appendChild(corpo);
+
+      /* O TOTAL em `<tfoot>`, e não numa faixa fora da tabela: ele soma as
+         colunas acima, então tem de estar ALINHADO a elas. Um rodapé de cartão
+         (`.tbl-ft`) é texto sobre a tabela; isto é a última linha dela. */
+      if (d.areas.total) {
+        const rodape = document.createElement('tfoot');
+        const tr = document.createElement('tr');
+        const t = d.areas.total;
+        tr.append(celulaArea(t),
+                  celulaNumero(t.custo, 'col-num-md'),
+                  celulaNumero(t.excedente, 'col-num-md ext-forte'),
+                  celulaFatia(t.fatia),
+                  celulaNumero(t.qualificados, 'col-num'));
+        rodape.appendChild(tr);
+        tabela.appendChild(rodape);
+      }
+      conteudo.appendChild(quadro);
     }
 
     /* PRINCIPAIS OPORTUNIDADES da especialidade. Sem `aoAbrir`: o painel do

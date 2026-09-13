@@ -3198,54 +3198,74 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    entender que o caso já está coberto. */
 [hidden]{display:none!important}
 
-/* ── PANORAMA · o cartão de área e a faixa de pendência (set/2026) -----------
-   O Panorama não traz componente novo: o cartão de área é o `.kpi` do contrato,
-   a lista de áreas sem régua é `.pill`, e a faixa de classificação pendente é a
-   `.res-destaque` da Leitura da área. O que falta abaixo é só o que muda quando
-   o `.kpi` vira LINK e ganha uma barra de proporção.
+/* ── PANORAMA · o extrato das áreas e a faixa de pendência (set/2026) --------
+   O Panorama não traz componente novo: o extrato das áreas é a `.tbl` do
+   contrato com as colunas desta tela, a ressalva ao lado do nome é a `.tag-ref`
+   da referência da especialidade, e a faixa de classificação pendente é a
+   `.res-destaque` da Leitura da área. O que segue é só o que muda quando a
+   tabela ganha duas linhas por célula e uma barra de proporção.
 
-   Por que `.kpi` e não um cartão próprio: a página tem duas áreas com régua, e
-   a pergunta do cartão é a mesma de um KPI (um número grande, um rótulo, um
-   apoio). Um segundo desenho de cartão de número no mesmo app seria a segunda
-   versão do componente que a DIRETRIZES §5 impede. */
-.kpi-acao{color:inherit;text-decoration:none;transition:border-color 120ms ease-out}
-.kpi-acao:hover{border-color:var(--g-400);text-decoration:none}
-.kpi-acao:focus-visible{outline:none;box-shadow:var(--focus-ring)}
-/* as linhas de apoio do cartão de área não quebram: elas são rótulos
-   telegráficos, e "63 comparáveis" sobre "de 64" lê como dois números */
-.kpis-areas .kpi .micro{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* o MOTIVO é a exceção, e quebra. Nos cartões sem régua ele é a informação
-   principal — é o que explica a ausência dos números —, e truncá-lo em
-   "cooperados insuficientes para…" deixa na tela exatamente a metade que não
-   informa. */
-.kpis-areas .kpi .pano-motivo{white-space:normal;text-wrap:pretty}
-/* ÁREA SEM RÉGUA: o cartão continua inteiro e continua levando à área, só
-   recua. Esmaecer é o que distingue "medido" de "não medível" sem tirar
-   ninguém da tela; e o recuo desfaz no hover, porque quem foi até lá com o
-   cursor já decidiu olhar. */
-.kpi-sem-regua{opacity:.62}
-.kpi-sem-regua:hover{opacity:1}
-/* A GRADE DE ÁREAS: sete cartões do MESMO tamanho, mais estreitos que o `.kpi`
-   padrão porque são um catálogo e não uma faixa de números-herói. Houve uma
-   versão com dois cartões grandes na frente; eles prometiam responder "onde o
-   excesso está", e essa é pergunta de Pareto, que tem seção própria. */
-.kpis-areas{grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:12px}
-.kpis-areas .kpi{gap:8px;padding:16px 18px}
-.kpis-areas .kpi .k{font-weight:500;color:var(--g-900)}
-/* A LISTA DE ATRIBUTOS dentro do cartão: a `.deflist` do contrato, com a calha
-   do rótulo estreitada. Os 200px de lá servem a uma tela de uma coluna; aqui
-   são sete cartões lado a lado, e o rótulo divide a largura com o valor. */
-.pano-lista .def-row{gap:12px;padding:7px 0;justify-content:space-between}
-.pano-lista .def-k{width:auto;flex:1 1 auto;min-width:0;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pano-lista .def-v{flex:none;font-variant-numeric:tabular-nums;white-space:nowrap}
-/* o CUSTO EXCEDENTE é o produto da tela, e ganha o peso que é dele */
-.pano-v-forte{font-weight:600}
-/* o % ao lado do valor, não abaixo: mesma medida, segunda leitura */
-/* `display:inline` vence o `.def-v .sub{display:block}` do contrato: lá o apoio
-   fica SOB o valor, aqui ao lado dele, porque é a mesma medida em segunda
-   leitura e não um segundo fato. */
-.def-v .pano-apoio{display:inline;margin-left:6px;font-variant-numeric:tabular-nums}
+   Até set/2026 isto era uma GRADE DE CARTÕES (`.kpis-areas`, um `.kpi` por
+   área, com `.pano-lista` dentro). Cartões não somam — a especialidade não
+   tinha total em lugar nenhum da tela — e comparar duas áreas obrigava o olho a
+   saltar entre dois quadros e reencontrar o mesmo campo em posições diferentes.
+   As regras daquela grade saíram inteiras junto com ela: CSS órfão é a próxima
+   cópia divergente. */
+/* DUAS LINHAS POR CÉLULA, então a calha vertical do contrato aperta: o valor e
+   a razão que anda com ele ocupam a altura que uma linha só de tabela reserva.
+   O padding lateral não muda — as colunas continuam alinhadas com as das outras
+   tabelas da página. */
+.tbl-areas{--row-pad:10px 12px}
+.tbl-areas .ext-v{display:block;font-variant-numeric:tabular-nums;white-space:nowrap}
+/* o APOIO sob o valor é a `.cell-sub` do contrato, em bloco: aqui ele é a
+   mesma medida em segunda leitura (quanto é, e quanto pesa), e ao lado do
+   número ele disputaria a linha com o próprio número. */
+.tbl-areas td .cell-sub{display:block;margin-top:2px;white-space:nowrap}
+/* o CUSTO EXCEDENTE é o produto da tela, e ganha o peso que é dele: é a coluna
+   que o leitor procura, e a que ordena o extrato. */
+.tbl-areas .ext-forte .ext-v{font-size:var(--fs-lg);font-weight:600;
+  letter-spacing:-.01em;color:var(--g-900)}
+/* O NOME É O LINK, a linha não. O gesto útil do bloco é comparar as áreas entre
+   si; linha inteira clicável prometeria drill-down onde o desenho cataloga. */
+.ext-nome{display:block;font-weight:500;color:var(--g-900);text-wrap:pretty}
+.ext-nome a{color:inherit;text-decoration:none}
+.ext-nome a:hover{text-decoration:underline}
+.ext-nome a:focus-visible{outline:none;box-shadow:var(--focus-ring);
+  border-radius:var(--r-sm)}
+/* ÁREA SEM REFERÊNCIA: a linha continua inteira e no mesmo lugar, só recua.
+   Esmaecer é o que distingue "medido" de "não medível" sem tirar ninguém da
+   tela; e o recuo desfaz no hover, porque quem levou o cursor até lá já decidiu
+   olhar. */
+.ext-sem-regua{opacity:.62}
+.ext-sem-regua:hover{opacity:1}
+/* A FATIA: a ÚNICA barra do extrato, na coluna que ordena a tabela. Barra em
+   toda coluna de R$ transformaria o extrato em painel e nenhuma seria lida.
+   As tintas são as MESMAS da barra aninhada do Pareto, logo abaixo na página
+   (--g-200 no trilho, --exc no cheio): é o mesmo dinheiro, e duas tintas para
+   ele na mesma tela seriam duas grandezas para o leitor. */
+.col-fatia{width:158px}
+/* A COLUNA DOS QUALIFICADOS pelo CABEÇALHO, e não pelo número: "Casos
+   qualificados" é mais largo que qualquer contagem que caiba nela, e nos 110px
+   da `.col-num` do contrato o rótulo saía pela borda da tabela. Coluna estreita
+   demais para o próprio nome é rótulo truncado, que é a forma mais barata de
+   perder o significado de um número. */
+.tbl-areas .col-num{width:150px}
+.ext-fatia{display:flex;align-items:center;gap:8px}
+.ext-fatia .trilho{flex:1;min-width:0;display:block;height:8px;border-radius:3px;
+  background:var(--g-200)}
+.ext-fatia .trilho i{display:block;height:8px;border-radius:3px;background:var(--exc)}
+/* SEM MEDIDA NÃO DESENHA BARRA: trilho com preenchimento zero afirmaria
+   "excedente = 0", e ali não falta variação, falta norma. O tracejado é a mesma
+   marca de ressalva da `.tag-ref`, e o motivo está no `title` da célula. */
+.ext-fatia .trilho-vazio{background:transparent;border:1px dashed var(--line)}
+.ext-pct{flex:none;min-width:34px;text-align:right;font-size:var(--fs-xs);
+  color:var(--g-600);font-variant-numeric:tabular-nums}
+/* O TOTAL é a última linha da TABELA, não um rodapé de cartão: ele soma as
+   colunas acima e por isso tem de estar alinhado a elas. Fundo da faixa e filete
+   superior o separam sem transformá-lo numa sexta área. */
+.tbl-areas tfoot td{background:var(--surface-2);border-top:1px solid var(--line);
+  border-bottom:0}
+.tbl-areas tfoot .ext-nome{font-weight:600}
 /* AUSÊNCIA: recua, mas não some. O motivo vai no `title`, e o pontilhado é o
    mesmo sinal de "tem explicação no hover" que o `.kpi .h.tem-hover` usa. */
 .pano-ausente{color:var(--g-400);text-decoration:underline;

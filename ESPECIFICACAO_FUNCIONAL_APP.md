@@ -98,41 +98,71 @@ própria tela, no rodapé, até entrarem.
   `200 cooperados · 118 comparáveis em 2 áreas com referência · 72 em classificação
   pendente · 9 em áreas sem referência · 172.141 solicitações excedentes de 118
   cooperados · R$ 5,3 mi`. Cada parte carrega a própria definição no hover.
-- **Um cartão por ÁREA DE ATUAÇÃO, todas elas, do MESMO tamanho.** A tela é o catálogo
-  da especialidade, e área que não aparece é área que ninguém lembra de classificar. O
-  que separa as duas famílias é o CONTEÚDO do cartão, não a presença nem o tamanho:
-  - **com régua** (2 de 7): custo excedente em destaque, solicitações, barra da fatia
-    no excedente da especialidade, população e casos qualificados.
-  - **sem régua** (5 de 7): a população no lugar do valor e o motivo de não sinalizar
-    no lugar da fatia. **Não imprime zero** — zero afirmaria ausência de variação onde
-    o que falta é contra quem medir.
-  - **Uma grade, um tamanho.** Houve uma versão com dois cartões grandes para as áreas
-    com régua: eles prometiam responder "onde o excesso está", e essa é pergunta de
-    Pareto, que tem seção própria na etapa 3. Cartão grande sobre uma lista de áreas
-    afirma concentração onde o desenho só cataloga. O que distingue as áreas é o
-    conteúdo do cartão e o recuo de quem não tem régua.
-  - O **título da seção é "Áreas de atuação"**, não "Onde o excesso está", pelo mesmo
-    motivo: um título que promete concentração sobre uma grade que lista faz o leitor
-    procurar ali uma resposta que o desenho não dá.
+- **Um EXTRATO das áreas de atuação: uma linha por área, todas elas, as mesmas
+  colunas, fechando num TOTAL.** A tela é o catálogo da especialidade, e área que não
+  aparece é área que ninguém lembra de classificar. O que separa as duas famílias é o
+  CONTEÚDO da linha, não a presença.
+  - **As colunas, na ordem de leitura de auditoria** (a ordem é contrato, e o smoke a
+    cobra): **Área de atuação** (nome, etiqueta de ressalva quando cabe, e a população
+    embaixo) · **Custo solicitado** (com o peso da área no custo da especialidade) ·
+    **Custo excedente** (com a fração do custo da própria área) · **Fatia do
+    excedente** (a barra) · **Casos qualificados**.
+  - Cada coluna de R$ carrega a **própria razão embaixo do valor**, em corpo menor: é
+    a mesma medida em segunda leitura (quanto é, e quanto pesa), e R$ 2,9 mi numa área
+    e R$ 2,4 mi noutra não dizem qual pede mais fora do padrão — 28% e 15% dizem.
+  - **com régua**: custo, excedente, fatia e casos qualificados, todos medidos.
+  - **sem régua**: a linha recua e declara a ausência com o motivo no hover. **Não
+    imprime zero** — zero afirmaria ausência de variação onde o que falta é contra
+    quem medir. Desde 13/set/2026 a área sem referência própria pode ter excesso
+    medido contra a especialidade: aí o valor aparece e a linha ganha a **etiqueta
+    única ao lado do nome**, porque ali toda medida saiu da especialidade e ressalva
+    de método que só existe no hover não é ressalva.
+  - **Por que extrato, e não a grade de cartões que morava aqui (set/2026).** Um
+    cartão por área dá um quadro por área e nenhuma leitura ENTRE elas: comparar duas
+    áreas obrigava o olho a saltar entre dois blocos e reencontrar o mesmo campo em
+    posições diferentes. E cartões não somam — a especialidade não tinha total em
+    lugar nenhum da tela. Em coluna, comparar é o próprio desenho.
+  - **O total soma exatamente as linhas que a tela lista**, e é para isso que ele
+    existe: o leitor confere a conta somando o que está diante dele. É o mesmo número
+    que alimenta as oportunidades e os dois Paretos abaixo — um total por tela.
+  - O **título da seção é "Áreas de atuação"**, não "Onde o excesso está": um título
+    que promete concentração sobre um extrato que lista faz o leitor procurar ali uma
+    resposta que o desenho não dá. Concentração é pergunta de Pareto, que tem seção
+    própria na etapa 3.
   - A **barra é a fatia da área no excedente da especialidade**, não a fatia da maior:
-    a pergunta é quanto do problema mora ali, e normalizar pela maior faria a segunda
-    área parecer maior sempre que a primeira encolhesse.
+    a pergunta é quanto do problema mora ali, as fatias somam 100% e a barra cheia do
+    total é esse inteiro. Normalizar pela maior faria a segunda área parecer maior
+    sempre que a primeira encolhesse. **É a única barra do extrato** — a coluna que o
+    ordena. Barra em toda coluna de R$ faria dele um painel, e nenhuma seria lida.
+  - **O nome da área é o link**, não a linha inteira: o gesto útil do bloco é comparar
+    as áreas entre si, e linha inteira clicável prometeria drill-down onde o desenho
+    cataloga.
+  - **Percentual com a casa que o número pede**: uma área pequena numa especialidade
+    de R$ 25 mi pesa frações de ponto, e "0% do total" ao lado de R$ 94 mil afirma
+    ausência onde há valor. Ganha uma casa enquanto arredondar para zero sem ser zero.
+    Nenhum símbolo novo ("<1%") entra.
   - O motivo é **redigido no bloco do Panorama**, não herdado do estado da área: a
     frase de lá termina em "motivos abaixo", apontando para a barra de composição, que
     só existe na tela de Área.
 - **Classificação pendente em faixa própria.** 72 dos 200 cooperados, 36% da
   especialidade, e é o único número da tela cuja ação não passa por comitê: é triagem
-  clínica, trabalho de cadastro. Como mais um cartão entre as áreas ele vira nota de
-  rodapé, e some justamente o que dá para resolver.
-- **Componentes reusados, nenhum novo**: o cartão é o `.kpi` do contrato (virou link e
-  ganhou barra de proporção), a faixa de pendência é a `.res-destaque` da Leitura da
-  área, e a linha de contexto é a mesma marcação do cabeçalho da Área.
+  clínica, trabalho de cadastro. Como mais uma linha recuada do extrato ele vira nota
+  de rodapé, e some justamente o que dá para resolver — por isso fica FORA da tabela, e
+  fora do total. **Pendência**: o motor monta este bloco (`pendente` no payload) e a
+  página ainda não o desenha; hoje o fato chega ao leitor só pela linha de contexto.
+- **Componentes reusados, nenhum novo**: o extrato é a `.tbl` do contrato com a
+  `moldura()`/`cabecalho()` que as outras tabelas do app já usam, a etiqueta ao lado do
+  nome é a `.tag-ref` da referência da especialidade, a faixa de pendência é a
+  `.res-destaque` da Leitura da área, e a linha de contexto é a mesma marcação do
+  cabeçalho da Área. As tintas da barra são as do Pareto logo abaixo (`--g-200` no
+  trilho, `--exc` no cheio): é o mesmo dinheiro, e duas tintas para ele na mesma tela
+  seriam duas grandezas para o leitor.
 
 **Motor.** `blocos.panorama_da_especialidade` monta o bloco; `/api/panorama` agrega.
 **Nada nasce no endpoint**: o catálogo de áreas é o MESMO de `/api/meta`
 (`_areas_resolvidas`) e o excedente de cada área é o da cascata daquela área, pela
 mesma `_cascata_area` que a tela de Área usa. O smoke cobra a igualdade: o excedente
-do cartão de Ginecologia é, caractere a caractere, a linha "excedente" do grupo
+da linha de Ginecologia é, caractere a caractere, a linha "excedente" do grupo
 "Custo" da Leitura da área.
 
 **Custo.** Paga a cascata de cada área COM RÉGUA, e só delas. São duas nesta base, e
@@ -140,11 +170,11 @@ as duas ficam memoizadas — a tela de Área que o analista abrir em seguida nã
 novo. Escala com o número de áreas comparáveis, não com o total de áreas nem de
 cooperados.
 
-**"Acima do critério" não entra no cartão.** Esse degrau alcança 63 dos 63 comparáveis
-em Ginecologia e 55 dos 55 em GO, por construção do método (são centenas de percentis
-testados por área). Um cartão dizendo "63 de 63" não separa uma área da outra; o
-cartão traz o último degrau, que é o que sobra para trabalhar e o mesmo conjunto que a
-fila vai listar.
+**"Acima do critério" não vira coluna.** Esse degrau alcança 63 dos 63 comparáveis em
+Ginecologia e 55 dos 55 em GO, por construção do método (são centenas de percentis
+testados por área). Uma coluna dizendo "63 de 63" não separa uma área da outra; o
+extrato traz o último degrau, que é o que sobra para trabalhar e o mesmo conjunto que
+a fila vai listar.
 
 ### Etapa 2 · fila de casos cruzando as áreas [pendente]
 

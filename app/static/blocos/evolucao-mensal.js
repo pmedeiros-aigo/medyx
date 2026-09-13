@@ -138,7 +138,14 @@ export function montarEvolucaoMensal(destino, d) {
     };
     marca('bar-total', 'Custo total do mês');
     if (d.grupos.some((g) => g.trimestre?.exc_barra_pct != null)) {
-      marca('bar-exc', 'Custo excedente do trimestre');
+      /* com parte medida contra a especialidade em algum trimestre, a legenda
+         nomeia as duas caixas, cheia e hachurada, como no Pareto e na série */
+      if (d.grupos.some((g) => (g.trimestre?.exc_esp_barra_pct ?? 0) > 0)) {
+        marca('bar-exc', 'Custo excedente do trimestre · referência da área');
+        marca('bar-exc-esp', 'Custo excedente do trimestre · referência da especialidade');
+      } else {
+        marca('bar-exc', 'Custo excedente do trimestre');
+      }
     }
     pe.appendChild(legenda);
   }

@@ -1016,78 +1016,114 @@ print("\n7c. PANORAMA · JUNTA PESSOAS E VALORES, NUNCA RÉGUAS")
 # divergir do da tela de Área, nasceu um segundo lugar produzindo o mesmo
 # número, que é o defeito que a Lei 1 existe para impedir.
 _, pano = get("/api/panorama")
-_cartoes = {c["id"]: c for c in pano["areas"]["cartoes"]}
-_com_regua = {k: c for k, c in _cartoes.items() if c["comparavel"]}
-# TODA ÁREA VIRA CARTÃO, com régua ou sem. A tela é o catálogo da especialidade,
-# e área que não aparece é área que ninguém lembra de classificar. O que separa
-# as duas famílias é o CONTEÚDO do cartão, não a presença.
+_linhas_pano = {c["id"]: c for c in pano["areas"]["linhas"]}
+_com_regua = {k: c for k, c in _linhas_pano.items() if c["comparavel"]}
+# TODA ÁREA VIRA LINHA, com referência ou sem. A tela é o catálogo da
+# especialidade, e área que não aparece é área que ninguém lembra de
+# classificar. O que separa as duas famílias é o CONTEÚDO da linha, não a
+# presença.
 _, _meta_areas = get("/api/meta")
-checar("panorama · toda área de atuação vira cartão",
-       sorted(_cartoes),
+checar("panorama · toda área de atuação vira linha do extrato",
+       sorted(_linhas_pano),
        sorted(a["id"] for a in _meta_areas["areas"]
               if a["id"] != blocos.slug(config.AREA_INDEFINIDA)))
 checar("panorama · e só as com régua trazem excedente",
        sorted(_com_regua), ["endoscopia-ginecologica", "ginecologia-geral", "obstetricia"])
-# TODO CARTÃO DIZ AS MESMAS TRÊS COISAS, na mesma ordem: cartão que muda de
-# campos conforme a área obriga a reaprender o desenho a cada um, e some com a
-# comparação, que é a razão de eles estarem lado a lado.
-checar("panorama · todo cartão traz as mesmas medidas, na mesma ordem",
-       {tuple(l["rotulo"] for l in c["linhas"]) for c in _cartoes.values()},
-       {("Custo total", "Custo excedente")})
-# O CUSTO TOTAL é dado REAL e existe em toda área, com régua ou sem: ele não
-# depende de norma, é o que a área solicitou. Só o excesso depende.
+# AS MESMAS COLUNAS EM TODA LINHA, na mesma ordem: é o que um extrato é, e é
+# o que a grade de cartões não conseguia dar — lá cada cartão trazia os campos
+# que tinha, e comparar duas áreas obrigava a reencontrar o campo em posições
+# diferentes. A ordem é a da auditoria: identidade → o que a área custou → o
+# que está acima da referência → quanto do problema mora ali → quantos casos
+# sobram para trabalhar.
+checar("panorama · o extrato declara as colunas, na ordem de leitura",
+       [c["chave"] for c in pano["areas"]["colunas"]],
+       ["area", "custo", "excedente", "fatia", "qualificados"])
+checar("panorama · e toda coluna de número carrega a própria definição",
+       all(c["titulo"] for c in pano["areas"]["colunas"] if c["chave"] != "area"),
+       True)
+# O CUSTO SOLICITADO é dado REAL e existe em toda área, com régua ou sem: ele
+# não depende de norma, é o que a área solicitou. Só o excesso depende.
 # ...exceto onde NINGUÉM passa o volume mínimo (v2: Ultrassonografia, 0 de 3):
 # aí a ausência é declarada com o motivo, nunca zero
-checar("panorama · o custo total aparece em toda área com comparáveis",
-       [c["nome"] for c in _cartoes.values()
-        if c["linhas"][0]["valor_fmt"] == config.SEM_MEDIDA
-        and not c["populacao"].startswith("0 compar")], [])
+checar("panorama · o custo solicitado aparece em toda área com comparáveis",
+       [c["nome"] for c in _linhas_pano.values()
+        if c["custo"]["valor_fmt"] == config.SEM_MEDIDA
+        and c["n_comparaveis"]], [])
 checar("panorama · área sem comparáveis declara o motivo do custo ausente",
-       all(c["linhas"][0]["motivo"] for c in _cartoes.values()
-           if c["linhas"][0]["valor_fmt"] == config.SEM_MEDIDA), True)
+       all(c["custo"]["motivo"] for c in _linhas_pano.values()
+           if c["custo"]["valor_fmt"] == config.SEM_MEDIDA), True)
 # e onde a medida não existe, a ausência é DECLARADA com o motivo: nunca zero,
 # que afirmaria ausência de variação, nem célula vazia, que manda o leitor
 # procurar o número que não está lá (ajuste 4 do CLAUDE.md)
 # Desde 13/set/2026 a área sem régua própria pode ter excesso medido contra a
-# ESPECIALIDADE: aí o valor aparece com a divisão (etiqueta) no apoio. Sem
-# medida em nível nenhum, continua ausência declarada, nunca zero.
+# ESPECIALIDADE: aí o valor aparece e a linha ganha a etiqueta única. Sem medida
+# em nível nenhum, continua ausência declarada, nunca zero.
 checar("panorama · sem régua, o excesso é ausência declarada ou vem com a referência da especialidade",
-       all((l["valor_fmt"] == config.SEM_MEDIDA and l["motivo"])
-           or (config.ROTULO_REFERENCIA_ESPECIALIDADE in (l["titulo"] or ""))
-           for c in _cartoes.values() if not c["comparavel"]
-           for l in c["linhas"][1:]), True)
-# NINGUÉM DESAPARECE: os cartões e a classificação pendente somam a
+       all((c["excedente"]["valor_fmt"] == config.SEM_MEDIDA
+            and c["excedente"]["motivo"])
+           or c["etiqueta"] == config.ROTULO_REFERENCIA_ESPECIALIDADE
+           for c in _linhas_pano.values() if not c["comparavel"]), True)
+# A ETIQUETA É DA LINHA, não do hover: ali toda medida saiu da especialidade, e
+# ressalva de método que só existe para quem passa o mouse não é ressalva. Área
+# com referência própria não a carrega.
+checar("panorama · a etiqueta da especialidade não aparece em área com régua",
+       [c["nome"] for c in _com_regua.values() if c["etiqueta"]], [])
+# SEM MEDIDA NÃO DESENHA BARRA: trilho com preenchimento zero afirmaria
+# "excedente = 0", e ali não falta variação, falta norma.
+checar("panorama · linha sem excedente medido não desenha fatia",
+       all(c["fatia"]["sinaliza"] is False and c["fatia"]["largura_pct"] == 0.0
+           for c in _linhas_pano.values()
+           if c["excedente"]["valor_fmt"] == config.SEM_MEDIDA), True)
+# ZERO É MEDIDA, ausência é ausência: área com régua e ninguém qualificado diz
+# "0", com o motivo no hover; só onde não houve avaliação a célula recua.
+checar("panorama · área com régua sempre conta os casos qualificados",
+       all(c["qualificados"]["valor_fmt"] != config.SEM_MEDIDA
+           for c in _com_regua.values()), True)
+# NINGUÉM DESAPARECE: as linhas e a classificação pendente somam a
 # especialidade inteira. É a regra que impede a tela de esconder quem não pode
 # ser medido, que é justamente quem mais precisa aparecer.
-_pop = sum(int(num_ptbr(c["populacao"].split(" de ")[1])) for c in _cartoes.values())
+_pop = sum(c["n_total"] for c in _linhas_pano.values())
 checar("panorama · ninguém desaparece da especialidade",
        _pop + int(num_ptbr(pano["pendente"]["valor_fmt"])),
        pano["totais"]["cooperados"])
+# ── O TOTAL SOMA EXATAMENTE O QUE A TELA LISTA ──────────────────────────────
+# É a razão de a linha existir: o leitor confere a conta somando o que está
+# diante dele. Um total que somasse mais do que o extrato mostra seria um número
+# impossível de verificar — e a classificação pendente, que fica fora da tabela,
+# fica fora dele também.
+_total_pano = pano["areas"]["total"]
+checar("panorama · o extrato fecha num total",
+       _total_pano["excedente"]["valor_fmt"],
+       fmt_reais(pano["totais"]["excedente_reais"]))
+checar("panorama · e o total dos qualificados soma as linhas",
+       num_ptbr(_total_pano["qualificados"]["valor_fmt"]),
+       float(sum(int(num_ptbr(c["qualificados"]["valor_fmt"]))
+                 for c in _linhas_pano.values()
+                 if c["qualificados"]["valor_fmt"] != config.SEM_MEDIDA)))
+# AS FATIAS SOMAM O INTEIRO, e a barra cheia do total é esse inteiro: a fatia é
+# a parte da área no excedente da ESPECIALIDADE, não a parte da maior área.
+checar("panorama · as fatias somam a barra cheia do total",
+       (round(sum(c["fatia"]["largura_pct"] for c in _linhas_pano.values())),
+        _total_pano["fatia"]["largura_pct"]), (100, 100.0))
 # O EXCEDENTE DE CADA ÁREA é o mesmo que a tela de Área imprime na linha
 # "excedente" do grupo "Custo" da Leitura, sob o recorte default. Duas telas, um
 # número.
-_linhas_gin = {l["rotulo"]: l["valor_fmt"]
-               for l in _com_regua[AREA_REF]["linhas"]}
 checar("panorama · o excedente da área bate com a tela de Área",
-       _linhas_gin["Custo excedente"], linha_leitura(gin, "_custo_exc")["valor_fmt"])
-# e o custo total, e a fração entre os dois: os três números do cartão são os
+       _com_regua[AREA_REF]["excedente"]["valor_fmt"],
+       linha_leitura(gin, "_custo_exc")["valor_fmt"])
+# e o custo solicitado, e a fração entre os dois: os números da linha são os
 # mesmos que a Leitura da área imprime, palavra por palavra
-checar("panorama · o custo total bate com a Leitura da área",
-       _linhas_gin["Custo total"],
+checar("panorama · o custo solicitado bate com a Leitura da área",
+       _com_regua[AREA_REF]["custo"]["valor_fmt"],
        linha_leitura(gin, "_custo_total")["valor_fmt"])
 # O % CONTINUA NO PANORAMA, e SÓ nele: a Leitura da área deixou de imprimir
-# apoio sob os números em 2026-09-11 (texto de 11px sob cada valor, e um vão sob
-# as linhas que nem apoio tinham). Lá a fração se lê sozinha — total e excedente
-# são as duas linhas do mesmo grupo, uma sob a outra, na mesma escala; aqui o
-# cartão traz um valor por linha e o % é o que dá a proporção.
-# A prova que importa é a de cima: as duas telas dizem o MESMO R$. O que sobra
-# aqui é que o cartão não perdeu a própria fração.
-_apoio_gin = next(l["apoio"] for l in _com_regua[AREA_REF]["linhas"]
-                  if l["rotulo"] == "Custo excedente")
-# a fração abre o apoio; a divisão por nível de referência, quando existe,
-# vem depois dela, separada por ponto médio (13/set/2026)
-checar("panorama · o cartão traz a fração ao lado do excedente",
-       bool(_apoio_gin and _apoio_gin.split(" · ")[0].endswith("%")), True)
+# apoio sob os números em 2026-09-11. Lá a fração se lê sozinha — total e
+# excedente são as duas linhas do mesmo grupo, uma sob a outra, na mesma escala;
+# aqui cada coluna traz um valor e o apoio é o que dá a proporção.
+checar("panorama · a linha traz a intensidade sob o excedente",
+       _com_regua[AREA_REF]["excedente"]["apoio"].endswith("do custo da área"), True)
+checar("panorama · e o peso da área sob o custo solicitado",
+       _com_regua[AREA_REF]["custo"]["apoio"].endswith("do total"), True)
 checar("Leitura · e não imprime mais apoio sob nenhum número",
        [l["apoio"] for g in gin["leitura"]["grupos"] for l in g["linhas"]
         if l["apoio"]], [])
@@ -1142,8 +1178,8 @@ checar("Leitura · sob recorte, o hover ancora o número no total da área",
        "Este recorte responde por" in _hover_q
        or "Parte do custo excedente da área" in _hover_q, True)
 # as áreas COM RÉGUA vêm primeiro, e entre elas manda o excedente: sem ordem,
-# um cartão de uma pessoa se intercalaria com o que carrega R$ 2,9 mi
-_ordem = [c["comparavel"] for c in pano["areas"]["cartoes"]]
+# uma linha de uma pessoa se intercalaria com a que carrega R$ 2,9 mi
+_ordem = [c["comparavel"] for c in pano["areas"]["linhas"]]
 checar("panorama · áreas com régua vêm primeiro",
        _ordem == sorted(_ordem, reverse=True), True)
 # A RÉGUA NÃO É SOMADA. Percentil comparando médicos de áreas diferentes é o
@@ -1194,18 +1230,18 @@ checar("panorama · e a do procedimento, em quantas áreas ele aparece",
 # servidor redireciona para /area/{id}.
 _, _pano_go = get("/api/panorama", areas="obstetricia")
 checar("panorama · o filtro de áreas recorta a tela",
-       (len(_pano_go["areas"]["cartoes"]),
+       (len(_pano_go["areas"]["linhas"]),
         _pano_go["totais"]["areas_com_referencia"]), (1, 1))
 # ESCOLHA MÚLTIPLA: comparar duas áreas de sete é a leitura que esta tela
 # existe para dar, e a escolha única não a expressa.
 _, _pano_duas = get("/api/panorama", areas=f"{AREA_REF},obstetricia")
 checar("panorama · o filtro aceita várias áreas",
-       len(_pano_duas["areas"]["cartoes"]), 2)
+       len(_pano_duas["areas"]["linhas"]), 2)
 # slug desconhecido é ignorado em vez de esvaziar a tela; seleção que não
 # alcança área nenhuma cai em todas, o estado que a página sempre desenha
 _, _pano_ruim = get("/api/panorama", areas="nao-existe")
 checar("panorama · seleção que não alcança nada cai em todas",
-       len(_pano_ruim["areas"]["cartoes"]), len(_cartoes))
+       len(_pano_ruim["areas"]["linhas"]), len(_linhas_pano))
 checar("panorama · e a soma acompanha o recorte",
        _pano_go["totais"]["excedente_reais"] < pano["totais"]["excedente_reais"],
        True)

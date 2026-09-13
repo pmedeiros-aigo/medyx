@@ -324,38 +324,28 @@ function montarProcedimentos(destino, d) {
     + 'referência apurável, as colunas de comparação ficam não apuradas.'));
   topo.appendChild(titulo);
 
-  /* BUSCA: localiza dentro do recorte em cena, sem mudar número nenhum. */
+  /* BUSCA: localiza na lista inteira, sem mudar número nenhum. */
   let termo = '';
   topo.appendChild(campoDeBusca({
     placeholder: 'Buscar por nome ou código',
-    aoDigitar: (t) => { termo = t; aplicar(recorteAtivo); },
+    aoDigitar: (t) => { termo = t; aplicar(); },
   }));
 
-  // chips do recorte (espec regra 7): em revisão (default) · todos
-  const faixa = el('div', 'row flexwrap');
-  faixa.appendChild(el('span', 'micro', 'Recorte'));
-  const RECORTES = [
-    { chave: 'revisao', rotulo: 'Em revisão', n: dados.em_revisao,
-      filtro: (l) => l.sinalizado },
-    { chave: 'todos', rotulo: 'Todos', n: dados.total_medidos },
-  ];
-  const botoes = new Map();
-
+  /* O RECORTE "em revisão · todos" SAIU (decisão do usuário, 13/set/2026). A
+     tabela abre inteira, na ordem do motor: os procedimentos em revisão vêm
+     no topo, por custo excedente, e os demais seguem esmaecidos com o motivo.
+     O rodapé diz quantos estão em revisão. Sem o recorte, toda barra do
+     Pareto encontra a sua linha na tabela. */
   let { chave: ordemAtiva, direcao } = ordemDaURL(COLUNAS);
-  let recorteAtivo = 'revisao';
 
   function alternarOrdem(chave) {
     ({ chave: ordemAtiva, direcao } = proximaOrdem(ordemAtiva, direcao, chave));
     gravarOrdem(ordemAtiva, direcao);
-    aplicar(recorteAtivo);
+    aplicar();
   }
 
-  function aplicar(chave) {
-    const r = RECORTES.find((x) => x.chave === chave) ?? RECORTES[0];
-    recorteAtivo = r.chave;
-    for (const [k, b] of botoes) b.classList.toggle('pill-on', k === r.chave);
-    let linhas = r.filtro ? dados.linhas.filter(r.filtro) : dados.linhas;
-    /* A busca é o último filtro: localiza dentro do recorte, não o substitui. */
+  function aplicar() {
+    let linhas = dados.linhas;
     if (termo) linhas = linhas.filter(
       (l) => casa(l.descricao, termo) || casa(l.codigo, termo));
     const coluna = COLUNAS.find((col) => col.ordem === ordemAtiva);
@@ -374,26 +364,11 @@ function montarProcedimentos(destino, d) {
        resposta a "por que esta linha está no topo". */
     peEstado.textContent =
       `${visiveis.length} de ${dados.total_medidos} procedimentos solicitados`
-      + ` · ${dados.sem_referencia} sem referência na área · `
-      + `recorte: ${r.rotulo.toLowerCase()}`
+      + ` · ${dados.em_revisao} em revisão`
+      + ` · ${dados.sem_referencia} sem referência na área`
       + (termo ? ` · busca: "${termo}"` : '')
       + (coluna ? ` · ordenado por ${coluna.nome.toLowerCase()}, `
                   + `${direcao === 'asc' ? 'crescente' : 'decrescente'}` : '');
-  }
-
-  for (const r of RECORTES) {
-    const b = el('span', 'pill', r.rotulo);
-    b.tabIndex = 0;
-    b.appendChild(el('span', 'cnt', ` ${r.n}`));
-    const acionar = () => aplicar(r.chave);
-    b.addEventListener('click', acionar);
-    b.addEventListener('keydown', (ev) => {
-      if (ev.key !== 'Enter' && ev.key !== ' ') return;
-      ev.preventDefault();
-      acionar();
-    });
-    botoes.set(r.chave, b);
-    faixa.appendChild(b);
   }
 
   /* GAVETA SOBRE A PÁGINA, com cortina, igual à de "fora da referência" da tela
@@ -449,10 +424,9 @@ function montarProcedimentos(destino, d) {
   aoAbrirLinha = (linha, tr) => abrir(linha, tr);
 
   /* A MESMA porta, pelo outro lado: uma linha do Pareto conhece o código do
-     procedimento, não a linha da tabela. Aqui o código vira linha, e a seleção
-     só é marcada quando a linha está em cena — o Pareto lista os 251 com custo
-     e a tabela abre no recorte "em revisão", então clicar numa barra que não
-     está na tabela tem de abrir o painel do mesmo jeito. */
+     procedimento, não a linha da tabela. Aqui o código vira linha; a seleção
+     só é marcada quando a linha está em cena (a busca pode tê-la escondido),
+     e o painel abre do mesmo jeito. */
   abrirPorCodigo = (codigo) => {
     const linha = (dados.linhas ?? []).find((l) => String(l.codigo) === String(codigo));
     if (!linha) return;
@@ -471,9 +445,8 @@ function montarProcedimentos(destino, d) {
   });
   scrim.addEventListener('click', fechar);
 
-  destino.appendChild(faixa);
   destino.appendChild(cartao);
-  aplicar('revisao');
+  aplicar();
   return { abrirPorCodigo: (cd) => abrirPorCodigo?.(cd) };
 }
 

@@ -17,6 +17,8 @@ Rodar:
 """
 from __future__ import annotations
 
+import threading
+
 import re
 import secrets
 import sys
@@ -50,10 +52,29 @@ from utils.pipeline import filtrar_sinalizados  # noqa: E402
 ESTATICOS = Path(__file__).parent / "static"
 
 @asynccontextmanager
+def _aquecer_cache() -> None:
+    """Pré-calcula, em segundo plano, a régua padrão nos quatro estados do ajuste
+    de confiança (sem ajuste e os três níveis), na janela padrão. Sem isto a
+    primeira troca de confiança esperava o sorteio de todos os pares na hora
+    (13/set/2026). Falha aqui não derruba o servidor: é só cache."""
+    try:
+        ini, fim = dados.resolver_janela(config.JANELA_DEFAULT)
+        for conf in (config.AJUSTE_CONFIANCA_DEFAULT, *config.NIVEIS_CONFIANCA_UI):
+            dados.rodar_pipeline_execucao(
+                ini, fim, config.PISO_CONSULTAS_ANO["_default"], config.N_MINIMO_PEER_GROUP,
+                config.PISO_EXECUCOES_ANO, config.Q_CONFUNDIDOR, None,
+                config.GATILHO_DEFAULT, config.ALVO_DEFAULT, config.INCLUIR_PS_DEFAULT,
+                confianca=conf)
+    except Exception:  # noqa: BLE001 — aquecimento nunca derruba o serviço
+        pass
+
+
 async def _ciclo_de_vida(app: FastAPI):
     """Confere os marts antes de aceitar requisição. Sem isto o servidor sobe
-    normalmente e só quebra na primeira consulta — ver dados.verificar_marts."""
+    normalmente e só quebra na primeira consulta — ver dados.verificar_marts.
+    Depois, aquece o cache num thread: o servidor já responde enquanto isso."""
     dados.verificar_marts()
+    threading.Thread(target=_aquecer_cache, name="aquecer-cache", daemon=True).start()
     yield
 
 

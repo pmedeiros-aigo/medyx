@@ -261,12 +261,17 @@ def rodar_pipeline_execucao(janela_ini: str, janela_fim: str, piso: int,
                             confianca: float | None = None):
     """pipeline_execucao(): R$ derivado (quarentena) + confundidores.
     `confianca` é o ajuste do excedente exibido (None = valor medido)."""
+    # o pipeline() da MESMA régua sai do cache de rodar_pipeline, em vez de ser
+    # recalculado por dentro: com ajuste de confiança, isso era um segundo
+    # sorteio de todos os pares a cada tela
     return pl.pipeline_execucao(
         carregar_fato(), carregar_contas(), janela_ini, janela_fim,
         piso=piso, n_minimo=n_minimo, piso_execucoes=piso_execucoes,
         q_confundidor=q_confundidor, mapa_executantes=carregar_executantes(),
         area=area, gatilho=gatilho, alvo=alvo, incluir_ps=incluir_ps,
         exclusoes_por_par=exclusao_por_par(), confianca=confianca,
+        resultado=rodar_pipeline(janela_ini, janela_fim, piso, n_minimo, area,
+                                 gatilho, alvo, incluir_ps, confianca=confianca),
     )
 
 

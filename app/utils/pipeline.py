@@ -734,7 +734,7 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
                       piso_execucoes, q_confundidor, mapa_executantes,
                       area=None, gatilho=config.GATILHO_DEFAULT, alvo=config.ALVO_DEFAULT, preco=None,
                       incluir_ps=config.INCLUIR_PS_DEFAULT, exclusoes_por_par=None,
-                      confianca=config.AJUSTE_CONFIANCA_DEFAULT):
+                      confianca=config.AJUSTE_CONFIANCA_DEFAULT, resultado=None):
     """Motor do lado da execução, em cima do pipeline() da MESMA janela: converte o
     excedente em R$ e anexa o contexto (confundidores) que evita acusação injusta.
 
@@ -791,9 +791,14 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
     O carimbo 'base' (herdado do pipeline) descreve as tabelas de ANÁLISE; perfil de
     execução, confundidores e autorref são CONTEXTO calculado na base completa da janela.
     """
-    res = pipeline(fato, janela_ini, janela_fim, piso, n_minimo, area, gatilho, alvo,
-                   incluir_ps=incluir_ps, exclusoes_por_par=exclusoes_por_par,
-                   confianca=confianca)
+    # `resultado` é o pipeline() JÁ calculado com estes mesmos argumentos (a
+    # porta `dados.rodar_pipeline_execucao` o passa do cache). Sem ele, calcula.
+    # Existe porque, com ajuste de confiança, recalcular aqui repetia o sorteio
+    # de todos os pares uma segunda vez a cada tela (13/set/2026).
+    res = resultado if resultado is not None else pipeline(
+        fato, janela_ini, janela_fim, piso, n_minimo, area, gatilho, alvo,
+        incluir_ps=incluir_ps, exclusoes_por_par=exclusoes_por_par,
+        confianca=confianca)
 
     # solicitações e contas da MESMA janela
     f = fato[(fato["DATA_REQUISICAO"] >= janela_ini) & (fato["DATA_REQUISICAO"] <= janela_fim)]
@@ -1633,10 +1638,13 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
     colunas = list(range(1, len(fatias) + 1))
     k = _marcar_fatias(f, fatias)
     rng = np.random.default_rng(seed)
+    # as linhas de cada cooperado, localizadas UMA vez: comparar o fato inteiro
+    # com o id a cada cooperado era mais da metade do tempo (13/set/2026)
+    linhas_por_coop = f.groupby("ID_COOPERADO", sort=False).indices
     out = []
     for coop, pares_c in pares.groupby("ID_COOPERADO", sort=True):
-        m = (f["ID_COOPERADO"] == coop).to_numpy()
-        fc, kc = f[m], k[m]
+        ix = linhas_por_coop.get(coop, np.array([], dtype=int))
+        fc, kc = f.iloc[ix], k.iloc[ix]
         pacientes = pd.Index(fc["ID_BENEFICIARIO"].unique())
         n_pac = len(pacientes)
         # consultas por (paciente, fatia): a matriz que a reamostra soma
@@ -1647,16 +1655,30 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
         cons_real = cons_mat.sum(axis=0)                       # por fatia
         # mesmas reamostras para todos os procedimentos do cooperado
         idx = rng.integers(0, n_pac, size=(n_bootstrap, n_pac))
-        cons_b = np.stack([cons_mat[:, t][idx].sum(axis=1) for t in range(len(colunas))],
-                          axis=1)                              # n_bootstrap × fatias
-        for _, par in pares_c.sort_values("CD_PROCEDIMENTO").iterrows():
+        # QUANTAS VEZES cada paciente entrou em cada sorteio: a matriz de
+        # contagens transforma "somar os sorteados" num produto de matrizes,
+        # exato (contagens inteiras × valores inteiros) e sem o laço por fatia
+        # que percorria o sorteio inteiro por procedimento (13/set/2026)
+        contagens = np.zeros((n_bootstrap, n_pac))
+        np.add.at(contagens, (np.repeat(np.arange(n_bootstrap), n_pac), idx.ravel()), 1.0)
+        cons_b = contagens @ cons_mat                           # n_bootstrap × fatias
+        # ITENS por (paciente, fatia, procedimento) numa matriz só, montada por
+        # soma posicional: exata (quantidades inteiras) e sem um groupby pandas
+        # por procedimento, que era onde o tempo ia (13/set/2026)
+        pares_ord = pares_c.sort_values("CD_PROCEDIMENTO")
+        cds = list(pares_ord["CD_PROCEDIMENTO"])
+        pos_cd = {cd: j for j, cd in enumerate(cds)}
+        em_cesta = fc["CD_PROCEDIMENTO"].isin(cds).to_numpy()
+        fp = fc[em_cesta]
+        cubo = np.zeros((n_pac, len(colunas), len(cds)))
+        if len(fp):
+            np.add.at(cubo, (pacientes.get_indexer(fp["ID_BENEFICIARIO"]),
+                             kc[em_cesta].to_numpy() - 1,
+                             fp["CD_PROCEDIMENTO"].map(pos_cd).to_numpy()),
+                      fp["QT_EFETIVO"].to_numpy(dtype=float))
+        for _, par in pares_ord.iterrows():
             alvo = float(par["alvo_valor"])
-            mp = (fc["CD_PROCEDIMENTO"] == par["CD_PROCEDIMENTO"]).to_numpy()
-            fp, kp = fc[mp], kc[mp]
-            itens_mat = (fp.groupby([fp["ID_BENEFICIARIO"], kp])["QT_EFETIVO"].sum()
-                         .unstack(fill_value=0)
-                         .reindex(index=pacientes, columns=colunas, fill_value=0)
-                         .to_numpy(dtype=float))
+            itens_mat = cubo[:, :, pos_cd[par["CD_PROCEDIMENTO"]]]
             n_recebem = int((itens_mat.sum(axis=1) > 0).sum())
             itens_real = itens_mat.sum(axis=0)
             central = float(np.clip(itens_real - alvo * cons_real, 0, None).sum())
@@ -1668,8 +1690,7 @@ def controlador_confiabilidade(fato, pares, janela_ini, janela_fim, seed,
             if n_recebem < min_pacientes_proc:
                 registro.update(calculavel=False, excedente_piso=np.nan)
             else:
-                itens_b = np.stack([itens_mat[:, t][idx].sum(axis=1)
-                                    for t in range(len(colunas))], axis=1)
+                itens_b = contagens @ itens_mat
                 with np.errstate(divide="ignore", invalid="ignore"):
                     taxa_b = np.where(cons_b > 0, itens_b / cons_b, 0.0)
                 exc_b = (np.clip(taxa_b - alvo, 0, None) * cons_real).sum(axis=1)
