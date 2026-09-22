@@ -89,15 +89,21 @@ function montarIdentidade(destino, d) {
   }
   topo.appendChild(contexto);
 
-  /* TIPOS DE ATENDIMENTO, numa linha (set/2026): "rotina ginecológica 41% ·
-     cirurgia / patologia 23%". É o retrato do que ele atende, sem comparação e
-     sem juízo — a comparação vive nos blocos abaixo, onde há régua. A nota no
-     hover diz de onde vem e de que período. */
+  /* TIPOS DE ATENDIMENTO, um badge por termo (set/2026, decisão do usuário): o
+     retrato do que ele atende, sem percentual — mesmo tratamento do
+     sub-perfil, logo acima nesta mesma linha. Cada termo já vem separado do
+     motor (`blocos.tipos_de_atendimento`): nenhum badge afirma um número
+     próprio, então etiquetar por termo não fabrica medida que não existe. */
   const tipos = d.cooperado.tipos_de_atendimento;
-  if (tipos?.linha) {
-    const t = el('span', 'sub', `Tipos de atendimento · ${tipos.linha}`);
-    t.title = tipos.nota;
-    topo.appendChild(t);
+  if (tipos?.length) {
+    const linhaTipos = el('div', 'row g8 flexwrap');
+    linhaTipos.appendChild(el('span', 'sub', 'Tipos de atendimento'));
+    for (const t of tipos) {
+      const chip = el('span', 'tag tag-attr', t.tipo);
+      if (t.ajuda) chip.title = t.ajuda;
+      linhaTipos.appendChild(chip);
+    }
+    topo.appendChild(linhaTipos);
   }
   destino.appendChild(topo);
 

@@ -2236,7 +2236,7 @@ CONTATO_SUPORTE: str | None = None
 
 @app.get("/api/conta", tags=["conta"])
 def conta(request: Request) -> dict[str, Any]:
-    """Identidade da sessão, estado da segurança e versão do app.
+    """Identidade da sessão e estado da segurança.
 
     Sempre 200, inclusive sem sessão: "ninguém autenticado" é um ESTADO que a
     tela desenha, não um erro que ela trata. 401 aqui faria a própria tela de
@@ -2244,11 +2244,9 @@ def conta(request: Request) -> dict[str, Any]:
     para fazer.
     """
     usuario = sessao.usuario_da_requisicao(request)
-    app_ = {
-        "versao": config.PIPELINE_VERSAO,
-        "classificacao": config.CLASSIFICACAO_VERSAO,
-        "suporte": CONTATO_SUPORTE,
-    }
+    # Sem versão de app nem de classificação aqui (set/2026, decisão do
+    # usuário): número de versão não é informação de produto.
+    app_ = {"suporte": CONTATO_SUPORTE}
     cfg = cognito.configuracao() if identidade_ligada() else None
     if usuario is None:
         return {

@@ -2486,40 +2486,48 @@ def direcao_da_serie(serie: list[dict] | None) -> dict | None:
     }
 
 
-# Tipos de atendimento com pelo menos esta fração das consultas entram na linha
-# do cabeçalho; abaixo disso é cauda, e cauda numa linha só vira ruído.
-FRACAO_MIN_TIPO_ATENDIMENTO = 0.10
+# Fração mínima das consultas para um tipo de atendimento virar etiqueta de
+# identidade (set/2026). SEM percentual na tela: um número sem a referência da
+# área ao lado não informa, só decora (e um "+N" cauda enfeando a linha por
+# cima disso era pior). É a mesma gramática do sub-perfil — retrato do que o
+# cooperado atende, não uma medida.
+FRACAO_BADGE_TIPO_ATENDIMENTO = 0.20
 
 
-def tipos_de_atendimento(flags_coop) -> dict | None:
-    """A composição do atendimento do cooperado, numa linha: os tipos com
-    >= FRACAO_MIN_TIPO_ATENDIMENTO das consultas, do maior ao menor.
+def tipos_de_atendimento(flags_coop) -> list[dict] | None:
+    """Os termos clínicos da prática predominante do cooperado, um por etiqueta
+    de identidade — sem percentual, sem comparação, sem cauda. Se nenhuma
+    família alcançar a marca (prática fragmentada entre muitas), não há
+    predominância e a linha não aparece.
 
     Vem das colunas `pratica_*` da dim v2 (fração das consultas de cada família
-    de atendimento). Deliberadamente SEM comparação com a área e sem estabilidade:
-    é o retrato do que ele atende, não um juízo. O período é o da classificação
-    (a dim não segue a janela da barra), e a nota diz isso.
+    de atendimento). A dim nomeia a família com "/" quando um mesmo conjunto
+    de exames não separa as hipóteses que motivaram o pedido (ex.: CA-125 pode
+    ser dor pélvica, endometriose OU massa anexial — o procedimento não
+    distingue qual): é UMA família, com UMA fração medida, não três. Como a
+    etiqueta não carrega número nenhum (decisão do usuário, set/2026: percentual
+    sem a referência da área ao lado não informa), separar os termos em uma
+    etiqueta cada não fabrica medida — nenhuma etiqueta afirma um valor próprio.
     """
     if flags_coop is None:
         return None
-    tipos = []
+    termos = []
+    vistos = set()
     for coluna, valor in flags_coop.items():
         if not str(coluna).startswith("pratica_") or pd.isna(valor):
             continue
-        if float(valor) >= FRACAO_MIN_TIPO_ATENDIMENTO:
-            nome = str(coluna).removeprefix("pratica_").split(" (")[0]
-            tipos.append({"tipo": nome, "fracao": round(float(valor), 3),
-                          "fracao_fmt": f"{float(valor):.0%}"})
-    if not tipos:
+        if float(valor) >= FRACAO_BADGE_TIPO_ATENDIMENTO:
+            nome_familia = str(coluna).removeprefix("pratica_").split(" (")[0]
+            for termo in (p.strip() for p in nome_familia.split(" / ")):
+                if termo not in vistos:
+                    vistos.add(termo)
+                    termos.append((float(valor), termo))
+    if not termos:
         return None
-    tipos.sort(key=lambda t: -t["fracao"])
-    return {
-        "tipos": tipos,
-        "linha": " · ".join(f"{t['tipo']} {t['fracao_fmt']}" for t in tipos),
-        "nota": ("Tipos de atendimento inferidos do conjunto de procedimentos de "
-                 "cada consulta, no período da classificação "
-                 f"{config.CLASSIFICACAO_VERSAO}."),
-    }
+    termos.sort(key=lambda t: -t[0])
+    ajuda = ("Tipo de atendimento predominante, inferido do conjunto de "
+             "procedimentos de cada consulta.")
+    return [{"tipo": termo, "ajuda": ajuda} for _, termo in termos]
 
 
 def _em_revisao(flags_coop) -> dict | None:

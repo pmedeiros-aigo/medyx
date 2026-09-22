@@ -144,10 +144,6 @@ function fatores(itens) {
     chips.appendChild(chip);
   }
   bloco.appendChild(chips);
-
-  bloco.appendChild(el('span', 'sub',
-    'Não alteram nenhum número desta tela: dizem com que lente investigar '
-    + 'antes de concluir.'));
   return bloco;
 }
 

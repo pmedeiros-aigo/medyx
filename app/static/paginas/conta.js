@@ -233,24 +233,18 @@ await abrirPagina({
     if (conta.autenticado) comSessao(col, conta);
     else semSessao(col, conta);
 
-    /* Versão da aplicação: quem relata um problema precisa dizer sobre qual
-       versão fala. A proveniência dos DADOS não se repete aqui; ela vive nas
-       telas de análise, onde governa a leitura de um número. */
-    /* Sem régua acima: `.note-t` usa a MESMA cor e espessura das divisórias
-       entre linhas, e colada ao fim da lista ela lia como mais uma linha. A
-       versão da aplicação não pertence a "Acesso e sessão"; o espaço em branco
-       já separa, e uma régua ali sugeriria parentesco que não existe. */
-    const rodape = el('div', 'stack g4');
-    rodape.appendChild(el('span', 'note',
-      `Aplicação ${conta.app.versao} · classificação ${conta.app.classificacao}`));
+    /* Sem versão de app nem de classificação aqui (set/2026, decisão do
+       usuário): número de versão não é informação de produto. Se sobrar
+       contato de suporte, ele fica sozinho no rodapé. */
     if (conta.app.suporte) {
+      const rodape = el('div', 'stack g4');
       const s = el('span', 'note');
       const a = el('a', null, conta.app.suporte);
       a.href = `mailto:${conta.app.suporte}`;
       s.appendChild(document.createTextNode('Suporte: '));
       s.appendChild(a);
       rodape.appendChild(s);
+      col.appendChild(rodape);
     }
-    col.appendChild(rodape);
   },
 });
