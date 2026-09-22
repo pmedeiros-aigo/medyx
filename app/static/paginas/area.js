@@ -38,7 +38,7 @@ import { montarTabela, COLUNAS } from '../blocos/tabela.js';
 import { montarProcedimentos } from '../blocos/procedimentos.js';
 import { montarDistribuicao } from '../blocos/distribuicao.js';
 import { montarPareto } from '../blocos/pareto.js';
-import { montarLeituraDaArea } from '../blocos/leitura-area.js';
+import { montarLeitura } from '../blocos/leitura-area.js';
 import { montarOportunidades } from '../blocos/oportunidades.js';
 import { abrirPainelDoExame } from '../blocos/painel-procedimento-area.js';
 import { montarDispersao } from '../blocos/dispersao.js';
@@ -111,7 +111,7 @@ await abrirPagina({
      os mesmos números agrupados pela pergunta que respondem, com o excedente
      em destaque e a régua declarada. Dois blocos para os mesmos cinco números
      é redundância, e a de cima era a que não hierarquizava. */
-  const leitura = montarLeituraDaArea(conteudo, dados);
+  const leitura = montarLeitura(conteudo, dados);
 
   /* ── PRINCIPAIS OPORTUNIDADES, entre a Leitura e as abas ─────────────────
      O guia de produto (§9) lista cinco perguntas que toda página deve

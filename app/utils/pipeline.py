@@ -101,11 +101,23 @@ def fatiar_janela(janela_ini, janela_fim, meses=config.APURACAO_EXCEDENTE_MESES)
 
 
 def _marcar_fatias(f, fatias):
-    """A fatia de cada linha do fato, alinhada ao índice de `f`."""
-    dt = f["DATA_REQUISICAO"]
+    """A fatia de cada linha do fato, alinhada ao índice de `f`.
+
+    Pela data de ABERTURA da consulta, não pela do item: com a régua de 30 dias
+    uma consulta pode ter item em duas fatias, e fatiar por item a contaria nas
+    duas — a soma das fatias passaria do total da janela. A consulta inteira
+    pertence à fatia em que abriu, numerador e denominador juntos.
+    """
+    dt = f["DATA_CONSULTA"]
     k = pd.Series(0, index=f.index, dtype=int, name="fatia")
     for ft in fatias:
         k[(dt >= ft["ini"]) & (dt <= ft["fim"])] = ft["fatia"]
+    # BORDA: `f` já veio filtrado por DATA_REQUISICAO, então existe item dentro
+    # da janela cuja consulta ABRIU antes dela — a consulta cruza o início. Ele
+    # cai na primeira fatia, a mais cedo a que pode pertencer, e assim nenhum
+    # item fica sem fatia (Lei 5) e a soma das fatias segue fechando com a
+    # janela. Pelo teto não há borda: DATA_CONSULTA <= DATA_REQUISICAO <= fim.
+    k[k == 0] = fatias[0]["fatia"]
     return k
 
 
@@ -407,7 +419,7 @@ def aplicar_referencia_da_especialidade(df, norma_esp, col_proc="CD_PROCEDIMENTO
 
         nivel_referencia = "area"          se a área é apresentável
                          = "especialidade" senão, se a especialidade é (e a
-                                           área não é a classificação pendente)
+                                           área não é a dos sem área de atuação)
                          = None            senão (referência não conclusiva)
 
     Aplicada nos DOIS lugares que carregam referência (norma_proc e
@@ -841,6 +853,32 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
                                      / custo_coop["itens_avaliados"])
     custo_coop["custo_por_consulta"] = (custo_coop["valor_total_solicitado"]
                                         / custo_coop["consultas_totais"])
+
+    # ── PRONTO SOCORRO: magnitude, não medida (Lei 5 do CLAUDE.md) ──────────
+    # O que sai da COMPARAÇÃO não sai da CONTAGEM. Consultas, itens e custo do
+    # PS saem daqui, da MESMA janela `f` (antes de filtrar_ps) e da MESMA tabela
+    # de preço da base eletiva, para as duas partes somarem o todo: eletivo + PS
+    # = tudo que o cooperado pediu na janela. É a decomposição que a tela mostra
+    # e que o smoke confere contra a base.
+    # OUTER: quem só tem PS não tem linha eletiva e precisa aparecer na
+    # contagem; quem não tem PS fica com zero, que aqui é zero OBSERVADO (nenhum
+    # dia de PS), não medida ausente.
+    val_ps = f[f["EPISODIO_PS"]].merge(preco[["CD_PROCEDIMENTO", "preco_mediano"]],
+                                       on="CD_PROCEDIMENTO", how="left")
+    val_ps["valor_ps"] = val_ps["QT_EFETIVO"] * val_ps["preco_mediano"]
+    ps_coop = (
+        val_ps.groupby("ID_COOPERADO")
+        .agg(consultas_ps=("ID_CONSULTA", "nunique"),
+             itens_ps=("QT_EFETIVO", "sum"),
+             valor_ps=("valor_ps", "sum"),
+             itens_ps_com_preco=("preco_mediano", "count"))
+        .reset_index()
+    )
+    area_coop = f.drop_duplicates("ID_COOPERADO")[["ID_COOPERADO", "AREA_ATUACAO"]]
+    custo_coop = (custo_coop.merge(ps_coop, on="ID_COOPERADO", how="outer")
+                  .merge(area_coop, on="ID_COOPERADO", how="left"))
+    for col in ("consultas_ps", "itens_ps", "valor_ps", "itens_ps_com_preco"):
+        custo_coop[col] = custo_coop[col].fillna(0)
     custo_coop["base"] = carimbo_base(incluir_ps)
 
     # excedente em R$ = excedente_itens × preço (sinaliza no gatilho, mede contra o alvo)
@@ -889,19 +927,29 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
         perfil_execucao["avaliavel_exec"] & (perfil_execucao["pct_pronto_socorro"] > corte_ps)
     )
 
-    # confundidor de urgência (lado da solicitação); quantil só entre elegíveis.
-    # CONTEXTO na base COMPLETA da janela (sem filtro de PS): numa base eletiva,
-    # pct_urgencia é 0 por construção (qualquer item URG marca a consulta como
-    # episódio-PS) — o confundidor descreve a PESSOA; o filtro se aplica à ANÁLISE.
+    # confundidor de pronto socorro (lado da solicitação); quantil só entre
+    # elegíveis. CONTEXTO na base COMPLETA da janela (sem filtro de PS): numa
+    # base eletiva a fração é 0 por construção — o confundidor descreve a
+    # PESSOA; o filtro se aplica à ANÁLISE.
+    #
+    # A MEDIDA É POR CONSULTA, não por item (17/set/2026). Era a fração de ITENS
+    # com caráter de urgência, sob o rótulo "consultas de urgência": no
+    # cooperado_43 dava 35% quando 77% das consultas dele são de PS, porque a
+    # consulta de PS tem 1 ou 2 itens (o pacote) e a eletiva 7 ou 8 — contar
+    # itens escondia o plantonista. Agora é consultas de PS ÷ todas as
+    # consultas, com a mesma marca EPISODIO_PS (por regime) que separa a base.
+    _cons = f.groupby("ID_COOPERADO")["ID_CONSULTA"].nunique()
+    _cons_ps = f[f["EPISODIO_PS"]].groupby("ID_COOPERADO")["ID_CONSULTA"].nunique()
     mix_carater = (
-        f.groupby("ID_COOPERADO")["CARATER_ATENDIMENTO"]
-        .apply(lambda s: (s == config.STRING_URGENCIA).mean()).rename("pct_urgencia").reset_index()
+        (_cons_ps.reindex(_cons.index).fillna(0) / _cons)
+        .rename("pct_consultas_ps").reset_index()
         .merge(res["taxa_agregada"][["ID_COOPERADO", "consultas_totais"]],
                on="ID_COOPERADO", how="left")
     )
     eleg = mix_carater["consultas_totais"] >= res["piso_aplicado"]
-    corte_urg = mix_carater.loc[eleg, "pct_urgencia"].quantile(q_confundidor)
-    mix_carater["confundidor_urgencia"] = eleg & (mix_carater["pct_urgencia"] > corte_urg)
+    corte_urg = mix_carater.loc[eleg, "pct_consultas_ps"].quantile(q_confundidor)
+    # o nome da flag fica (é o degrau da cascata); a medida por trás mudou
+    mix_carater["confundidor_urgencia"] = eleg & (mix_carater["pct_consultas_ps"] > corte_urg)
 
     # autorreferência POR ITEM (lado da solicitação): só itens com match em contas.
     # PREMISSA (não verificada): itens sem conta se autorreferem como os observados.
@@ -929,7 +977,7 @@ def pipeline_execucao(fato, contas, janela_ini, janela_fim, piso, n_minimo,
         .agg(excedente_reais_total=("excedente_reais", "sum"),
              n_procs_sinalizados=("CD_PROCEDIMENTO", "nunique"))
         .reset_index()
-        .merge(mix_carater[["ID_COOPERADO", "pct_urgencia", "confundidor_urgencia"]],
+        .merge(mix_carater[["ID_COOPERADO", "pct_consultas_ps", "confundidor_urgencia"]],
                on="ID_COOPERADO", how="left")
         .merge(autorref[["ID_COOPERADO", "taxa_autorref_solic", "cobertura_join"]],
                on="ID_COOPERADO", how="left")
@@ -1108,27 +1156,56 @@ def custo_mensal(fato, janela_ini, janela_fim, precos, area=None,
     # o preço ser o da janela. Dois motores dariam duas chances de divergir.
     if cooperado is not None:
         f = f[f["ID_COOPERADO"] == cooperado]
+    # a parte de PS sai ANTES do filtro, da mesma janela: é a série que a tela
+    # desenha hachurada no topo da barra eletiva (Lei 5)
+    f_ps = f[f["EPISODIO_PS"]]
     f = filtrar_ps(f, incluir_ps)
     vazio = pd.DataFrame(columns=["mes", "custo", "itens", "itens_com_preco",
-                                  "consultas"])
-    if not len(f):
+                                  "consultas", "custo_ps", "itens_ps",
+                                  "consultas_ps", "itens_ps_com_preco"])
+    if not len(f) and not len(f_ps):
         return vazio
 
-    consultas = f.groupby("PERIODO_REQUISICAO")["ID_CONSULTA"].nunique().rename("consultas")
-    itens = f.groupby("PERIODO_REQUISICAO")["QT_EFETIVO"].sum().rename("itens")
+    eletivo = _custo_por_mes(f, janela_ini, precos)
+    ps = _custo_por_mes(f_ps, janela_ini, precos).rename(columns={
+        "custo": "custo_ps", "itens": "itens_ps", "consultas": "consultas_ps",
+        "itens_com_preco": "itens_ps_com_preco"})
+    out = eletivo.merge(ps, on="mes", how="outer").sort_values("mes")
+    for col in ("itens", "consultas", "itens_ps", "consultas_ps"):
+        out[col] = out[col].fillna(0)
+    return out.reset_index(drop=True)
+
+
+def _custo_por_mes(f, janela_ini, precos):
+    """Consultas, itens e custo de `f` por mês, ao preço da janela.
+
+    O mês é o da ABERTURA da consulta, não o de cada item: com a régua de 30
+    dias uma consulta pode ter item em dois meses, e agrupar por
+    PERIODO_REQUISICAO a contaria nos dois — a soma dos meses passaria do
+    total da janela. Atribuir a consulta INTEIRA ao mês em que abriu mantém a
+    identidade que faz os meses somarem o trimestre, e o trimestre o ano.
+    BORDA, igual à das fatias: consulta que abriu antes da janela entra no
+    primeiro mês dela. Sem o clip haveria um mês fora da janela, que não
+    pertence a trimestre nenhum, e os meses deixariam de somar o trimestre.
+    """
+    mes = (f["DATA_CONSULTA"].clip(lower=pd.Timestamp(janela_ini))
+           .dt.to_period("M").astype(str).rename("PERIODO_CONSULTA"))
+
+    consultas = f.groupby(mes)["ID_CONSULTA"].nunique().rename("consultas")
+    itens = f.groupby(mes)["QT_EFETIVO"].sum().rename("itens")
 
     custo = pd.Series(dtype=float, name="custo")
     com_preco = pd.Series(dtype=float, name="itens_com_preco")
-    if precos is not None and len(precos):
-        pp = (f.groupby(["PERIODO_REQUISICAO", "CD_PROCEDIMENTO"])["QT_EFETIVO"]
+    if precos is not None and len(precos) and len(f):
+        pp = (f.groupby([mes, f["CD_PROCEDIMENTO"]])["QT_EFETIVO"]
               .sum().reset_index()
               .merge(precos[["CD_PROCEDIMENTO", "preco_mediano"]],
                      on="CD_PROCEDIMENTO", how="left"))
         pp = pp[pp["preco_mediano"].notna()]
         if len(pp):
             pp = pp.assign(valor=pp["QT_EFETIVO"] * pp["preco_mediano"])
-            custo = pp.groupby("PERIODO_REQUISICAO")["valor"].sum().rename("custo")
-            com_preco = (pp.groupby("PERIODO_REQUISICAO")["QT_EFETIVO"].sum()
+            custo = pp.groupby("PERIODO_CONSULTA")["valor"].sum().rename("custo")
+            com_preco = (pp.groupby("PERIODO_CONSULTA")["QT_EFETIVO"].sum()
                          .rename("itens_com_preco"))
 
     out = (pd.concat([consultas, itens, custo, com_preco], axis=1)

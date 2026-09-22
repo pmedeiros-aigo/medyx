@@ -120,7 +120,7 @@ PERFIS_AREA = {
 # DECISÃO 2026-08-14: o status de homologação NÃO aparece para o usuário — o
 # carimbo diz só a versão. O status vive na documentação (LEIAME da
 # classificação e Nota Metodológica), não na tela.
-CLASSIFICACAO_VERSAO = "v2.0"
+CLASSIFICACAO_VERSAO = "v2.1"   # v2.1 (13/set/2026): sem a regra do cadastro agregado
 CLASSIFICACAO_HOMOLOGADA = False
 
 # O que a dim v2 traz por cooperado e o app usa (o resto é identidade):
@@ -129,11 +129,10 @@ CLASSIFICACAO_HOMOLOGADA = False
 #   area_mvp            o peer group (ESPECIALIDADES acima); vazio -> INDEFINIDO
 #   area_principal      a área fina; area_secundaria; area_execucao
 #   confianca           alta · média · baixa · indicativa (não classificável)
-#   cadastro_agregado   >= 25% de pacientes homens: cadastro que agrega mais de
-#                       um profissional, não um perfil clínico
-#   elegivel_norma      quem FORMA a referência: classificável, sem cadastro
-#                       agregado, sem a execução como prática principal e sem
-#                       confiança baixa. Todos os demais seguem MEDIDOS.
+#   elegivel_norma      quem FORMA a referência: classificável, sem a execução
+#                       como prática principal e sem confiança baixa. Todos os
+#                       demais seguem MEDIDOS. (A regra do cadastro agregado,
+#                       >= 25% de pacientes homens, SAIU em 13/set/2026.)
 #   no_limiar           área principal entre 12% e 18% das consultas (perto do
 #                       corte de 15%): o rótulo é frágil
 #   perfil_instavel_no_ano  a mistura mudou >= 20 pontos entre os semestres
@@ -155,8 +154,19 @@ CLASSIFICACAO_HOMOLOGADA = False
 # todos os formadores de norma têm >=100 consultas — o piso é NÃO-VINCULANTE
 # nessas áreas (gate efetivo = elegivel_norma); sem dado sub-100 para re-derivar.
 # Mantido 100, por especialidade só quando a calibração MOSTRAR diferença.
+#
+# REESCALA (set/2026), com a regra de 30 dias: o funil NÃO TRAVA na régua nova —
+# o IQR oscila entre 2,5 e 3,5 nas faixas altas, sem o platô que justificou os
+# 100. Sem ponto de travamento, a calibração original não se transfere, e o
+# valor foi REESCALADO pela queda do denominador (consultas -31,9%), não
+# recalibrado: 100 x 0,68 = 68, arredondado para baixo em 60.
+# Retenção de formadores da norma, régua de 30 dias, janela anual:
+#   piso 100 -> 127 cooperados | 75 -> 135 | 60 -> 138 | 50 -> 141
+# 60 preserva a coorte que a régua de 60 min entregava (134). No trimestre o
+# piso escalado vira 15 (60 x 91/365) e a coorte fica em 132-136 nos três
+# trimestres cheios.
 PISO_CONSULTAS_ANO = {
-    "_default": 100,             # PROVISÓRIO, re-justificado com áreas reais (Mov 3)
+    "_default": 60,              # REESCALA da régua de 30 dias (set/2026) — ver nota
     "Ginecologia Geral": None,
     "Obstetrícia": None,
     "Endoscopia Ginecológica": None,
@@ -280,29 +290,56 @@ ALVO_DEFAULT = GATILHO_DEFAULT
 #   flag de confundidor (urgência, regime). 0.90 = marca os 10% mais altos.
 #   Contexto para investigação — NÃO altera nenhum cálculo.
 # STRING_URGENCIA: valor literal de CARATER_ATENDIMENTO que identifica urgência
-#   na base de requisições (contrato de dados).
+#   na base de requisições (contrato de dados). SEM USO no motor desde 17/set/2026:
+#   a marca de PS é por REGIME_PS (bloco abaixo) e o confundidor passou a medir
+#   consultas de PS (pct_consultas_ps). Mantido como contrato de dados.
 # ---------------------------------------------------------------------------
 Q_CONFUNDIDOR = 0.90             # PROVISÓRIO
 STRING_URGENCIA = "URGÊNCIA/EMERGÊNCIA"
 
 
 # ---------------------------------------------------------------------------
-# CONTEXTO DE PS (episódio de pronto-socorro)  —  DECISÃO  —  doc §5.6, notebook §12
-# Regra por CONTEXTO (teste pré-comprometido, jul/2026): episódio-PS é identificável
-#   no próprio dado — consulta com CARATER_ATENDIMENTO == STRING_URGENCIA em QUALQUER
-#   item OU contendo CD_PACOTE_URGENCIA. A norma roda sobre consultas NÃO-PS de todo
-#   mundo: a consulta-PS sai INTEIRA (numerador e denominador juntos); a flag de
-#   plantonista da classificação vira informativa.
-# Proveniência (calculos_iniciais.ipynb §12): coerência 100% entre os marcadores
-#   (12.699/12.701), separação 366× (mediana share_ps plantão 0,70 vs 0,0019),
-#   custo do filtro 7,2% das consultas / 1,9% dos itens; corte de volume do
-#   critério B varrido de 100 a 1000 — 0 suspeitos em todos (inócuo). Consultas
-#   mistas 1,7% com 0,1% de itens eletivos de carona — viés conservador declarado.
-#   Validação clínica da lista top-15 PENDENTE (médico): regra ADOTADA, não "validada".
-# CD_PACOTE_URGENCIA: código do "PACOTE ATENDIMENTO DE URGENCIA" (contrato de dados).
+# CONTEXTO DE PS (episódio de pronto-socorro)  —  DECISÃO  —  doc §5.6
+# Regra por CONTEXTO: o DIA de atendimento é de pronto socorro quando tem item
+#   com DS_REGIME_ATENDIMENTO == REGIME_PS OU o pacote de urgência
+#   (CD_PACOTE_URGENCIA). O dia de PS é consulta própria e sai INTEIRO da base
+#   eletiva (numerador e denominador juntos); a flag de plantonista da
+#   classificação é informativa.
+#
+# O SINAL MUDOU DE CARÁTER PARA REGIME (17/set/2026). Até então o dia era PS
+#   pelo CARATER_ATENDIMENTO == STRING_URGENCIA. Os dois concordam em 96,2% dos
+#   dias de PS, e nos 4% em que discordam o caráter erra nos dois sentidos:
+#   · 1.064 itens com regime PS e caráter eletivo são a TAXA da passagem pelo
+#     PS (aplicação de injeção, sala de medicação) — ficavam na base eletiva;
+#   · 736 itens ambulatoriais com caráter de urgência são o EXAME GINECOLÓGICO
+#     DE ROTINA (coleta, colposcopia, US transvaginal, a fresco) — saíam da
+#     prática de consultório de 26 cooperados que não são plantonistas.
+#   Em R$ as duas regras quase empatam (3,73 mi vs 3,78 mi); em composição não.
+#   Proveniência: unimed_natal/verificacao_pronto_socorro.ipynb §1, §2, §6.
+#
+# RETORNO (mesmo notebook, §3–§5): 17,1% dos dias de PS têm outro atendimento
+#   da mesma paciente em 30 dias (eletivos: 44,5%). Desses, 73,6% voltam ao PS
+#   e 26,4% ao consultório. O retorno em consultório é acompanhamento do
+#   episódio (US obstétrica com doppler, HCG, toxoplasmose), com 3,3 itens
+#   contra 5,8 do retorno eletivo comum — é trabalho de consultório e NÃO
+#   carrega a marca de PS. O retorno PS -> PS não é pareado: se a regra dos 30
+#   dias da operadora vale para pronto socorro é pergunta de negócio, PENDENTE
+#   com a Unimed; até lá cada dia de PS é uma consulta, que é o conservador e
+#   não muda comparação nenhuma (PS está fora da norma).
+#
+# Proveniência original (calculos_iniciais.ipynb §12, jul/2026): coerência
+#   entre marcadores, separação plantonista × demais e custo do filtro; corte de
+#   volume varrido de 100 a 1000 — 0 suspeitos (inócuo). Validação clínica da
+#   lista de plantonistas PENDENTE (médico): regra ADOTADA, não "validada".
+# REGIME_PS: valor literal de DS_REGIME_ATENDIMENTO do pronto socorro (contrato
+#   de dados).
+# CD_PACOTE_URGENCIA: código do "PACOTE ATENDIMENTO DE URGENCIA" (contrato de
+#   dados). Segundo sinal: 10 dias têm o pacote sem regime PS — lançamento
+#   errado, e são PS.
 # INCLUIR_PS_DEFAULT: default do parâmetro incluir_ps dos motores — False = análise
 #   sobre eletivas. A UI expõe a escolha; o motor recebe POR ARGUMENTO.
 # ---------------------------------------------------------------------------
+REGIME_PS = "PRONTO SOCORRO"
 CD_PACOTE_URGENCIA = "85101036"
 INCLUIR_PS_DEFAULT = False       # DECISÃO (teste §12)
 
@@ -461,32 +498,28 @@ COLUNA_DATA_SOLICITACAO = "DT_REQUISICAO"
 
 
 # ---------------------------------------------------------------------------
-# JANELA_CONSULTA_MINUTOS  —  DECISÃO (PROVISÓRIO)  —  ago/2026
-# A consulta inferida é o conjunto de solicitações do MESMO cooperado para o
-# MESMO beneficiário cujos lançamentos consecutivos distam no máximo isto. O
-# DIA continua sendo fronteira externa: sessão não atravessa a meia-noite,
-# porque o eixo temporal de toda análise é a data de solicitação.
+# JANELA_CONSULTA_DIAS  —  REGRA DA OPERADORA  —  set/2026
+# A consulta é o primeiro atendimento MAIS o RETORNO do mesmo beneficiário com o
+# mesmo cooperado dentro desta janela. O retorno FECHA a consulta: o atendimento
+# seguinte abre outra, mesmo que venha antes dos 30 dias. Não existe retorno de
+# retorno. Solicitações do mesmo dia são o mesmo atendimento.
 #
-# Substitui a regra anterior ("mesmo dia", sem hora), que era aproximação
-# forçada: `preparar_fato` descartava o horário com .dt.normalize(), e sem ele
-# não havia como separar atendimentos.
+# MUDANÇA DE STATUS: substitui JANELA_CONSULTA_MINUTOS = 60, que era calibração
+# estatística NOSSA (PROVISÓRIO). Esta é regra de negócio da Unimed — o retorno
+# em 30 dias é a mesma consulta para efeito de cobrança. Não se recalibra: se o
+# valor mudar, muda porque a operadora mudou a regra.
 #
-# Calibração (base de abril/2025 a abril/2026, lado solicitante):
-#   · 85,2% das consultas têm lançamento ÚNICO — não são afetadas pela regra;
-#   · entre as com mais de um lançamento, o intervalo mediano é de 8 minutos e
-#     72,4% cabem dentro de 1 hora;
-#   · aplicada a todos: 188.605 -> 196.542 consultas (+4,21%), taxa mediana por
-#     cooperado de 5,124 -> 4,925 itens/consulta;
-#   · ranking preservado: Spearman 0,978, movimento mediano de 2 posições;
-#   · 0,97% dos intervalos de pacientes identificados passam de 1h e são
-#     divididos — erro conhecido, para o lado conservador.
+# Efeito medido na base de abril/2025 a abril/2026 (lado solicitante):
+#   · 196.542 -> 133.916 consultas (-31,9%);
+#   · 40,8% das consultas têm retorno; intervalo mediano do retorno 10 dias;
+#   · a consulta comporta no máximo DOIS dias de atendimento, por construção.
 #
-# RESSALVA REGISTRADA (não resolvida): consultas de span longo têm assinatura
-# clínica — citopatologia (lift 20x), vulvoscopia (7x) e captura híbrida (4x),
-# começando por procedimento de consultório e terminando em imagem. Podem ser
-# UM atendimento de investigação de colo, e não dois. Pendente de validação
-# clínica com a Unimed; decisão de produto foi seguir com a regra única.
-JANELA_CONSULTA_MINUTOS = 60
+# CUIDADO AO LER: a taxa itens/consulta passa a misturar duas coisas — quantos
+# exames o cooperado pede e com que frequência a carteira dele retorna. O funil
+# de estabilização (calculos_iniciais.ipynb, diagnostico_piso) não trava mais
+# nesta régua: o IQR fica em 2,5–3,5 nas faixas de maior volume, contra 1,3–1,6
+# na régua de 60 min. Pendência de método registrada em PENDENCIAS.md.
+JANELA_CONSULTA_DIAS = 30
 
 
 # ---------------------------------------------------------------------------
@@ -499,7 +532,7 @@ JANELA_CONSULTA_MINUTOS = 60
 #
 # NÃO é excluído: os pedidos são reais e o volume e o custo estão certos — o
 # que está inválido é um campo. Ele recebe id próprio no mapa de beneficiários
-# e a regra de sessão (JANELA_CONSULTA_MINUTOS) o trata como todos os outros.
+# e a regra de sessão (JANELA_CONSULTA_DIAS) o trata como todos os outros.
 #
 # Concentração: 78,4% das linhas do cooperado_116 e 75,4% do cooperado_112.
 # Pendente de confirmação da Unimed de que SEXO='I' + idade fixa é mesmo o
@@ -774,13 +807,24 @@ SEM_SINALIZACAO = "sem sinalização comparativa"
 SMOKE_JANELA = ("2025-05-01", "2026-04-30")        # 12m do teste de aceitação
 # RE-BASELINE set/2026 (classificação v2.0): a área de referência do gabarito
 # passou de "Ginecologia" (v1, 64 medidos / 58 na norma / mediana 5,11) para
-# "Ginecologia Geral" (v2). A régua da consulta inferida (JANELA_CONSULTA_MINUTOS,
-# ago/2026) não mudou. Valores v1 preservados para rastreabilidade:
+# "Ginecologia Geral" (v2). A régua da consulta inferida (então
+# JANELA_CONSULTA_MINUTOS, ago/2026) não mudou. Valores v1 preservados para
+# rastreabilidade:
 #   SMOKE_MEDIANA 5.11 · N_NA_NORMA 58 · N_TOTAL 64 · cooperado_85: 76 ·
 #   cooperado_71: 97 · zeros: cooperado_31, cooperado_116.
 SMOKE_AREA_REFERENCIA = "Ginecologia Geral"
-SMOKE_MEDIANA_AREA = 4.96
-SMOKE_N_NA_NORMA_AREA = 44                         # elegíveis que formam a norma
+# RE-BASELINE 15/set/2026 (régua da consulta = 30 dias, regra da operadora):
+# a consulta passou de "60 min no mesmo dia" para "atendimento + retorno em
+# 30 dias" (JANELA_CONSULTA_DIAS) e o piso foi reescalado para 60. Com o
+# denominador 31,9% menor, toda taxa sobe — a mediana de Ginecologia Geral
+# vai de 4,96 para 6,99. Valores da régua de 60 min, para rastreabilidade:
+#   MEDIANA 4.96 · N_NA_NORMA 45 · N_AVALIAVEIS 132 ·
+#   sinalizados 85: 47 (22 área) · 71: 73 (51 área)
+SMOKE_MEDIANA_AREA = 6.99
+# Re-baseline 13/set/2026 (classificação v2.1, sem a regra do cadastro
+# agregado): Ginecologia Geral ganhou um formador (44 -> 45; o outro dos dois
+# liberados fica abaixo do piso). A mediana não se moveu (4,96).
+SMOKE_N_NA_NORMA_AREA = 47                         # elegíveis que formam a norma
 SMOKE_N_TOTAL_AREA = 55
 # Pares (cooperado, procedimento) que passam os TRÊS portões (avaliavel &
 # apresentavel & sinalizado — pipeline.filtrar_sinalizados). Positivos trazem a
@@ -793,9 +837,18 @@ SMOKE_N_TOTAL_AREA = 55
 SMOKE_AREA_SINALIZADOS = "Endoscopia Ginecológica"   # área dos positivos e do topo por razão da tela
 # Re-baseline 13/set/2026 (referência da especialidade): os pares sinalizados
 # passam a incluir os medidos contra a especialidade. Por nível, para a prova
-# separar os dois: 22 + 25 no cooperado_85, 51 + 23 no cooperado_71.
-SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 47, "cooperado_71": 74}
-SMOKE_SINALIZADOS_AREA_ESPERADOS = {"cooperado_85": 22, "cooperado_71": 51}
+# separar os dois: 22 + 25 no cooperado_85, 51 + 22 no cooperado_71 (o par
+# a menos do cooperado_71 é da v2.1: a referência da especialidade ganhou um
+# formador em Ginecologia Geral).
+# RE-BASELINE 17/set/2026 (marca de PS por REGIME, não por caráter): 709 itens
+# de rotina ginecológica com caráter de urgência voltaram à base eletiva e
+# 1.064 taxas do PS saíram dela. Mediana, formadores e avaliáveis não se
+# moveram; mudaram os sinalizados dos dois de Endoscopia e o 3º do topo por
+# razão de TODAS as áreas (cooperado_19 -> cooperado_61); o topo dentro da
+# área ficou. Valores anteriores, da marca por caráter: sinalizados 85: 46
+# (23 área) · 71: 84 (63 área); topo geral (71, 85, 19).
+SMOKE_SINALIZADOS_ESPERADOS = {"cooperado_85": 45, "cooperado_71": 82}
+SMOKE_SINALIZADOS_AREA_ESPERADOS = {"cooperado_85": 22, "cooperado_71": 61}
 SMOKE_TOPO_RAZAO_AREA = ("cooperado_71", "cooperado_85", "cooperado_19")   # topo por razão DENTRO da área acima
 # Mastologia não sustenta referência própria: zero pares com referência da
 # ÁREA. Com a especialidade eles passam a ser medidos (6 e 12 pares), e é isso
@@ -803,8 +856,8 @@ SMOKE_TOPO_RAZAO_AREA = ("cooperado_71", "cooperado_85", "cooperado_19")   # top
 SMOKE_NAO_SINALIZADOS_ESPERADOS = ("cooperado_61", "cooperado_116")
 # Referência agregada da MESMA janela: avaliáveis e o topo por razão — ancoram a
 # migração no lado agregado, não só na norma. Os dois atravessaram a v2 intactos.
-SMOKE_N_AVALIAVEIS = 132
-SMOKE_TOPO_RAZAO = ("cooperado_71", "cooperado_85", "cooperado_19")
+SMOKE_N_AVALIAVEIS = 137
+SMOKE_TOPO_RAZAO = ("cooperado_71", "cooperado_85", "cooperado_61")
 # GABARITO DO EXCEDENTE (13/set/2026): calculado do zero, sem o motor, em
 # unimed_natal/verificacao_excedente_trimestral.ipynb, para as áreas abaixo.
 # Uma linha por (cooperado, procedimento, fatia) com excedente em itens e em

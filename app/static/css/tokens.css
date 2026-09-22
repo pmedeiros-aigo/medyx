@@ -237,8 +237,9 @@
      em relação ao que o CSS desenhava e ao que o artboard "Medyx Escala de Cor"
      define. Contínua é a linha que JULGA (critério); tracejada é a que dá
      CONTEXTO (referência). */
-  --ch-ref-style-median:dashed;    /* referência de adequação — contexto */
-  --ch-ref-style-criterion:solid;  /* critério de revisão — julgamento */
+  --ch-ref-style-median:dashed;    /* mediana — onde a distribuição está */
+  --ch-ref-style-mean:dotted;      /* média — quanto os grandes a puxam */
+  --ch-ref-style-criterion:solid;  /* P90 / critério — onde o topo começa */
   /* A caixa interquartil é NEUTRA (Clean v3): ela é contexto, não dado. Em
      verde competia com a mediana, que é a referência de fato. */
   --ch-iqr-fill:var(--g-25);

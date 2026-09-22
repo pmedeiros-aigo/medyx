@@ -28,27 +28,10 @@ import { abrirPagina } from '../lib/pagina.js';
 import { TELAS, comRegua } from '../lib/rotas.js';
 /* O MESMO BLOCO da tela de Área, com o conjunto trocado: lá os pares de uma
    área, aqui os de todas as que têm régua. Um desenho, duas escalas. */
+import { montarLeitura } from '../blocos/leitura-area.js';
 import { montarOportunidades } from '../blocos/oportunidades.js';
+import { montarEvolucaoMensal } from '../blocos/evolucao-mensal.js';
 import { montarPareto } from '../blocos/pareto.js';
-
-
-/**
- * O enquadramento da especialidade, em UMA linha de texto sob o título.
- *
- * Mesma construção da linha de contexto da tela de Área (`cabecalho.js`), e de
- * propósito: os dois situam a leitura antes de qualquer bloco, e quem aprendeu
- * a ler um lê o outro. Cada parte carrega a própria definição no hover.
- */
-function contexto(partes) {
-  const linha = el('span', 'sub');
-  partes.forEach((parte, i) => {
-    if (i) linha.append(document.createTextNode(' · '));
-    const p = el('span', null, parte.texto);
-    if (parte.titulo) p.title = parte.titulo;
-    linha.appendChild(p);
-  });
-  return linha;
-}
 
 
 /* O EXTRATO É UMA GRADE, NÃO UMA `<table>`.
@@ -69,11 +52,12 @@ const GRADE = 'pa-grade';
 
 
 /**
- * Uma CÉLULA DE NÚMERO: o valor, e a razão que anda com ele logo abaixo.
+ * Uma CÉLULA DE NÚMERO: o valor, e a ficha no hover.
  *
- * O apoio é a MESMA medida numa segunda leitura (quanto é, e quanto pesa), e é
- * por isso que ele mora sob o valor e não em coluna própria: uma coluna para
- * cada faria o extrato parecer ter dez medidas onde há cinco.
+ * As razões ("x% da especialidade", "x% do custo da área") ficavam sob o valor
+ * e passaram para o hover em 13/set/2026 (decisão do usuário): o extrato mostra
+ * os números, e a ficha diz quanto cada um pesa. `apoio` segue aceito, para o
+ * dia em que alguma célula voltar a precisar dele.
  *
  * AUSÊNCIA DECLARADA: onde não há medida, o valor recua e o motivo vai no
  * hover. Nunca zero, nunca célula vazia — zero afirmaria que não há variação, e
@@ -99,9 +83,8 @@ function celulaNumero(c, forte) {
  * desenho cataloga. A porta para a área continua existindo — ela só não é o
  * clique acidental de quem estava lendo a coluna ao lado.
  *
- * A POPULAÇÃO fica sob o nome, e não em coluna: ela é identidade da linha
- * (contra quantos a área é medida), não uma sexta medida. Taxa sem denominador
- * não diz se é prática ou ruído.
+ * Só o nome: a população saiu de baixo dele em 13/set/2026 (a contagem é a
+ * coluna Cooperados, e os comparáveis vão na ficha dela).
  */
 function celulaArea(l) {
   const cel = el('span', 'pa-id');
@@ -116,8 +99,9 @@ function celulaArea(l) {
     nome.textContent = l.nome;
   }
   /* sem etiqueta junto ao nome (13/set/2026): a parte medida contra a
-     especialidade é o trecho hachurado da fatia, como nos outros gráficos */
-  cel.append(nome, el('span', 'pa-sub', l.populacao));
+     especialidade é o trecho hachurado da fatia, como nos outros gráficos.
+     E sem população embaixo (mesmo dia): a contagem é a coluna Cooperados. */
+  cel.appendChild(nome);
   return cel;
 }
 
@@ -160,12 +144,14 @@ function celulaFatia(f) {
 function linhaDeArea(l, total) {
   const linha = el('div', total ? `${GRADE} pa-l pa-total` : `${GRADE} pa-l`);
   if (!total && !l.comparavel) linha.classList.add('pa-sem-regua');
-  /* seis colunas desde 13/set/2026: saiu "Qualificados"; entraram cooperados e
-     solicitações como números. A única barra é a da fatia. */
+  /* sete colunas desde set/2026: saiu "Qualificados" (13/set); entraram
+     cooperados e solicitações como números, e o PRONTO SOCORRO ao lado do
+     custo eletivo (Lei 5: contado, não medido). A única barra é a da fatia. */
   linha.append(celulaArea(l),
                celulaNumero(l.cooperados, false),
                celulaNumero(l.solicitacoes, false),
                celulaNumero(l.custo, false),
+               celulaNumero(l.ps, false),
                celulaNumero(l.excedente, true),
                celulaFatia(l.fatia));
   return linha;
@@ -295,10 +281,23 @@ await abrirPagina({
 
     /* Título e contexto na MESMA unidade de leitura, como na Área: o `gap` da
        coluna da página separaria a linha do título como se fosse outro bloco. */
+    /* só o título: a linha de contexto saiu em 13/set/2026 (repetia o extrato) */
     const topo = el('div', 'stack g6');
     topo.appendChild(el('h2', null, d.titulo));
-    if (d.contexto?.length) topo.appendChild(contexto(d.contexto));
     conteudo.appendChild(topo);
+
+    /* A LEITURA DA ESPECIALIDADE, o mesmo bloco da tela de Área uma escala
+       acima: quem vem de lá reencontra os mesmos quatro grupos, na mesma
+       ordem, com a especialidade no lugar de uma área.
+
+       ANTES DO EXTRATO, e não depois: a tabela lista nove áreas e fecha num
+       total, e o leitor que chega precisa saber o tamanho do conjunto antes de
+       comparar as partes dele. Os números do bloco são os mesmos da linha de
+       Total da tabela logo abaixo, por construção — ele soma as mesmas linhas.
+
+       SEGUE O FILTRO DE ÁREAS como o resto da página: o payload inteiro é
+       recalculado a cada troca, então não há o que atualizar aqui. */
+    montarLeitura(conteudo, d);
 
     if (d.areas?.linhas?.length) {
       const bloco = el('section', 'pano-areas');
@@ -350,22 +349,24 @@ await abrirPagina({
     montarOportunidades(conteudo, d, null,
                         (id) => comRegua(TELAS.cooperado.caminho(id)));
 
-    /* OS DOIS PARETOS, lado a lado. São o mesmo bloco das outras telas com o
-       conjunto trocado: à esquerda os cooperados de todas as áreas, à direita
-       os procedimentos, com a contagem de áreas na leitura de cada linha.
+    /* A ESPECIALIDADE NO TEMPO (13/set/2026): o mesmo bloco da tela de Área e
+       do dossiê, na mesma posição (depois das prioridades, antes da
+       concentração). Barra por mês, fechamento por trimestre, somados sobre as
+       áreas em cena. */
+    montarEvolucaoMensal(conteudo, d.evolucao);
+
+    /* UM PARETO, com o controle "Agrupar por" (área, cooperado, procedimento).
+       Eram dois cartões lado a lado somando o mesmo total (13/set/2026); o
+       leitor escolhe o passo da agregação num controle só. É o mesmo bloco das
+       outras telas com o conjunto trocado.
 
        Sem `aoEscolher`: o fio entre Pareto e tabela é da tela de Área, onde as
        duas superfícies mostram o mesmo conjunto. Aqui a lista ao lado é outra
-       unidade (o par), e apontar um cooperado nela não teria uma linha só. */
-    if (d.concentracao || d.transversais) {
-      const par = el('div', 'pano-duplas');
-      if (d.concentracao) montarPareto(par, d.concentracao, null, 'pano-coop');
-      if (d.transversais) montarPareto(par, d.transversais, null, 'pano-proc');
-      conteudo.appendChild(par);
-    }
+       unidade (o par), e apontar um cooperado nela não teria uma linha só.
 
-    if (d.proveniencia?.carimbo) {
-      conteudo.appendChild(el('span', 'note', d.proveniencia.carimbo));
-    }
+       SEM RODAPÉ de proveniência (13/set/2026): o carimbo continua no payload
+       e nas outras telas; aqui ele fechava a página com uma linha que o leitor
+       não pedia. */
+    if (d.concentracao) montarPareto(conteudo, d.concentracao, null, 'pano-conc');
   },
 });

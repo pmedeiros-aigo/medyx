@@ -113,7 +113,6 @@ em **linguagem de processo, nunca de pessoa**. Gíria interna de análise não v
 | grupo pequeno demais para percentil | **cooperados insuficientes na área para análise comparativa** |
 | zero formadores da norma | **sem referência: nenhum cooperado desta área forma a norma** |
 | sem área classificada | **sem área de atuação** (volume insuficiente ou prática pouco visível) |
-| cadastro agregado (≥ 25% de pacientes homens) | **cadastro agregado (pacientes homens) · confirmação pendente** |
 | família de atendimento (v2) | **tipo de atendimento** |
 | gatilho degradado pelo n | **critério ajustado ao tamanho do grupo** |
 | bootstrap abaixo do portão | **intervalo não calculável** |

@@ -101,8 +101,8 @@ CD_TO_DS_FIX_REQUISICOES = {
 COLUNAS_FATO = [
     "ID_COOPERADO", "AREA_ATUACAO", "ID_BENEFICIARIO",
     "NR_SEQ_REQUISICAO", "DATA_REQUISICAO", "TS_REQUISICAO",
-    "PERIODO_REQUISICAO", "ID_CONSULTA",
-    "CD_PROCEDIMENTO", "DS_PROCEDIMENTO", "CARATER_ATENDIMENTO",
+    "PERIODO_REQUISICAO", "ID_CONSULTA", "DATA_CONSULTA", "PERIODO_CONSULTA",
+    "CD_PROCEDIMENTO", "DS_PROCEDIMENTO", "CARATER_ATENDIMENTO", "DS_REGIME_ATENDIMENTO",
     "QT_SOLICITADO", "QT_EFETIVO", "EPISODIO_PS", "elegivel_norma",
 ]
 
@@ -154,6 +154,58 @@ def carregar_solicitacoes(caminho: str, coluna_data: str) -> pd.DataFrame:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Consulta inferida
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SEM_RETORNO = np.iinfo("int64").min
+
+
+def _inferir_consulta(cooperado, paciente, dias, dia_ps, janela_dias):
+    """Numera as consultas de todos os pares cooperado+paciente numa passada.
+
+    Consulta = primeiro atendimento + no máximo UM retorno dentro de
+    `janela_dias`. O retorno fecha a consulta: o atendimento seguinte abre
+    outra, mesmo dentro da janela. Dias iguais são o mesmo atendimento.
+
+    Dia de PS é consulta própria e corre em paralelo: ele não abre nem fecha a
+    consulta eletiva em curso, que segue podendo receber o seu retorno.
+
+    Entradas ordenadas por cooperado, paciente e data. Devolve um array de
+    inteiros alinhado à ordem de entrada.
+    """
+    numero = np.empty(len(dias), dtype="int64")
+    ultima = -1                       # último número emitido
+    eletiva = ps = -1                 # número da consulta eletiva / de PS em curso
+    abertura = retorno = dia_do_ps = _SEM_RETORNO
+
+    for i in range(len(dias)):
+        dia = dias[i]
+        if i == 0 or cooperado[i] != cooperado[i - 1] or paciente[i] != paciente[i - 1]:
+            abertura = retorno = dia_do_ps = _SEM_RETORNO
+
+        if dia_ps[i]:
+            if dia != dia_do_ps:      # cada dia de PS é uma consulta
+                ultima += 1
+                ps, dia_do_ps = ultima, dia
+            numero[i] = ps
+            continue
+
+        if abertura == _SEM_RETORNO:                       # abre a eletiva
+            ultima += 1
+            eletiva, abertura, retorno = ultima, dia, _SEM_RETORNO
+        elif dia == abertura or dia == retorno:            # mesmo atendimento
+            pass
+        elif retorno == _SEM_RETORNO and dia - abertura <= janela_dias:
+            retorno = dia                                  # o retorno fecha a consulta
+        else:                                              # abre a próxima
+            ultima += 1
+            eletiva, abertura, retorno = ultima, dia, _SEM_RETORNO
+        numero[i] = eletiva
+
+    return numero
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # O 6º motor
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -164,15 +216,19 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
     Método:
         1. Carrega as duas bases com os contratos de dtype/encoding verificados.
         2. Filtra solicitações de cooperados (COOPERADO == 'S').
-        3. Consulta inferida: solicitações do mesmo cooperado, para o mesmo
-           beneficiário, dentro da janela de config.JANELA_CONSULTA_MINUTOS
-           entre lançamentos, com o dia como fronteira externa (doc §3.2).
-        4. Episódio-PS (doc §5.6): consulta com caráter de urgência
-           (config.STRING_URGENCIA) em QUALQUER item OU contendo o pacote de
-           urgência (config.CD_PACOTE_URGENCIA) recebe EPISODIO_PS=True em TODOS
-           os itens — marca de consulta, marcada UMA vez, na origem. É ela que
-           permite aos motores excluir a consulta-PS inteira (numerador e
-           denominador juntos) sob incluir_ps=False.
+        3. Consulta inferida (doc §3.2): primeiro atendimento do mesmo cooperado
+           ao mesmo beneficiário MAIS o retorno dentro de
+           config.JANELA_CONSULTA_DIAS. O retorno FECHA a consulta; o dia é a
+           unidade de atendimento. Datada na abertura (DATA_CONSULTA /
+           PERIODO_CONSULTA), que é o eixo das séries mensal e trimestral.
+        4. Episódio-PS (doc §5.6): DIA com regime de pronto socorro
+           (config.REGIME_PS) em qualquer item OU com o pacote de urgência
+           (config.CD_PACOTE_URGENCIA) é consulta PRÓPRIA e recebe
+           EPISODIO_PS=True. Não se funde com atendimento eletivo, então excluir
+           a consulta-PS não leva junto o retorno eletivo do mesmo paciente.
+           O sinal é o REGIME, não o caráter: o caráter deixava a taxa do PS
+           na base eletiva e tirava dela o exame ginecológico de rotina marcado
+           como urgente (config, bloco CONTEXTO DE PS).
         5. Identidade: ID_COOPERADO por ordem de aparição; mapa executante ->
            cooperado no sentido limpo (cada executante pertence a 1 solicitante;
            um cooperado pode ter 2+ cadastros de executante) com assert de sanidade.
@@ -240,28 +296,54 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
         ["ID_BENEFICIARIO", "IDENTIFICADOR_BENEFICIARIO", "SEXO", "IDADE"]]
     src = src.merge(dim_beneficiarios, on="IDENTIFICADOR_BENEFICIARIO", how="left")
 
-    # consulta inferida (denominador de todas as taxas): solicitações do mesmo
-    # cooperado para o mesmo beneficiário cujos lançamentos consecutivos distam
-    # no máximo config.JANELA_CONSULTA_MINUTOS. O DIA é fronteira externa —
-    # sessão não atravessa a meia-noite. A calibração da janela e a ressalva
-    # clínica pendente estão no config, junto da constante.
+    # consulta inferida (denominador de todas as taxas): o primeiro atendimento
+    # do mesmo cooperado para o mesmo beneficiário MAIS o retorno dentro de
+    # config.JANELA_CONSULTA_DIAS. O retorno FECHA a consulta — o atendimento
+    # seguinte abre outra, mesmo antes dos 30 dias (não há retorno de retorno).
+    # Regra da operadora, não calibração nossa; a nota está no config.
+    #
+    # O DIA é a unidade de atendimento: solicitações do mesmo dia são o mesmo
+    # atendimento, e por isso a hora não entra mais na regra (TS_REQUISICAO
+    # segue no fato, para os intervalos entre ocasiões).
+    #
+    # O episódio de PS é consulta PRÓPRIA: um dia com regime de pronto socorro
+    # ou com o pacote de urgência não se funde com atendimento eletivo — nem abrindo
+    # consulta que depois receberia retorno, nem entrando como retorno de uma
+    # consulta eletiva. Sem isso, uma passagem pelo pronto socorro arrastaria o
+    # retorno eletivo seguinte para fora da base sob incluir_ps=False.
+    #
     # A ordenação vive numa CÓPIA e o resultado volta pelo índice: `src` precisa
     # manter a ordem de origem, porque ID_COOPERADO é atribuído adiante por
     # ORDEM DE APARIÇÃO e reordenar aqui remapearia todos os cooperados.
+    # o sinal é o REGIME (onde o pedido foi feito), não o caráter (a urgência
+    # declarada): os dois discordam em 4% dos dias de PS, e nesses o caráter
+    # erra nos dois sentidos — ver config, bloco CONTEXTO DE PS
+    _urgencia = ((src["DS_REGIME_ATENDIMENTO"].astype("string").str.strip() == config.REGIME_PS)
+                 | (src["CD_PROCEDIMENTO"] == config.CD_PACOTE_URGENCIA))
     _chave = ["IDENTIFICADOR_SOLICITANTE", "ID_BENEFICIARIO", "DATA_REQUISICAO"]
-    _ord = src.sort_values(_chave + ["TS_REQUISICAO"], kind="mergesort")
-    _g = _ord.groupby(_chave, sort=False)
-    _intervalo = _g["TS_REQUISICAO"].diff().dt.total_seconds() / 60
-    _abre = (_intervalo > config.JANELA_CONSULTA_MINUTOS) | _g.cumcount().eq(0)
-    src["ID_CONSULTA"] = (_abre.cumsum() - 1).reindex(src.index)
+    # dia de PS: basta um item de urgência no dia para o dia inteiro ser PS
+    _dia_ps = _urgencia.groupby([src[c] for c in _chave]).transform("any")
 
-    # episódio-PS: marcado UMA vez, na origem (fato sobre o dado, não análise).
-    # Caráter de urgência em qualquer item OU pacote de urgência => a marca desce
-    # a TODOS os itens da consulta — filtrá-la remove numerador e denominador
-    # juntos (regra por contexto, doc §5.6; constantes do config, nunca literais).
-    marca_ps = ((src["CARATER_ATENDIMENTO"] == config.STRING_URGENCIA)
-                | (src["CD_PROCEDIMENTO"] == config.CD_PACOTE_URGENCIA))
-    src["EPISODIO_PS"] = src["ID_CONSULTA"].map(marca_ps.groupby(src["ID_CONSULTA"]).any())
+    _ord = src.sort_values(_chave + ["TS_REQUISICAO"], kind="mergesort")
+    _num = _inferir_consulta(
+        pd.factorize(_ord["IDENTIFICADOR_SOLICITANTE"])[0],
+        pd.factorize(_ord["ID_BENEFICIARIO"])[0],
+        _ord["DATA_REQUISICAO"].to_numpy().astype("datetime64[D]").astype("int64"),
+        _dia_ps.reindex(_ord.index).to_numpy(),
+        config.JANELA_CONSULTA_DIAS,
+    )
+    src["ID_CONSULTA"] = pd.Series(_num, index=_ord.index).reindex(src.index)
+
+    # a consulta é datada na ABERTURA, e é essa data que a série mensal e a
+    # trimestral usam. Sem ela, uma consulta com itens em dois meses seria
+    # contada nos dois e a soma dos meses não fecharia com o total da janela.
+    src["DATA_CONSULTA"] = src.groupby("ID_CONSULTA")["DATA_REQUISICAO"].transform("min")
+    src["PERIODO_CONSULTA"] = src["DATA_CONSULTA"].dt.to_period("M").astype(str)
+
+    # episódio-PS: com o dia de PS virando consulta própria, a marca do item É a
+    # marca da consulta — consulta de PS só tem item de PS, consulta eletiva não
+    # tem nenhum. Filtrá-la remove numerador e denominador juntos (doc §5.6).
+    src["EPISODIO_PS"] = _dia_ps
 
     # identidade: mapa executante -> solicitante (lado limpo do dado)
     pares_se = (
@@ -328,6 +410,8 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
         "linhas_cooperados": len(fato),
         "n_cooperados": int(fato["ID_COOPERADO"].nunique()),
         "n_consultas_inferidas": int(fato["ID_CONSULTA"].nunique()),
+        "consultas_com_retorno": int(
+            (fato.groupby("ID_CONSULTA")["DATA_REQUISICAO"].nunique() > 1).sum()),
         "n_pacientes": int(fato["ID_BENEFICIARIO"].nunique()),
         "n_procedimentos": int(fato["CD_PROCEDIMENTO"].nunique()),
         "qt_tratadas": {
@@ -342,9 +426,9 @@ def preparar_fato(caminho_requisicoes: str, caminho_contas: str, config,
         "qt_nulos_para_1": int(qs.isna().sum()),
         "pares_req_proc_duplicados": int((dup > 1).sum()),
         "episodios_ps": {
-            "regra": ("consulta com caráter urgência (STRING_URGENCIA) OU pacote "
-                      "(CD_PACOTE_URGENCIA) -> EPISODIO_PS; motores excluem por "
-                      "default (INCLUIR_PS_DEFAULT) — doc §5.6"),
+            "regra": ("DIA com regime de pronto socorro (REGIME_PS) OU pacote "
+                      "(CD_PACOTE_URGENCIA) é consulta própria -> EPISODIO_PS; "
+                      "motores excluem por default (INCLUIR_PS_DEFAULT) — doc §5.6"),
             "n_consultas_ps": int(fato.loc[fato["EPISODIO_PS"], "ID_CONSULTA"].nunique()),
             "pct_consultas": float(fato.groupby("ID_CONSULTA")["EPISODIO_PS"].first().mean()),
             "n_itens_ps": int(fato["EPISODIO_PS"].sum()),

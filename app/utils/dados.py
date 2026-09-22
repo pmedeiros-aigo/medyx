@@ -43,7 +43,6 @@ def carregar_classificacao() -> pd.DataFrame:
       especialidade            area_mvp; vazio -> config.AREA_INDEFINIDA
       elegivel_norma           quem FORMA a referência (regra registrada na dim)
       confianca                alta · media · baixa · indicativa
-      alerta_perfil_masculino  cadastro_agregado (>= 25% de pacientes homens)
       execucao_principal       executar é a prática principal (US, citopatologia)
       badges (blocos._BADGES)  faz_cirurgia, faz_mastologia, tem_secundaria,
                                executa, carteira_jovem, carteira_climaterio
@@ -54,7 +53,6 @@ def carregar_classificacao() -> pd.DataFrame:
     dim["especialidade"] = texto("area_mvp").replace("", config.AREA_INDEFINIDA)
     dim["confianca"] = dim["confianca"].replace({"média": "media"})
     dim["elegivel_norma"] = flag("elegivel_norma")
-    dim["alerta_perfil_masculino"] = flag("cadastro_agregado")
     dim["execucao_principal"] = (
         (texto("area_principal") != "") & (texto("area_principal") == texto("area_execucao"))
         | (dim["situacao"] == "classificável pela execução")
@@ -273,6 +271,25 @@ def rodar_pipeline_execucao(janela_ini: str, janela_fim: str, piso: int,
         resultado=rodar_pipeline(janela_ini, janela_fim, piso, n_minimo, area,
                                  gatilho, alvo, incluir_ps, confianca=confianca),
     )
+
+
+def magnitude_ps_por_area(janela_ini: str, janela_fim: str, piso: int, n_minimo: int,
+                          gatilho: str, alvo: str, incluir_ps: bool,
+                          confianca: float | None = None) -> dict[str, dict]:
+    """Consultas e custo de PRONTO SOCORRO por área (Lei 5: contado, não medido).
+
+    Sai do MESMO `custo_coop` que dá o custo eletivo por cooperado — mesma
+    janela, mesma tabela de preço —, somado por área. Todos os cooperados com
+    dia de PS entram, comparáveis ou não, como no custo eletivo.
+    """
+    re_ = rodar_pipeline_execucao(janela_ini, janela_fim, piso, n_minimo,
+                                  config.PISO_EXECUCOES_ANO, config.Q_CONFUNDIDOR,
+                                  None, gatilho, alvo, incluir_ps, confianca=confianca)
+    cc = re_["custo_coop"]
+    g = (cc.groupby("AREA_ATUACAO")
+         .agg(consultas_ps=("consultas_ps", "sum"), custo_ps=("valor_ps", "sum")))
+    return {str(a): {"consultas_ps": int(r["consultas_ps"]), "custo_ps": float(r["custo_ps"])}
+            for a, r in g.iterrows()}
 
 
 @lru_cache(maxsize=8)

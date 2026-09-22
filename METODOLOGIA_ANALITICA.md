@@ -328,34 +328,63 @@ cauda-longa, a mediana é o default esperado — mas a verificação manda, não
 
 Plantão de pronto-socorro tem padrão de solicitação próprio (pacote de urgência, bateria de
 entrada) que não é comparável com prática de consultório. A regra é por **contexto**, não por
-pessoa: o **episódio-PS é identificável no próprio dado** — consulta inferida com caráter de
-urgência (`STRING_URGENCIA`) em **qualquer** item, OU contendo o pacote de urgência
-(`CD_PACOTE_URGENCIA`).
+pessoa: o **episódio-PS é identificável no próprio dado**.
 
-- **Onde a marca nasce:** no `preparar_fato`, coluna `EPISODIO_PS` — marca de **consulta**,
-  propagada a todos os itens dela, uma vez, na origem. É fato sobre o dado, não análise.
+- **A unidade é o dia de atendimento** — o mesmo cooperado, o mesmo beneficiário, a mesma data.
+  O dia é de PS quando **qualquer** item dele tem regime de pronto socorro (`REGIME_PS`) OU é o
+  pacote de urgência (`CD_PACOTE_URGENCIA`). Todos os itens do dia recebem a marca.
+- **O sinal é o REGIME, não o caráter** (17/set/2026). Até então o dia era PS pelo caráter de
+  urgência (`STRING_URGENCIA`). Os dois concordam em 96,2% dos dias de PS; nos 4% em que
+  discordam, o caráter erra nos dois sentidos — deixa na base eletiva a taxa da passagem pelo
+  PS (aplicação de injeção, sala de medicação, lançadas como eletivas) e tira dela o exame
+  ginecológico de rotina feito em consultório com caráter marcado como urgente (coleta,
+  colposcopia, US transvaginal). Em R$ as duas regras quase empatam; em composição não. O
+  caráter segue existindo só como descritor (`pct_urgencia`, §7.3). Proveniência:
+  `unimed_natal/verificacao_pronto_socorro.ipynb` §1, §2 e §6.
+- **O dia de PS é consulta PRÓPRIA.** Ele não se funde com atendimento eletivo: não abre uma
+  consulta que um dia seguinte fecharia como retorno, nem entra como retorno de uma consulta
+  eletiva aberta. Os dias eletivos seguem a regra dos 30 dias (§3.2) entre si, pulando os
+  dias de PS. Nenhuma consulta mistura os dois tipos; a marca do item é a marca da consulta.
+- **O retorno depois do PS** (mesmo notebook, §3 a §5): 17,1% dos dias de PS têm outro
+  atendimento da mesma paciente com o mesmo cooperado em 30 dias (dias eletivos: 44,5%).
+  Desses, 73,6% voltam ao PS e 26,4% ao consultório. O retorno em consultório é
+  acompanhamento do episódio (US obstétrica com doppler, HCG, toxoplasmose), com 3,3 itens
+  contra 5,8 do retorno eletivo comum — é trabalho de consultório, entra na base eletiva como
+  consulta própria e **não** carrega a marca de PS. O retorno PS → PS **não é pareado**: se a
+  regra dos 30 dias da operadora vale para pronto socorro é pergunta de negócio, pendente com
+  a Unimed; até lá cada dia de PS é uma consulta, que é o conservador e não altera comparação
+  nenhuma, porque o PS está fora da norma.
+- **Dias mistos** (item de PS e item ambulatorial na mesma data): 137 em 13.819, com 391
+  itens eletivos que saem junto com o dia. Perda pequena e declarada; regra própria custaria
+  mais do que rende.
+- **Onde a marca nasce:** no `preparar_fato`, coluna `EPISODIO_PS`, uma vez, na origem. É
+  fato sobre o dado, não análise. O fato carrega `DS_REGIME_ATENDIMENTO` desde 17/set/2026.
 - **Como o filtro age:** a consulta-PS sai **inteira** — numerador e denominador caem juntos
   (armadilha 9 do rigor estatístico). Norma e indivíduo são calculados sobre as consultas
   não-PS **de todo mundo**; o plantonista permanece na norma com sua prática de consultório.
 - **Parâmetro:** `incluir_ps`, default `INCLUIR_PS_DEFAULT` (excluir). Todo motor o recebe por
   argumento e **toda saída carrega o carimbo `base`** declarando sobre qual base foi calculada —
   o filtro que muda todos os números se anuncia em todos os números.
+- **O que sai da comparação NÃO sai da contagem** (Lei 5 do `CLAUDE.md`): o volume e o custo do
+  PS são dado observado e aparecem na tela como magnitude, ao lado da base eletiva, com o
+  motivo de não serem medidos. Pendente de implementação na tela (set/2026).
 - **Exceção deliberada:** confundidores e perfis descritivos (ex.: `pct_urgencia`) são
   calculados na base **completa** da janela — numa base eletiva o percentual de urgência é zero
   por construção; o confundidor descreve a pessoa, o filtro se aplica à análise.
-- **Proveniência:** teste pré-comprometido de marcadores (notebook `calculos_iniciais.ipynb`
-  §12, jul/2026) — coerência entre marcadores, separação plantonista×demais e custo do filtro
-  registrados no `config.py` junto às constantes. Flag de plantonista da classificação é
-  **informativa**; validação clínica da lista de plantonistas **pendente** — até lá, a regra é
-  "adotada", nunca "validada".
+- **Proveniência original:** teste pré-comprometido de marcadores (notebook
+  `calculos_iniciais.ipynb` §12, jul/2026) — coerência entre marcadores, separação
+  plantonista×demais e custo do filtro registrados no `config.py` junto às constantes. Flag de
+  plantonista da classificação é **informativa**; validação clínica da lista de plantonistas
+  **pendente** — até lá, a regra é "adotada", nunca "validada".
 
 ### 5.7 Quem FORMA a norma ≠ quem é MEDIDO contra ela
 
 A referência de um grupo é construída **apenas** com os cooperados marcados como elegíveis na
-classificação vigente (`elegivel_norma`). Na v2.0 são inelegíveis: quem não tem área principal
+classificação vigente (`elegivel_norma`). Na v2.1 são inelegíveis: quem não tem área principal
 (volume insuficiente, prática pouco visível, só pronto-socorro), quem tem a execução como prática
-principal (realiza mais do que solicita), cadastro agregado (um quarto ou mais de pacientes homens)
-e classificação de confiança baixa (menos de 100 consultas com pedido).
+principal (realiza mais do que solicita) e classificação de confiança baixa (menos de 100 consultas
+com pedido). A regra do cadastro agregado (fração de pacientes homens) foi retirada em 13/set/2026:
+a fração fica na dim como descrição, sem efeito na referência.
 
 **Todos os demais continuam sendo medidos contra essa referência** — inclusive os inelegíveis.
 Formar a régua e ser avaliado por ela são coisas separadas: a inelegibilidade tira o cooperado da
@@ -439,7 +468,7 @@ está em vigor:
    áreas com práticas diferentes: entra como oportunidade, sempre identificada, nunca somada a um
    total sem a divisão por nível ao lado. Abaixo do mínimo nos dois níveis, "referência não
    conclusiva": o custo aparece, o excedente não.
-3. **Sem grupo de pares** — o cooperado não tem área definida (classificação pendente): nenhuma
+3. **Sem grupo de pares** — o cooperado não tem área de atuação atribuída: nenhuma
    comparação é aplicada; restam apenas as leituras que não dependem de grupo (concentração,
    trajetória própria, coerência de cascata clínica).
 

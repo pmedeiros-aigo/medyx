@@ -81,20 +81,29 @@ checar("area · distribuição serve as três medidas",
 # pergunta: o leitor vê espalhamento e não sabe onde a área diz que o normal
 # acaba. As duas saem da MESMA norma que desenha a caixa.
 # P90/P90 por padrão (set/2026): referência e critério coincidem e o bloco
+# desenha UMA linha para as duas; a MEDIANA entra tracejada ao lado (set/2026,
+# pedido do usuário: ver onde o normal está, não só onde acaba).
+# (nota original abaixo)
+#
 # desenha UMA linha com UM rótulo, em vez de dois rótulos sobrepostos.
-checar("area · as três medidas desenham a régua (referência e critério coincidem)",
+# AS TRÊS MARCAS DESCRITIVAS (set/2026, pedido do usuário): mediana, média e
+# P90 — sem "referência" nem "critério", que são nomes da medição por
+# cooperado e por procedimento, não deste desenho.
+checar("area · as três medidas desenham a mediana (linha) e a média (traço)",
        [[r["classe"] for r in m["referencias"]] for m in _medidas_gin.values()],
-       [["criterion coincide"]] * 3)
-# a linha do critério ANUNCIA qual gatilho está em cena: régua sem nome é régua
-# que o leitor supõe.
-checar("area · a régua do critério nomeia o gatilho ativo",
-       {m["referencias"][-1]["rotulo"].split()[0] for m in _medidas_gin.values()},
+       [["median", "mean"]] * 3)
+# em cima das marcas vai só o VALOR; o nome fica na legenda (set/2026)
+checar("area · as marcas imprimem só o valor, sem nome",
+       [[r["rotulo"] == r["valor_fmt"] for r in m["referencias"]] for m in _medidas_gin.values()],
+       [[True, True]] * 3)
+# o CRITÉRIO não é desenhado (set/2026), mas viaja como dado e nomeia o gatilho
+checar("area · o critério viaja no payload e nomeia o gatilho ativo",
+       {m["criterio"]["gatilho"] for m in _medidas_gin.values()},
        {config.GATILHO_DEFAULT.upper()})
-# o ponto marcado e a régua contam a MESMA história: verde à esquerda da linha
-# do critério seria o desenho contradizendo a si mesmo.
+# o ponto marcado e o critério contam a MESMA história
 checar("area · pontos marcados são exatamente os acima do critério",
        [sum(p["acima"] for p in m["pontos"])
-        == sum(p["valor"] > m["referencias"][-1]["valor"] for p in m["pontos"])
+        == sum(p["valor"] > m["criterio"]["valor"] for p in m["pontos"])
         for m in _medidas_gin.values()], [True, True, True])
 # a rampa de cor do excedente saiu junto (variante E do artboard "Medyx Escala
 # de Cor"): dois estados, sem escala e sem brilho.
@@ -231,8 +240,13 @@ checar("contexto · sem inventário nem peso na especialidade",
 comparaveis = parte(gin, "comparaveis")
 checar("comparáveis == avaliáveis (mesmo conjunto do chip de recorte)",
        comparaveis["valor"], gin["area"]["n_avaliaveis"])
-checar("comparáveis NÃO é quem forma a referência",
-       comparaveis["valor"] != config.SMOKE_N_NA_NORMA_AREA, True)
+# comparáveis = formam a referência + avaliáveis fora da construção (blocos
+# `composicao`): a identidade, e não a desigualdade dos números, é que separa os
+# dois conjuntos (na v2.1 os dois contam 45: todo avaliável da área forma)
+_seg = {x["chave"]: x["n"] for x in gin["composicao"]["segmentos"]}
+checar("comparáveis NÃO é quem forma a referência: formam + fora da construção",
+       (comparaveis["valor"], _seg["formam_norma"]),
+       (_seg["formam_norma"] + _seg["fora_da_construcao"], config.SMOKE_N_NA_NORMA_AREA))
 # o link fala "fora da referência" (revisão 2026-08-13): os excluídos são da
 # FORMAÇÃO da referência, não do conjunto de comparáveis
 checar("comparáveis traz a ação de quem está fora da referência",
@@ -555,24 +569,14 @@ checar("Patologia · rótulo 'realiza mais do que solicita'",
        any("realiza mais do que solicita" in m["rotulo"]
            for e in ultra["composicao"]["excluidos"] for m in e["motivos"]), True)
 
-# o cadastro agregado é o motivo PROVISÓRIO da v2: fica na área de referência,
-# com confirmação pendente declarada
+# a regra do cadastro agregado (pacientes homens) SAIU em 13/set/2026: nenhum
+# excluído carrega esse motivo, em área nenhuma
 _, ref = get(f"/api/area/{AREA_REF}")
-agregados = [e for e in ref["composicao"]["excluidos"]
-             if any(m["codigo"] == "alerta_perfil_masculino" for m in e["motivos"])]
-# 3 cooperados de Ginecologia Geral têm cadastro agregado; só 1 passa o volume
-# mínimo e aparece como excluído da construção (os outros 2 ficam no piso)
-checar("área de referência · cadastro agregado entre os excluídos", len(agregados), 1)
-checar("cadastro agregado · natureza PROVISÓRIA",
-       {m["natureza"] for e in agregados for m in e["motivos"]
-        if m["codigo"] == "alerta_perfil_masculino"}, {"provisoria"})
-checar("cadastro agregado · confirmação pendente declarada",
-       {m["revisao"]["rotulo"] for e in agregados for m in e["motivos"]
-        if m["codigo"] == "alerta_perfil_masculino"}, {"confirmação pendente"})
-checar("naturezas são opostas entre execução e cadastro agregado",
-       ultra["composicao"]["excluidos"][0]["natureza"] != agregados[0]["natureza"], True)
+checar("área de referência · o cadastro agregado não é mais motivo",
+       any("agregado" in m["rotulo"] or m["codigo"] == "alerta_perfil_masculino"
+           for e in ref["composicao"]["excluidos"] for m in e["motivos"]), False)
 
-print("\n4c. FILA DE CLASSIFICAÇÃO PENDENTE (INDEFINIDO)")
+print("\n4c. SEM ÁREA DE ATUAÇÃO (INDEFINIDO)")
 _, indef = get("/api/area/indefinido")
 fila = indef["fila_classificacao_pendente"]
 checar("INDEFINIDO · fila real = quem passa o piso", fila["n_fila"], 3)
@@ -1040,7 +1044,7 @@ checar("panorama · e só as com régua trazem excedente",
 # sobram para trabalhar.
 checar("panorama · o extrato declara as colunas, na ordem de leitura",
        [c["chave"] for c in pano["areas"]["colunas"]],
-       ["area", "cooperados", "solicitacoes", "custo", "excedente", "fatia"])
+       ["area", "cooperados", "solicitacoes", "custo", "ps", "excedente", "fatia"])
 checar("panorama · e toda coluna de número carrega a própria definição",
        all(c["titulo"] for c in pano["areas"]["colunas"] if c["chave"] != "area"),
        True)
@@ -1108,10 +1112,9 @@ checar("panorama · a ficha da fatia destrincha o excedente por nível",
 _pop = sum(c["n_total"] for c in _linhas_pano.values())
 checar("panorama · ninguém desaparece da especialidade", _pop, pano["totais"]["cooperados"])
 _ult = pano["areas"]["linhas"][-1]
-checar("panorama · a classificação pendente é a última linha, sem excesso apurado",
-       (_ult["pendente"], _ult["nome"], _ult["excedente"]["valor_fmt"],
-        _ult["n_total"] == int(num_ptbr(pano["pendente"]["valor_fmt"]))),
-       (True, "Sem área de atuação", config.SEM_MEDIDA, True))
+checar("panorama · os sem área de atuação são a última linha, sem excesso apurado",
+       (_ult["pendente"], _ult["nome"], _ult["excedente"]["valor_fmt"]),
+       (True, "Sem área de atuação", config.SEM_MEDIDA))
 checar("panorama · só a última linha é pendente",
        sum(1 for l in pano["areas"]["linhas"] if l["pendente"]), 1)
 # ── O TOTAL SOMA EXATAMENTE O QUE A TELA LISTA ──────────────────────────────
@@ -1146,13 +1149,42 @@ checar("panorama · o custo solicitado bate com a Leitura da área",
 # apoio sob os números em 2026-09-11. Lá a fração se lê sozinha — total e
 # excedente são as duas linhas do mesmo grupo, uma sob a outra, na mesma escala;
 # aqui cada coluna traz um valor e o apoio é o que dá a proporção.
-checar("panorama · a linha traz a intensidade sob o excedente",
-       _com_regua[AREA_REF]["excedente"]["apoio"].endswith("do custo da área"), True)
-checar("panorama · e o peso da área sob o custo solicitado",
-       _com_regua[AREA_REF]["custo"]["apoio"].endswith("da especialidade"), True)
-checar("Leitura · e não imprime mais apoio sob nenhum número",
-       [l["apoio"] for g in gin["leitura"]["grupos"] for l in g["linhas"]
-        if l["apoio"]], [])
+# as razões saíram de baixo dos valores e vivem na FICHA do hover (13/set/2026)
+checar("panorama · nada embaixo dos números do extrato",
+       [c[k]["apoio"] for c in list(_linhas_pano.values()) + [pano["areas"]["total"]]
+        for k in ("cooperados", "solicitacoes", "custo", "excedente") if c[k]["apoio"]], [])
+checar("panorama · a intensidade do excedente vai na ficha",
+       "do custo da área" in _com_regua[AREA_REF]["excedente"]["titulo"], True)
+checar("panorama · e o peso da área na especialidade também",
+       all("Parte da especialidade:" in _com_regua[AREA_REF][k]["titulo"]
+           for k in ("cooperados", "solicitacoes", "custo")), True)
+checar("panorama · sem população sob o nome da área",
+       any("populacao" in c for c in _linhas_pano.values()), False)
+# APOIO SÓ NAS DUAS MÉDIAS POR CONSULTA (decisão do usuário, set/2026): o
+# número é a REFERÊNCIA (mediana dos comparáveis, régua parada), e a linha de
+# apoio é a média do recorte (razão de totais, achado) — as duas estatísticas
+# com nomes distintos, na mesma linha. Nenhuma outra linha imprime apoio.
+checar("Leitura · apoio só sob as duas médias por consulta",
+       sorted(l["chave"] for g in gin["leitura"]["grupos"] for l in g["linhas"]
+              if l["apoio"]), ["custo_por_consulta", "sadt_por_consulta"])
+checar("Leitura · e o apoio é a média do recorte, nomeada",
+       all(l["apoio"].startswith("média ")
+           for g in gin["leitura"]["grupos"] for l in g["linhas"] if l["apoio"]), True)
+# A REFERÊNCIA NÃO SEGUE O RECORTE (Lei 0), a média do recorte segue
+_q = get(f"/api/area/{AREA_REF}?recorte=qualificados")[1]
+_ref0 = {l["chave"]: (l["valor_fmt"], l["apoio"]) for g in gin["leitura"]["grupos"] for l in g["linhas"] if l["apoio"]}
+_ref1 = {l["chave"]: (l["valor_fmt"], l["apoio"]) for g in _q["leitura"]["grupos"] for l in g["linhas"] if l["apoio"]}
+checar("Leitura · a referência das médias fica parada no recorte",
+       [_ref0[k][0] == _ref1[k][0] for k in _ref0], [True, True])
+# e é o MESMO número que o dossiê imprime como referência
+_d85 = get("/api/cooperado/cooperado_85")[1]
+_cab85 = {e["chave"]: e for e in _d85["cabecalho"]}
+_gin_ref = {l["chave"]: l["valor_fmt"] for g in gin["leitura"]["grupos"] for l in g["linhas"]}
+_endo = get(f"/api/area/{blocos.slug(config.SMOKE_AREA_SINALIZADOS)}")[1]
+_endo_ref = {l["chave"]: l["valor_fmt"] for g in _endo["leitura"]["grupos"] for l in g["linhas"]}
+checar("dossiê · a referência das médias é a da tela de Área",
+       [_cab85[k]["par_fmt"] == f"referência: {_endo_ref[k]}"
+        for k in ("custo_por_consulta", "sadt_por_consulta")], [True, True])
 checar("Leitura · nem notas de rodapé", "notas" in gin["leitura"], False)
 # ── O BLOCO NÃO TEM RODAPÉ (set/2026) ───────────────────────────────────────
 # Ele já levou dois parágrafos de prosa, depois uma linha só. A linha que restou
@@ -1203,6 +1235,56 @@ _hover_q = linha_leitura(_gin_q, "_custo_exc")["titulo_longo"] or ""
 checar("Leitura · sob recorte, o hover ancora o número no total da área",
        "Este recorte responde por" in _hover_q
        or "Parte do custo excedente da área" in _hover_q, True)
+# ── A LEITURA DA ESPECIALIDADE ───────────────────────────────────────────────
+# O MESMO bloco da tela de Área uma escala acima: mesmos grupos, mesma ordem.
+_leit = pano["leitura"]
+checar("panorama · Leitura com os mesmos grupos da área",
+       [g["rotulo"] for g in _leit["grupos"]],
+       ["Cooperados", "Médias por consulta", "Solicitações", "Custo", "Pronto socorro"])
+checar("panorama · e o mesmo par de linhas dentro de cada grupo",
+       [len(g["linhas"]) for g in _leit["grupos"]], [2, 2, 2, 2, 2])
+# O INVARIANTE que torna o bloco legítimo: ele soma EXATAMENTE as linhas que o
+# extrato lista, e por isso fecha com a linha de Total da tabela logo abaixo.
+# Dois números para a mesma grandeza na mesma dobra seria o defeito que a linha
+# de Total existe para não ter.
+_lin = {l["chave"]: l["valor_fmt"] for g in _leit["grupos"] for l in g["linhas"]}
+_tot = pano["areas"]["total"]
+checar("panorama · a Leitura fecha com o Total do extrato",
+       (_lin["cooperados"], _lin["solicitacoes"],
+        _lin["_custo_total"], _lin["_custo_exc"], _lin["custo_ps"]),
+       (_tot["cooperados"]["valor_fmt"], _tot["solicitacoes"]["valor_fmt"],
+        _tot["custo"]["valor_fmt"], _tot["excedente"]["valor_fmt"],
+        _tot["ps"]["valor_fmt"]))
+# LEI 5, conferência mecânica: o que sai da comparação não sai da contagem.
+# Eletivo + pronto socorro tem de fechar com a BASE INTEIRA da janela, contada
+# fora do motor — consulta a consulta, e ao mesmo preço. Dinheiro fora das duas
+# partes é cegueira; dinheiro nas duas é dupla contagem.
+from utils import dados as _dados
+_ji, _jf = config.SMOKE_JANELA
+_f = _dados.carregar_fato()
+_f = _f[(_f["DATA_REQUISICAO"] >= _ji) & (_f["DATA_REQUISICAO"] <= _jf)]
+_pr = _dados.rodar_precos(_ji, _jf)
+_v = _f.merge(_pr[["CD_PROCEDIMENTO", "preco_mediano"]], on="CD_PROCEDIMENTO", how="left")
+_custo_base = float((_v["QT_EFETIVO"] * _v["preco_mediano"]).sum())
+_t = pano["totais"]
+checar("panorama · Lei 5: eletivo + PS == consultas da base",
+       int(_t["consultas"] + _t["consultas_ps"]), int(_f["ID_CONSULTA"].nunique()))
+checar("panorama · Lei 5: eletivo + PS == custo da base (±R$ 1)",
+       abs(_t["custo_total"] + _t["custo_ps"] - _custo_base) < 1.0, True)
+# a célula de Total da coluna PS é o mesmo número cru dos totais (a soma
+# por linha contra o mart é conferida na camada do motor)
+checar("panorama · o Total do extrato imprime o PS dos totais",
+       _tot["ps"]["valor_fmt"], fmt_reais(_t["custo_ps"]))
+checar("panorama · a coluna do PS existe e é a quinta",
+       [c["chave"] for c in pano["areas"]["colunas"]][4], "ps")
+# AS MÉDIAS SÃO MAGNITUDE, não régua: o hover das duas linhas precisa dizer
+# isso, porque é aqui que o leitor corre o risco de tomar a média da
+# especialidade pelo alvo de um cooperado que é medido contra a própria área.
+checar("panorama · as médias por consulta se declaram retrato, não referência",
+       all("não a referência" in l["titulo_longo"]
+           or "as áreas diferem" in l["titulo_longo"]
+           for l in _leit["grupos"][1]["linhas"]), True)
+
 # as áreas COM RÉGUA vêm primeiro, e entre elas manda o excedente: sem ordem,
 # uma linha de uma pessoa se intercalaria com a que carrega R$ 2,9 mi
 _ordem = [c["comparavel"] for c in pano["areas"]["linhas"]]
@@ -1227,23 +1309,21 @@ checar("panorama · nenhuma medida de posição atravessa as áreas",
 # DUAS AGREGAÇÕES do mesmo total: por área diz onde alocar auditoria, por
 # cooperado diz quantas conversas resolvem quanto. Trocar entre elas é LEITURA,
 # não recorte, e por isso as duas viajam prontas no mesmo payload.
-checar("panorama · a concentração agrupa por área e por cooperado",
+# TRÊS AGREGAÇÕES num Pareto só (13/set/2026): o cartão "Procedimentos
+# transversais" virou a terceira opção do controle
+checar("panorama · a concentração agrupa por área, cooperado e procedimento",
        ([o["chave"] for o in pano["concentracao"]["ordens"]],
         pano["concentracao"]["rotulo_controle"]),
-       (["area", "cooperado"], "Agrupar por"))
-checar("panorama · as duas agregações somam o mesmo total",
+       (["area", "cooperado", "procedimento"], "Agrupar por"))
+checar("panorama · as três agregações somam o mesmo total",
        {b["total_fmt"] for b in pano["concentracao"]["dados"].values()},
        {fmt_reais(pano["totais"]["excedente_reais"])})
 _conc = pano["concentracao"]["dados"]["cooperado"]
-_trans = pano["transversais"]["dados"]["excedente"]
-checar("panorama · os dois Paretos somam o mesmo excedente",
-       (_conc["total_fmt"], _trans["total_fmt"]),
-       (fmt_reais(pano["totais"]["excedente_reais"]),) * 2)
-# e cada um se chama pelo que responde: com o mesmo total nos dois cabeçalhos, o
-# título genérico do Pareto era a mesma frase dita duas vezes lado a lado
-checar("panorama · cada Pareto tem nome próprio",
-       (_conc["titulo"], _trans["titulo"]),
-       ("Onde o excesso se concentra", "Procedimentos transversais"))
+_trans = pano["concentracao"]["dados"]["procedimento"]
+checar("panorama · não há mais um segundo cartão de Pareto", "transversais" in pano, False)
+checar("panorama · as três agregações têm o mesmo título",
+       {b["titulo"] for b in pano["concentracao"]["dados"].values()},
+       {"Onde o excesso se concentra"})
 # a leitura de cada linha diz de que régua ela veio: numa tela que cruza áreas,
 # a barra sozinha não diz contra o que a pessoa foi medida
 checar("panorama · a linha do cooperado declara a área dele",
@@ -1271,6 +1351,24 @@ checar("panorama · seleção que não alcança nada cai em todas",
 checar("panorama · e a soma acompanha o recorte",
        _pano_go["totais"]["excedente_reais"] < pano["totais"]["excedente_reais"],
        True)
+# A ESPECIALIDADE NO TEMPO (13/set/2026): o mesmo bloco das outras telas, e as
+# mesmas identidades. Os trimestres somam o excedente medido do extrato, com
+# ou sem recorte de áreas; nenhum mês carrega excedente.
+def _tri_soma(pn):
+    return sum((g["trimestre"] or {}).get("excedente_reais") or 0.0
+               for g in (pn.get("evolucao") or {}).get("grupos", []))
+checar("panorama · o bloco de evolução existe", bool(pano.get("evolucao")), True)
+checar("panorama · evolução · os trimestres somam o excedente do extrato",
+       abs(_tri_soma(pano) - pano["totais"]["excedente_reais"]) <= 0.05, True)
+checar("panorama · evolução · e seguem o recorte de áreas",
+       abs(_tri_soma(_pano_go) - _pano_go["totais"]["excedente_reais"]) <= 0.05, True)
+checar("panorama · evolução · nenhum mês carrega excedente",
+       all("excedente_reais" not in m for g in pano["evolucao"]["grupos"] for m in g["meses"]), True)
+if pano["evolucao"]["fecha"]:
+    checar("panorama · evolução · os meses de cada grupo somam o trimestre",
+           all(abs(round(sum(m["custo"] or 0 for m in g["meses"])
+                         - g["trimestre"]["custo"], 2)) <= 0.01
+               for g in pano["evolucao"]["grupos"] if g["trimestre"]), True)
 # com uma área só em cena, a coluna que diz de qual régua o caso veio some: ela
 # repetiria a mesma palavra em todas as linhas
 checar("panorama · com uma área só, a coluna da área não aparece",
@@ -1311,7 +1409,9 @@ PROIBIDOS = ("o gráfico", "este gráfico", "esta série", "série limitada",
              "este bloco", "nesta tela", "as barras", "a barra inteira",
              "quarentena", "estimativa de teto",
              "preço interno provisório", "preços internos provisórios",
-             "homologad")
+             "homologad",
+             # saíram do vocabulário em 13/set/2026 (decisão do usuário)
+             "classificação pendente", "cadastro agregado", "pacientes homens")
 
 
 def _frases(no, caminho=""):

@@ -311,10 +311,13 @@ export function montarDistribuicao(destino, dados, aoEscolher) {
                                    medida.faixa_iqr.largura_pct));
     }
     for (const r of medida.referencias ?? []) {
-      plot.appendChild(posicionado('div', `refline ${r.classe}`, r.pos_pct));
+      const linha = posicionado('div', `refline ${r.classe}`, r.pos_pct);
+      if (r.titulo) linha.title = r.titulo;
+      plot.appendChild(linha);
+      /* marca SEM rótulo impresso (a média, set/2026): o valor fica no hover
+         do traço, para não sobrepor o rótulo da mediana quando são próximos */
+      if (!r.rotulo) continue;
       const lbl = posicionado('div', `reflbl ${r.classe}`, r.pos_pct, null, r.rotulo);
-      /* o hover diz o que a linha é e, quando o critério foi ajustado ao
-         tamanho do grupo, por quê — o rótulo só tem espaço para "· ajustado" */
       if (r.titulo) lbl.title = r.titulo;
       plot.appendChild(lbl);
     }

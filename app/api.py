@@ -515,6 +515,39 @@ def _agrupar_areas(areas: list[dict]) -> list[dict]:
     ]
 
 
+def _evolucao_do_panorama(p, r: dict, areas: list[dict]) -> dict | None:
+    """A ESPECIALIDADE no tempo: o mesmo bloco da tela de Área e do dossiê
+    (13/set/2026), somado sobre as áreas em cena no Panorama.
+
+    Barra por MÊS (custo das solicitações, somado sobre as áreas) e fechamento
+    por TRIMESTRE (excedente apurado, somado sobre os cooperados dessas áreas).
+    Segue o RECORTE de áreas da tela: a série é das áreas listadas no extrato,
+    e por isso os trimestres somam o mesmo excedente que a linha de total.
+    """
+    nomes = [a["nome"] for a in areas]
+    ta = r["taxa_agregada"]
+    ids = set(ta.loc[ta["AREA_ATUACAO"].isin(nomes), "ID_COOPERADO"])
+    custo_mes = blocos.somar_custo_mensal([
+        dados.rodar_custo_mensal(p.janela_ini, p.janela_fim, nome, p.incluir_ps)
+        for nome in nomes])
+    fatias = dados.fatiar_trimestres(p.janela_ini, p.janela_fim)
+    resto_dias = dados.resto_fora_dos_trimestres(p.janela_ini, p.janela_fim)
+    trimestral = None
+    if len(fatias) >= config.MIN_JANELAS_AVALIAVEIS:
+        pers = dados.rodar_persistencia(
+            p.janela_ini, p.janela_fim, p.piso, p.n_minimo, p.criterio,
+            p.referencia, None, config.MIN_JANELAS_AVALIAVEIS, p.incluir_ps)
+        rotulos = [f"{apr.mes_ano(a)}–{apr.mes_ano(b)}" for a, b in fatias]
+        pj = pers["por_janela_cooperado"]
+        pj = pj[pj["ID_COOPERADO"].isin(ids)]
+        cpj = pers.get("custo_por_janela")
+        if cpj is not None and len(cpj):
+            cpj = cpj[cpj["ID_COOPERADO"].isin(ids)]
+        trimestral = blocos.evolucao_da_area(pj, cpj, rotulos, resto_dias)
+    ev = blocos.evolucao_mensal(custo_mes, p.janela_ini, p.janela_fim, trimestral)
+    return blocos.nota_sem_ajuste_na_serie(ev, p.confianca)
+
+
 @lru_cache(maxsize=32)
 def _cascata_area(area: str, janela_ini: str, janela_fim: str, piso: int,
                   n_minimo: int, criterio: str, referencia: str,
@@ -756,7 +789,15 @@ def _blocos_de_achado(casc: dict, linhas_coop: list[dict], ids: list[str],
     # magnitude por cooperado para os cards de média (SADT e custo por consulta)
     base_por_coop = {l["id"]: {"consultas": l.get("consultas"),
                                "solicitacoes": l.get("solicitacoes"),
-                               "valor_total": l.get("valor_total")}
+                               "valor_total": l.get("valor_total"),
+                               # pronto socorro (Lei 5): contado ao lado
+                               "consultas_ps": l.get("consultas_ps"),
+                               "custo_ps": l.get("custo_ps"),
+                               # para a REFERÊNCIA (mediana dos comparáveis,
+                               # que não segue o recorte)
+                               "avaliavel": l.get("avaliavel"),
+                               "indice": l.get("indice"),
+                               "custo_por_consulta": l.get("custo_por_consulta")}
                      for l in linhas_coop}
     cards = blocos.cards_do_recorte(casc["excedente_reais_coop"],
                                     itens_por_coop, ids, rotulo,
@@ -928,9 +969,22 @@ def panorama(p: ParametrosDep,
     # SOLICITAÇÕES por área: dado real, existe com ou sem referência, e é uma
     # das barras do extrato (13/set/2026)
     _solic = r["taxa_agregada"].groupby("AREA_ATUACAO")["total_itens"].sum().to_dict()
+    # CONSULTAS por área, o denominador das médias da Leitura. Sai da MESMA
+    # `taxa_agregada` que dá as solicitações, e portanto da mesma população —
+    # todos os cooperados com atividade, comparáveis ou não (rigor-estatistico
+    # §9: numerador e denominador do mesmo conjunto).
+    _cons = r["taxa_agregada"].groupby("AREA_ATUACAO")["consultas_totais"].sum().to_dict()
+    # PRONTO SOCORRO por área (Lei 5): contado ao lado do eletivo, não medido.
+    # Mesma chamada memoizada de `custo_por_area` — acerto de cache.
+    _ps = dados.magnitude_ps_por_area(p.janela_ini, p.janela_fim, p.piso, p.n_minimo,
+                                      p.criterio, p.referencia, p.incluir_ps,
+                                      confianca=p.confianca)
     totais = {a["id"]: {"custo_total": custos.get(a["nome"]),
                         "custo_comparaveis": custos_comp.get(a["nome"]),
-                        "solicitacoes": float(_solic.get(a["nome"], 0.0))}
+                        "solicitacoes": float(_solic.get(a["nome"], 0.0)),
+                        "consultas": float(_cons.get(a["nome"], 0.0)),
+                        "consultas_ps": float(_ps.get(a["nome"], {}).get("consultas_ps", 0)),
+                        "custo_ps": float(_ps.get(a["nome"], {}).get("custo_ps", 0.0))}
               for a in _todas}
     # os pares das áreas COM RÉGUA, empilhados: é o que sustenta a lista de
     # oportunidades da especialidade inteira. Empilhar é legítimo porque cada
@@ -943,7 +997,7 @@ def panorama(p: ParametrosDep,
         # Desde 13/set/2026 TODA área com pares entra, e não só as comparáveis:
         # a área sem referência própria tem os pares medidos contra a
         # especialidade (com a etiqueta), e deixá-la de fora do Panorama seria
-        # cegueira (Lei 5). Só a classificação pendente fica fora, porque não
+        # cegueira (Lei 5). Só os sem área de atuação ficam fora, porque não
         # tem grupo de pares em nível nenhum (METODOLOGIA §6.2).
         if a["nome"] == config.AREA_INDEFINIDA:
             continue
@@ -985,6 +1039,8 @@ def panorama(p: ParametrosDep,
 
     bloco = blocos.panorama_da_especialidade(
         config.ESPECIALIDADE_MVP, _todas, totais, config.AREA_INDEFINIDA)
+    # a especialidade no tempo, como nas outras telas (13/set/2026)
+    bloco["evolucao"] = _evolucao_do_panorama(p, r, _todas)
     # PRINCIPAIS OPORTUNIDADES da especialidade: o MESMO bloco da tela de Área,
     # alimentado com os pares de todas as áreas com régua e com o excedente da
     # especialidade como denominador. Um bloco, duas escalas — o que muda é o
@@ -999,6 +1055,12 @@ def panorama(p: ParametrosDep,
         # OS DOIS PARETOS da especialidade, com os mesmos blocos das outras
         # telas e o conjunto trocado: onde o excesso se concentra (por
         # cooperado) e quais procedimentos o puxam em mais de uma área.
+        # UM Pareto com três agregações (13/set/2026): área, cooperado e
+        # procedimento. Os procedimentos transversais deixaram de ser cartão
+        # próprio e entram como a terceira opção do controle "Agrupar por".
+        transversais = blocos.procedimentos_transversais(
+            pd.concat(rs_pares),
+            pd.concat(custo_pares) if any(len(c) for c in custo_pares) else None)
         bloco["concentracao"] = blocos.concentracao_da_especialidade(
             reais_coop, custos_coop, area_do_coop,
             {a["titulo"]: totais[a["id"]]["excedente_reais"] for a in _todas
@@ -1007,10 +1069,8 @@ def panorama(p: ParametrosDep,
              for a in _todas if "excedente_reais" in totais[a["id"]]},
             reais_coop_esp=reais_coop_esp,
             reais_area_esp={a["titulo"]: totais[a["id"]]["excedente_reais_especialidade"]
-                            for a in _todas if "excedente_reais" in totais[a["id"]]})
-        bloco["transversais"] = blocos.procedimentos_transversais(
-            pd.concat(rs_pares),
-            pd.concat(custo_pares) if any(len(c) for c in custo_pares) else None)
+                            for a in _todas if "excedente_reais" in totais[a["id"]]},
+            por_procedimento=transversais)
     bloco["proveniencia"] = _proveniencia(p, r)
     bloco["banner"] = config.BANNER_HOMOLOGACAO
     return bloco

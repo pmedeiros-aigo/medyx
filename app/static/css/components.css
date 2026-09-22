@@ -803,10 +803,14 @@ th{vertical-align:middle}
    de cooperado. Vermelho sai do dado; a régua é preta nos dois casos. */
 .plot .refline{position:absolute;top:14px;height:58px;bottom:auto;width:0;opacity:var(--ch-ref-op);z-index:1}
 .plot .refline.median{background:none;border-left:var(--ch-ref-w) var(--ch-ref-style-median) var(--g-900)}
-.plot .refline.criterion{background:none;border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--g-900)}
+/* A MÉDIA é um traço curto na base do eixo, não uma linha (set/2026): marca
+   discreta, com o valor no hover; a única linha do gráfico é a mediana. */
+.plot .refline.mean{top:58px;height:14px;background:none;border-left:3px solid var(--g-900);opacity:1}
+.plot .refline.criterion,.plot .refline.p90{background:none;border-left:var(--ch-ref-w) var(--ch-ref-style-criterion) var(--g-900)}
 .plot .reflbl{position:absolute;top:0;transform:translateX(-50%);padding:0 4px;background:var(--surface);font-size:var(--ch-label-fs);font-weight:400;letter-spacing:.02em;white-space:nowrap;z-index:2}
 .plot .reflbl.median{color:var(--g-900)}
-.plot .reflbl.criterion{color:var(--g-900)}
+.plot .reflbl.mean{color:var(--g-900)}
+.plot .reflbl.criterion,.plot .reflbl.p90{color:var(--g-900)}
 
 /* ── a DISTRIBUIÇÃO DA ÁREA, que cresce com o painel (2026-09-07) ───────────
    As medidas acima são as de um gráfico de 110px: caixa de 38, réguas de 58,
@@ -914,6 +918,7 @@ th{vertical-align:middle}
 /* as marcas das duas réguas: o mesmo traço que o gráfico desenha, em 11px */
 .legend i.mk-ref{width:0;height:11px;border-radius:0;border-left:1px var(--ch-ref-style-median) var(--g-900);opacity:var(--ch-ref-op)}
 .legend i.mk-crit{width:0;height:11px;border-radius:0;border-left:1px var(--ch-ref-style-criterion) var(--g-900);opacity:var(--ch-ref-op)}
+.legend i.mk-mean{width:0;height:7px;border-radius:0;border-left:3px solid var(--g-900)}
 .legend i.caveat{width:14px;border-radius:2px;background:var(--caveat-soft);border:1px var(--caveat-border-style) var(--caveat-line)}
 .barrow{display:grid;grid-template-columns:1fr 56px;gap:12px;align-items:center}
 .barrow .t{font-size:var(--fs-md)}
@@ -2740,7 +2745,10 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    A régua é o que a faixa de cartões não tinha: sete caixas de largura igual
    punham "1.032 consultas" e "R$ 86 mil" em dois blocos sem relação. Aqui os
    valores encostam na mesma coluna da direita e se leem de cima a baixo. */
-.res-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+/* piso de 200px (set/2026): com o grupo PRONTO SOCORRO a Leitura tem cinco
+   grupos, e a 240px o quinto caía sozinho numa segunda linha com um vão ao
+   lado. Continua auto-fit: em tela estreita ainda quebra, mas sem vão. */
+.res-grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
   gap:1px;background:var(--line-soft);border-top:1px solid var(--line-soft)}
 /* o respiro horizontal é o MESMO do cabeçalho, da faixa e do rodapé do cartão
    (16px): o bloco é uma coluna só de cima a baixo, e 20px aqui fazia a primeira
@@ -2765,7 +2773,11 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
   font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
 /* a referência da área ocupa a linha inteira abaixo do par, na coluna do valor:
    ela é a régua do número, não um terceiro número */
-.res-p{grid-column:2;font-size:var(--fs-xs);color:var(--g-400);text-align:right;
+/* ATRAVESSA AS DUAS COLUNAS (set/2026): na coluna 2, a linha de apoio dava a
+   largura da coluna ("média do recorte: R$ 344" é mais largo que "R$ 273") e
+   espremia o rótulo ao lado até a reticência. Ocupando a linha inteira ela
+   continua alinhada à direita, sob o valor, e o rótulo ganha a largura dele. */
+.res-p{grid-column:1 / -1;font-size:var(--fs-xs);color:var(--g-400);text-align:right;
   white-space:nowrap}
 /* o mesmo pontilhado de "tem hover" da faixa de KPIs: só a referência carrega
    explicação (como ela é construída), e o pontilhado é o que anuncia isso */
@@ -3234,8 +3246,10 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
    é a mais larga porque carrega nome, etiqueta de ressalva e população; a
    última é a mais estreita porque só conta pessoas. */
 .pa-grade{display:grid;
-  grid-template-columns:minmax(200px,1.7fr) minmax(84px,.8fr) minmax(96px,.9fr)
-                        minmax(96px,1fr) minmax(104px,1fr) minmax(116px,1.15fr);
+  /* sete colunas (set/2026): o pronto socorro entrou ao lado do custo eletivo */
+  grid-template-columns:minmax(200px,1.6fr) minmax(84px,.8fr) minmax(96px,.9fr)
+                        minmax(96px,1fr) minmax(96px,.9fr) minmax(104px,1fr)
+                        minmax(116px,1.15fr);
   gap:14px;padding:0 24px}
 /* OS RÓTULOS DE COLUNA são rótulos, não uma faixa: corpo miúdo sobre um filete.
    Oito linhas não precisam de cabeçalho pesado para se orientar, e a faixa
@@ -3303,22 +3317,8 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 .pano-ausente{color:var(--g-400);text-decoration:underline;
   text-decoration-style:dotted;text-decoration-color:var(--line);
   text-underline-offset:3px;cursor:help}
-/* OS DOIS PARETOS do Panorama, lado a lado: onde o excesso se concentra e quais
-   procedimentos o puxam. Duas leituras do mesmo total, e lê-las em paralelo é a
-   razão de estarem na mesma linha. Empilham na tela estreita, onde uma lista de
-   barras em meia largura deixa de ser legível. */
-.pano-duplas{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
-  gap:16px}
-/* MESMA ALTURA nos dois: os cabeçalhos têm números de linhas diferentes (um
-   subtítulo quebra em duas, o outro não), e sem isto um cartão terminava acima
-   do outro. A diferença é absorvida pela LISTA, que rola: o cartão mais curto
-   passa a mostrar uma barra a mais em vez de deixar um vão no rodapé. */
-.pano-duplas > .tbl{display:flex;flex-direction:column;height:452px}
-/* a LISTA absorve a diferença entre os dois cabeçalhos (um subtítulo quebra em
-   duas linhas, o outro não) e rola dentro do cartão. `min-height:0` porque item
-   de flex não encolhe abaixo do conteúdo sem isso, e a lista voltaria a empurrar
-   o rodapé para fora. */
-.pano-duplas > .tbl > .pareto{flex:1;min-height:0;max-height:none}
+/* `.pano-duplas` (os dois Paretos lado a lado) saiu em 13/set/2026: o Panorama
+   tem UM Pareto, com o controle de agregação. */
 
 /* ── LATERAL RECOLHÍVEL (set/2026) -------------------------------------------
    Recolhida sobra o essencial: a marca, o ícone de cada tela e o avatar. Nada
@@ -3463,6 +3463,17 @@ tr.clicavel:focus-visible{outline:2px solid var(--g-400);outline-offset:-2px}
 .evom-plot{position:relative;width:100%;max-width:64px;height:var(--evom-h)}
 .evom-barra{position:absolute;left:0;right:0;bottom:0;display:block;
   font-style:normal;background:var(--g-200);border-radius:4px 4px 0 0}
+/* O PRONTO SOCORRO no topo da barra do mês: cinza SÓLIDO um degrau mais escuro
+   que o eletivo, separado por um filete da cor do fundo — barra empilhada, sem
+   textura. Não é hachura de propósito (decisão do usuário, set/2026): no app a
+   hachura significa "medido com referência da especialidade", e o PS não é
+   medida nenhuma — é contagem fora da comparação (Lei 5). Os dois tons vêm da
+   escala de cinza, que inverte junto com o tema: --g-200/--g-400 são dois
+   degraus visíveis tanto no claro quanto no escuro. */
+.evom-barra b.ps{position:absolute;left:0;right:0;top:0;display:block;
+  border-radius:4px 4px 0 0;background:var(--g-400);
+  box-shadow:0 1px 0 var(--surface)}
+.legend i.bar-ps{width:14px;height:8px;border-radius:2px;background:var(--g-400)}
 /* o valor flutua logo acima do topo da PRÓPRIA barra (o `bottom` é dado, vem do
    motor), com fundo opaco colado ao texto para a linha tracejada não passar por
    trás dele. Mesmas três medidas do `.evo-topo`, e pelo mesmo motivo: número

@@ -83,7 +83,7 @@ o mostra em lugar nenhum e o degrau "Com classificação de área resolvida" da 
 ninguém.
 
 **Destrava com:** tela de governança da classificação (versão, vigência, quem forma a
-referência e por quê, os rótulos frágeis, o cadastro agregado pendente de confirmação). Não
+referência e por quê, os rótulos frágeis). Não
 muda cálculo nenhum.
 
 ### 6. Busca na barra superior
@@ -104,6 +104,51 @@ coisa; buscar na especialidade inteira e navegar para a área do achado é outra
 segunda justifica ocupar a barra superior.
 
 ---
+
+## Régua da consulta = 30 dias (15/set/2026)
+
+### 7a. A taxa passou a misturar intensidade com frequência de retorno
+
+Com `JANELA_CONSULTA_DIAS = 30`, a consulta é o atendimento mais o retorno, e a taxa
+itens/consulta deixou de responder só "quantos exames este médico pede". Ela responde
+"quantos exames por atendimento-mais-retorno", e o retorno é da CARTEIRA, não do médico:
+dois cooperados igualmente parcimoniosos separam-se se um atende pacientes que retornam mais.
+
+O sintoma está medido: o funil de estabilização (`calculos_iniciais.ipynb`,
+`diagnostico_piso`) **não trava** nesta régua. O IQR das taxas fica entre 2,5 e 3,5 nas
+faixas de maior volume, oscilando, contra 1,3–1,6 estáveis na régua de 60 minutos. Foi por
+isso que o piso teve de ser REESCALADO (100 -> 60) e não recalibrado: não há ponto de
+travamento para escolher.
+
+Decidir antes de homologar com a Unimed: ou o denominador da norma deixa de ser a consulta
+(candidatos: o paciente, ou o lançamento), ou a taxa é normalizada pela frequência de
+retorno da carteira, ou se aceita a mistura e se registra na tela que a comparação carrega
+o perfil de retorno junto.
+
+### 7c. O cooperado sem atividade eletiva não tem dossiê
+
+Com o pronto socorro contado (Lei 5, set/2026), quem só tem PS entra nas somas do
+Panorama (`custo_coop` faz merge OUTER), mas a tela de Área o lista só se ele tiver
+linha eletiva, e `/api/cooperado/{id}` responde 404 — o dossiê é montado a partir da
+linha de `linhas_cooperados`, que nasce do `posicao_area` eletivo. Hoje é um cooperado
+(`situacao == "só pronto-socorro"`, 1 consulta de PS). Abrir o dossiê dele exige um
+caminho de montagem sem linha eletiva; até lá, o número dele está no Panorama e a
+pessoa não tem tela.
+
+### 7d. "Consultas de urgência" mede itens, não consultas
+
+O fator de contexto `pct_urgencia` é a fração de ITENS com caráter de urgência; o
+rótulo diz "consultas". Num plantonista a diferença é grande (35% contra 77% no
+cooperado_43), porque a consulta de PS tem 1 ou 2 itens e a eletiva 7 ou 8. Com o grupo
+Pronto socorro na tela o fator ficou redundante: ou passa a medir consultas de PS, ou
+sai. É o passo 4 do plano do PS.
+
+### 7b. O piso de 60 é reescala, não medição
+
+`PISO_CONSULTAS_ANO["_default"] = 60` veio de 100 x 0,68 (a queda do denominador),
+arredondado para baixo. Preserva a coorte que a régua anterior entregava (138 formadores
+contra 134), e é isso que ele garante — nada sobre estabilidade da taxa, que é a 7a.
+Recalibrar quando a 7a for decidida.
 
 ## Classificação v2.0 (set/2026)
 

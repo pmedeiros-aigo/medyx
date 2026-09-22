@@ -30,8 +30,8 @@ Valores: `config.py`. Regras de construção: `CLAUDE.md`.
    Oportunidades sobre 2 a 7 cooperados (METODOLOGIA §5.8).
 3. **Norma construída só com** `elegivel_norma=True`**; todos são MEDIDOS contra ela.**
   Quem não forma aparece com o **motivo**, e o motivo distingue exclusão definitiva
-   (perfil de execução) de provisória (cadastro agregado — confirmação pendente;
-   confiança baixa; sem área).
+   (perfil de execução) de provisória (confiança baixa; sem área). A regra do
+   cadastro agregado (pacientes homens) saiu em 13/set/2026.
 4. **Base eletiva por padrão** (`incluir_ps=False`); carimbo BASE_ELETIVA visível.
 5. **Critério degradado pelo n**: pleno → percentil padrão; intermediário → percentil
   inferior com o rótulo "critério ajustado ao tamanho do grupo"; abaixo do mínimo →
@@ -49,7 +49,7 @@ Valores: `config.py`. Regras de construção: `CLAUDE.md`.
   - *referência plena* — tela completa;
   - *referência insuficiente* — inclui a variante **sem formadores** (a área existe,
   a referência não). Mesmo componente visual; muda a frase de apoio e os motivos;
-  - *sem grupo de pares* (classificação pendente) — sem comparativos; valem as
+  - *sem grupo de pares* (sem área de atuação) — sem comparativos; valem as
   análises intra-cooperado.
 7. **Excedente sempre visível, inclusive abaixo do critério agregado.** O critério
   agregado governa o **realce da linha**, nunca a medição — o excedente é medido por
@@ -103,13 +103,13 @@ própria tela, no rodapé, até entrarem.
   aparece é área que ninguém lembra de classificar. O que separa as duas famílias é o
   CONTEÚDO da linha, não a presença.
   - **As colunas, na ordem de leitura de auditoria** (a ordem é contrato, e o smoke a
-    cobra): **Área de atuação** (nome, etiqueta de ressalva quando cabe, e a população
-    embaixo) · **Custo solicitado** (com o peso da área no custo da especialidade) ·
-    **Custo excedente** (com a fração do custo da própria área) · **Fatia do
-    excedente** (a barra) · **Casos qualificados**.
-  - Cada coluna de R$ carrega a **própria razão embaixo do valor**, em corpo menor: é
-    a mesma medida em segunda leitura (quanto é, e quanto pesa), e R$ 2,9 mi numa área
-    e R$ 2,4 mi noutra não dizem qual pede mais fora do padrão — 28% e 15% dizem.
+    cobra): **Área de atuação** (só o nome, que é o link) · **Cooperados** · **Solicitações** ·
+    **Custo solicitado** · **Custo excedente** · **Fatia do excedente** (a única barra).
+  - **Nada embaixo dos valores** (13/set/2026, decisão do usuário). As razões ("24% da
+    especialidade", "7% do custo da área") e a população ("49 comparáveis de 49") saíram
+    de baixo do valor e do nome e vivem na FICHA do hover de cada célula: cooperados
+    (com volume para comparação, parte da especialidade), solicitações e custo (parte da
+    especialidade), excedente (fração do custo da área e divisão por nível).
   - **com régua**: custo, excedente, fatia e casos qualificados, todos medidos.
   - **sem régua**: a linha recua e declara a ausência com o motivo no hover. **Não
     imprime zero** — zero afirmaria ausência de variação onde o que falta é contra
@@ -153,12 +153,12 @@ própria tela, no rodapé, até entrarem.
 - **Os cooperados sem área de atuação são a última linha do extrato** (decisão do
   usuário, 13/set/2026; até então ficavam fora da tabela e do total, e a página não
   os listava em lugar nenhum). A linha se chama "Sem área de atuação", com a população
-  "N cooperados · classificação pendente"; cooperados, solicitações e custo são os
+  "N cooperados sem área atribuída"; cooperados, solicitações e custo são os
   números reais; o excedente é "não apurado" com o motivo (sem área, e por isso sem
   grupo de pares), e a fatia fica tracejada, como nas áreas sem referência. O nome
-  leva à tela da classificação pendente. O total soma todas as linhas, e por isso
-  fecha com a especialidade inteira. O bloco `pendente` do payload continua existindo
-  no motor, sem consumidor na tela.
+  leva à tela dos sem área de atuação. O total soma todas as linhas, e por isso
+  fecha com a especialidade inteira. O termo "classificação pendente" saiu do app em
+  13/set/2026: o estado se chama "sem área de atuação" em toda tela.
 - **É uma GRADE dentro de um cartão, não uma `<table>`.** A primeira versão usou a
   `moldura()` das outras tabelas do app e veio com o cromo junto: faixa cinza de
   cabeçalho, altura de célula de dado tabular, calha de 12px. Num bloco de oito linhas
@@ -206,12 +206,25 @@ Sutileza a declarar na tela: o recorte é aplicado DENTRO de cada área e depois
 "Qualificado" quer dizer qualificado na própria área, e o degrau "material" é o Pareto
 de 80% de cada área, não da especialidade.
 
-### Etapa 3 · procedimentos transversais [pendente]
+### Etapa 2b · a especialidade no tempo
 
-Procedimentos ordenados por excedente somado, com **em quantas áreas cada um aparece**.
-É a seção que só o Panorama pode dar: dos 259 procedimentos com excedente, 213 estão
-nas duas áreas e carregam **94% do excedente**. Muda a ação — excedente alto nas duas
-áreas é conversa de protocolo, não conversa individual.
+O MESMO bloco de evolução mensal da tela de Área e do dossiê (13/set/2026), na mesma
+posição (depois das principais oportunidades): barra por mês com o custo das
+solicitações, somado sobre as áreas em cena, e a faixa de fechamento por trimestre com
+o excedente apurado, somado sobre os cooperados dessas áreas. Segue o recorte de áreas
+da tela, e por isso os trimestres somam o mesmo excedente da linha de total do extrato
+(cobrado pelo smoke). Motor: `api._evolucao_do_panorama`, sobre
+`blocos.somar_custo_mensal` e `blocos.evolucao_da_area`.
+
+### Etapa 3 · onde o excesso se concentra
+
+UM Pareto, com o controle "Agrupar por": **área de atuação**, **cooperado** e
+**procedimento** (13/set/2026; eram dois cartões lado a lado, "Onde o excesso se
+concentra" e "Procedimentos transversais", somando o mesmo total). As três agregações
+somam o excedente da especialidade e usam o mesmo título. Na agregação por procedimento
+cada linha diz **em quantas áreas ele aparece**: excedente alto em mais de uma área é
+conversa de protocolo, não conversa individual. A página não tem rodapé de proveniência
+(mesmo dia): o carimbo segue nas outras telas.
 
 ### Etapa 4 · funil da especialidade [pendente]
 

@@ -29,7 +29,7 @@ import { buscar } from '../lib/api.js';
 import { abrirPagina } from '../lib/pagina.js';
 import { TELAS, comRegua, rotaAtual } from '../lib/rotas.js';
 import { moldura, cabecalho } from '../lib/tabelas.js';
-import { montarLeituraDaArea } from '../blocos/leitura-area.js';
+import { montarLeitura } from '../blocos/leitura-area.js';
 
 /* Mesma disciplina de largura do índice: as numéricas declaram a sua, e a
    coluna que se lê fica com o resto (`.tbl-fixa`). */
@@ -115,7 +115,7 @@ await abrirPagina({
     h.textContent = d.descricao;
     sub.textContent = `Código ${d.codigo}`;
 
-    montarLeituraDaArea(conteudo, d);
+    montarLeitura(conteudo, d);
 
     // ── as réguas lado a lado ────────────────────────────────────────────
     tabela(conteudo, {

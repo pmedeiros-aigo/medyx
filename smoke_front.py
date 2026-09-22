@@ -130,14 +130,18 @@ def main() -> int:
         # SOLICITAÇÕES excedentes embaixo — duas grandezas, dois degraus, lado a
         # lado como se fossem comparáveis —, e o custo excedente numa faixa de
         # destaque abaixo da grade, longe do total de que ele é a parte.
+        # PRONTO SOCORRO é o quinto grupo desde set/2026 (Lei 5: contado, não
+        # medido), e os totais dos vizinhos passaram a se chamar "eletivo"
         checar("os grupos da Leitura, na ordem",
                pg.locator(".res-grupo-t").all_inner_texts(),
-               ["COOPERADOS", "MÉDIAS POR CONSULTA", "SOLICITAÇÕES", "CUSTO"])
-        checar("e o par total/excedente dentro de cada um",
+               ["COOPERADOS", "CONSULTAS", "SOLICITAÇÕES", "CUSTO",
+                "PRONTO SOCORRO"])
+        checar("e o par eletivo/excedente dentro de cada um",
                [[k.inner_text() for k in
                  pg.locator(".res-grupo").nth(i).locator(".res-k").all()]
-                for i in (2, 3)],
-               [["total", "excedentes"], ["total", "excedente"]])
+                for i in (2, 3, 4)],
+               [["eletivas", "excedentes"], ["eletivo", "excedente"],
+                ["consultas", "custo"]])
         checar("a faixa de destaque não existe mais",
                pg.locator(".res-destaque").count(), 0)
 
@@ -175,8 +179,9 @@ def main() -> int:
         # mesmo componente — e era essa vizinhança que fazia o filtro de perfil
         # ler como uma segunda régua. Sobrou o Recorte, que é a régua de verdade.
         checar("só o Recorte na faixa", pg.locator(".pf-trig").count(), 1)
+        # 48 comparáveis na régua de 30 dias com piso 60 (eram 45 na de 60 min)
         checar("gráfico de distribuição tem um ponto por comparável",
-               pg.locator(".plot .pt").count(), 45)
+               pg.locator(".plot .pt").count(), 48)
         vista_grafico(pg, "Concentração")
         # O PARETO FOI PARA DENTRO DAS ABAS DE GRÁFICO (set/2026): Concentração,
         # Distribuição e Quantidade × custo dividem um container e se alternam,
@@ -184,7 +189,7 @@ def main() -> int:
         checar("Concentração é a vista de gráfico padrão",
                pg.locator(".graficos-vistas > .vista-painel.on .tbl-hd .t")
                  .inner_text().startswith("Concentração"), True)
-        checar("tabela de cooperados", pg.locator(".vista-painel tbody tr").count(), 45)
+        checar("tabela de cooperados", pg.locator(".vista-painel tbody tr").count(), 48)
 
         # ── O CARTÃO PREENCHE A FAIXA RESERVADA, NAS TRÊS VISTAS ─────────────
         # A faixa reserva a altura da vista mais alta para a troca de aba não
@@ -259,8 +264,14 @@ def main() -> int:
         # Gabarito de 13/set/2026 (régua anual, apuração trimestral, METODOLOGIA
         # §5.4.1): sem o portão de n mínimo por trimestre, mais pares repetem nos
         # quatro trimestres; persistentes 26 -> 36 e qualificados 15 -> 22.
-        for chave, linhas in (("todos", 55), ("qualificados", 22),
-                              ("persistente", 36), ("comparaveis", 45)):
+        # Classificação v2.1 (13/set/2026, sem a regra do cadastro agregado):
+        # um formador a mais em Ginecologia Geral; persistentes 37, qualificados 21.
+        # RE-BASELINE 15/set/2026 (régua da consulta = 30 dias, piso 60): com o
+        # denominador menor mais cooperados passam o piso e as taxas sobem.
+        # Valores da régua de 60 min: comparáveis 45, persistente 37,
+        # qualificados 21.
+        for chave, linhas in (("todos", 55), ("qualificados", 20),
+                              ("persistente", 35), ("comparaveis", 48)):
             chip(pg, chave).click()
             pg.wait_for_function(
                 "n => document.querySelectorAll('.vista-painel tbody tr').length === n", arg=linhas,
@@ -272,7 +283,7 @@ def main() -> int:
         checar("gráfico recuado no recorte",
                pg.locator(".plot.com-recorte").count(), 1)
         checar("pontos em cena no gráfico = linhas da tabela",
-               pg.locator(".pt-no-recorte").count(), 22)
+               pg.locator(".pt-no-recorte").count(), 20)
 
         # TROCAR A ORDEM DO PARETO não pode levar a faixa de abas junto. Ela mora
         # DENTRO do cartão do gráfico em cena, e o Pareto se redesenha com
@@ -501,6 +512,9 @@ def main() -> int:
                pg.locator(".pano-areas .pa-l").count())
         checar("e o título não promete concentração",
                pg.locator(".pano-areas .pa-hd h3").inner_text(), "Áreas de atuação")
+        # a especialidade no tempo (13/set/2026): o mesmo bloco das outras telas
+        checar("a evolução mensal está no Panorama, com a faixa de trimestres",
+               (pg.locator(".evom").count(), pg.locator(".evom-cel").count() >= 4), (1, True))
         # a Nota Metodológica saiu do app em 13/set/2026: o caminho para ela
         # não existe mais, e a prova é a lateral com 4 destinos (seção 1)
         checar("a Nota Metodológica não está mais na lateral",
@@ -513,7 +527,7 @@ def main() -> int:
         # tela seria inútil sem número.
         abrir(pg, "/procedimentos")
         checar("o índice abre com todos os procedimentos",
-               pg.locator("tbody tr").count(), 883)
+               pg.locator("tbody tr").count(), 919)   # 886 com a marca de PS por caráter; 883 na régua de 60 min
         # Gabarito de 13/set/2026 (referência da especialidade): a RM de abdome
         # superior, medida contra a especialidade nas áreas que não a sustentam,
         # passou à frente do exame de peça anatômica. A célula traz a etiqueta.

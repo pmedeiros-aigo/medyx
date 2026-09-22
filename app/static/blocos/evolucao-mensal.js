@@ -91,6 +91,14 @@ export function montarEvolucaoMensal(destino, d) {
       }
       const barra = el('i', 'evom-barra');
       barra.style.height = `${m.altura_pct}%`;
+      /* O PRONTO SOCORRO é o trecho hachurado no TOPO da barra (Lei 5): a
+         barra inteira é eletivo + PS, e a altura do trecho vem do motor como
+         fração da régua — aqui só se converte em fração da própria barra. */
+      if (m.ps_pct > 0 && m.altura_pct > 0) {
+        const ps = el('b', 'ps');
+        ps.style.height = `${(m.ps_pct / m.altura_pct) * 100}%`;
+        barra.appendChild(ps);
+      }
       /* A dica vem redigida do motor e entra em `title`: `lib/dica.js` o
          intercepta e devolve a ficha do app. Nenhum texto é montado aqui. */
       if (m.tooltip) barra.title = m.tooltip;
@@ -136,7 +144,11 @@ export function montarEvolucaoMensal(destino, d) {
       s.append(el('i', classe), document.createTextNode(texto));
       legenda.appendChild(s);
     };
-    marca('bar-total', 'Custo total do mês');
+    /* a barra cheia é o ELETIVO; o pronto socorro, quando existe, é o trecho
+       hachurado no topo e ganha a própria caixa na legenda */
+    const temPs = d.grupos.some((g) => g.meses.some((m) => (m.ps_pct ?? 0) > 0));
+    marca('bar-total', temPs ? 'Custo eletivo do mês' : 'Custo do mês');
+    if (temPs) marca('bar-ps', 'Pronto socorro do mês');
     if (d.grupos.some((g) => g.trimestre?.exc_barra_pct != null)) {
       /* com parte medida contra a especialidade em algum trimestre, a legenda
          nomeia as duas caixas, cheia e hachurada, como no Pareto e na série */

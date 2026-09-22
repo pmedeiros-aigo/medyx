@@ -1,9 +1,11 @@
-/* blocos/leitura-area.js — o que a tela de área produziu, num bloco.
+/* blocos/leitura-area.js — o que a tela produziu, num bloco.
  *
  * Mesma marcação do "Leitura do caso" do dossiê (`.res-*`), e é de propósito:
- * as duas telas respondem a mesma pergunta em escalas diferentes (a área e um
- * cooperado), e um desenho por escala obrigaria o leitor a reaprender o bloco
- * ao trocar de tela.
+ * as telas respondem a mesma pergunta em escalas diferentes — a especialidade
+ * inteira (Panorama), uma área, um procedimento e um cooperado —, e um desenho
+ * por escala obrigaria o leitor a reaprender o bloco ao trocar de tela. Por
+ * isso o nome da função não carrega escala: quem manda o payload é quem a
+ * define. O arquivo guarda o nome antigo, de quando a área era a única.
  *
  * ── o que ele acrescenta ao que já existe ──────────────────────────────────
  * A faixa de cards dava aos cinco números o mesmo peso: "cooperados no recorte"
@@ -51,10 +53,10 @@ function grupo(g) {
  * Monta o bloco dentro de `destino` e devolve como atualizá-lo no recorte.
  *
  * @param {HTMLElement} destino
- * @param {object} dados  resposta de /api/area/{id}
+ * @param {object} dados  payload da tela, com a chave `leitura`
  * @returns {{atualizar: (leitura: object) => void} | null}
  */
-export function montarLeituraDaArea(destino, dados) {
+export function montarLeitura(destino, dados) {
   if (!dados?.leitura?.grupos?.length) return null;
 
   const cartao = el('div', 'tbl');
