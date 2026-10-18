@@ -8,10 +8,14 @@
  * É uma PORTA, com três números ABSOLUTOS por cooperado (decisão de produto,
  * set/2026): consultas, solicitações e custo total no período. São volumes,
  * não comparações — nenhum passa por régua de área, e por isso podem atravessar
- * as áreas numa lista só e ser ordenados. O que continua fora daqui é tudo que
- * depende de referência (excedente, percentil, posição): isso vive na página
- * do cooperado e na tela de Área, onde há régua. Ordenar por custo total não é
- * ranquear contra os pares; é ordenar uma lista pelo tamanho.
+ * as áreas numa lista só e ser ordenados.
+ *
+ * O "Excesso em R$" entrou em out/2026, a pedido do produto, para ordenar por
+ * ele. É o mesmo número da tabela da tela de Área, já medido contra a
+ * referência da área de cada um: a lista ordena dinheiro, e não compara
+ * réguas. Percentil e posição continuam fora daqui, na página do cooperado e
+ * na tela de Área. Ordenar por custo total não é ranquear contra os pares; é
+ * ordenar uma lista pelo tamanho.
  *
  * Os seletores de Especialidade e Área FILTRAM esta lista, e não navegam: abrem
  * em "Todas" e recortam o que está em cena. É a diferença entre um filtro e uma
@@ -51,6 +55,12 @@ const COLUNAS = [
     def: 'Valor de tudo que foi solicitado no período, a preços de referência '
        + 'internos derivados das contas.',
     valor: (c) => c.custo_total },
+  { nome: 'Excesso em R$', classe: 'col-num-md', direita: true,
+    ordem: 'excedente_reais',
+    def: 'Solicitações a mais que a referência da área do cooperado, valoradas '
+       + 'a preços de referência internos derivados das contas. Vazio quando '
+       + 'não há excesso medido.',
+    valor: (c) => c.excedente_reais },
 ];
 
 /* O escopo escolhido nos seletores do chassi. `null` = "Todas". Vive fora do
@@ -133,6 +143,13 @@ await abrirPagina({
       tr.appendChild(celulaNum(c.consultas_fmt, 'col-num'));
       tr.appendChild(celulaNum(c.solicitacoes_fmt, 'col-num-md'));
       tr.appendChild(celulaNum(c.custo_total_fmt, 'col-num-md'));
+      const exc = celulaNum(c.excedente_reais_fmt, 'col-num-md');
+      if (c.excedente_reais_fmt) {
+        exc.title = c.divisao_excedente
+          ?? 'Valorado a preços de referência internos, até a tabela '
+           + 'contratual da Unimed entrar no pipeline.';
+      }
+      tr.appendChild(exc);
       return tr;
     }
 

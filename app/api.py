@@ -1293,8 +1293,13 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
     Três números ABSOLUTOS por cooperado (decisão de produto, set/2026):
     consultas, solicitações e custo total no período. São volumes, não
     comparações — nenhum passa por régua de área, e por isso podem atravessar
-    as áreas numa lista só. Excedente, percentil e posição continuam onde há
-    régua: a página do cooperado e a tela de Área.
+    as áreas numa lista só.
+
+    O EXCESSO EM R$ entrou em out/2026, a pedido do produto, para ordenar a
+    lista por ele. É o MESMO número da tabela da tela de Área
+    (`casc["excedente_reais_coop"]`), já medido contra a referência da área do
+    próprio cooperado: a lista soma e ordena dinheiro já comparado, nunca
+    compara réguas. Percentil e posição continuam onde há régua.
     """
     r = _rodar(p)
     posicao = r["posicao"].set_index("ID_COOPERADO")
@@ -1306,6 +1311,21 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
         config.Q_CONFUNDIDOR, None, p.criterio, p.referencia,
         p.incluir_ps, confianca=p.confianca)["custo_coop"].set_index("ID_COOPERADO").to_dict("index")
     cls = dados.carregar_classificacao()
+
+    # O excesso em R$ de cada cooperado, área a área, da MESMA cascata (cacheada)
+    # que a tela de Área e o Panorama leem. Área sem referência própria entra
+    # com a especialidade, como lá; o que não tem área de atuação fica de fora,
+    # porque não tem grupo de pares em nível nenhum.
+    exc_reais: dict[str, float] = {}
+    exc_reais_esp: dict[str, float] = {}
+    for a in _areas_resolvidas(r, p.criterio):
+        if a["nome"] == config.AREA_INDEFINIDA:
+            continue
+        casc = _cascata_area(a["nome"], p.janela_ini, p.janela_fim, p.piso,
+                             p.n_minimo, p.criterio, p.referencia,
+                             p.incluir_ps, p.confianca)
+        exc_reais.update(casc["excedente_reais_coop"])
+        exc_reais_esp.update(casc["excedente_reais_coop_especialidade"])
 
     def ordem(id_coop: str) -> tuple:
         """`cooperado_9` antes de `cooperado_10`: ordem alfabética põe o 10 na
@@ -1323,6 +1343,8 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
         itens = int(posicao.loc[id_coop, "total_itens"]) if disponivel else None
         custo = (custo_coop.get(id_coop) or {}).get("valor_total_solicitado")
         custo = None if custo is None or pd.isna(custo) else round(float(custo), 2)
+        excedente = exc_reais.get(id_coop)
+        excedente = round(float(excedente), 2) if excedente else None
         linhas.append({
             "id": id_coop,
             "area": apr.rotulo_exibicao(area),
@@ -1339,6 +1361,13 @@ def cooperados_para_busca(p: ParametrosDep) -> dict[str, Any]:
             # como "não custa nada"
             "custo_total": custo,
             "custo_total_fmt": None if custo is None else blocos.fmt_reais(custo),
+            # vazio (e não zero) quando não há excesso medido com preço: zero
+            # leria como "medido e não passou", que é outra afirmação
+            "excedente_reais": excedente,
+            "excedente_reais_fmt": (None if not excedente
+                                    else blocos.fmt_reais(excedente)),
+            "divisao_excedente": blocos.divisao_por_nivel(
+                excedente, exc_reais_esp.get(id_coop)),
         })
     linhas.sort(key=lambda l: ordem(l["id"]))
     return {"cooperados": linhas, "total": len(linhas),
