@@ -727,9 +727,13 @@ das outras responde: **isto é hábito de alguns, ou é padrão da especialidade
 
 ### Por que esta lista tem número, e a de cooperados não
 
-O índice de cooperados é uma porta sem número nenhum, por regra: ele atravessa os
-peer groups, e coluna ordenável ali convida a ler a lista como ranking, que é a
-comparação proibida.
+O índice de cooperados é uma porta com poucos números: consultas, solicitações e
+custo total (volumes absolutos) e, desde out/2026, o **Excesso em R$**, a pedido do
+produto, para ordenar a lista por ele. É o mesmo valor da tabela da tela de Área
+(`excedente_reais_coop` da cascata), já medido contra a referência da área do próprio
+cooperado: a lista ordena dinheiro, não compara réguas. Por ser número comparado, a
+tela mantém a faixa de critérios, e o valor muda com a régua escolhida. Percentil e
+posição seguem só na tela de Área e no dossiê.
 
 Com procedimento a soma é legítima, e é essa diferença que torna a tela possível: o
 excedente de cada par já foi medido contra a referência da ÁREA daquele cooperado.

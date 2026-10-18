@@ -71,7 +71,8 @@ function ligarTeclado() {
  *   Panorama    escopo · janela · critérios
  *   Área        escopo · janela · critérios
  *   Dossiê              janela · critérios     (a área é ATRIBUTO do cooperado)
- *   Cooperados  escopo · janela                (nenhum número comparado; e ali
+ *   Cooperados  escopo · janela · critérios    (o Excesso em R$ é número
+ *                                              COMPARADO, desde out/2026; e ali
  *                                              o escopo FILTRA a lista em vez
  *                                              de navegar, abrindo em "Todas")
  *   Conta       (nenhum)                      não é tela de análise: não há
@@ -110,7 +111,6 @@ function ajustarControlesDaTela() {
   for (const campo of fora) {
     document.querySelector(`[data-trig="${campo}"]`)?.closest('.fil')?.remove();
   }
-  if (tela === 'cooperados') document.querySelector('[data-critact]')?.closest('.fil')?.remove();
 }
 
 
@@ -177,8 +177,8 @@ export async function montarShell({ aoTrocarArea, escopo } = {}) {
   montarFaixaCriterios(meta);
   montarDialogoCriterios(meta);
   /* DEPOIS de montar, não antes: `montarFaixaCriterios` escreve dentro do
-     `[data-critset]`, que vive no `.critact` que esta função remove. Tirar o
-     controle primeiro fazia a faixa explodir e a tela inteira não subir. */
+     `[data-critset]`, que vive no `.critact`. Tirar um controle antes de
+     montar a faixa fazia ela explodir e a tela inteira não subir. */
   ajustarControlesDaTela();
   ligarTeclado();
   /* Sem `await`: o bloco de conta é contexto do chassi, e a tela não deve
